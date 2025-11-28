@@ -16,9 +16,22 @@ const useAuthStore = create(
           const storedUser = localStorage.getItem('user')
 
           if (storedToken && storedUser) {
+            // Safely parse user data
+            let userData = null
+            try {
+              userData = JSON.parse(storedUser)
+            } catch (parseError) {
+              console.warn('Failed to parse user data from localStorage:', parseError)
+              // Clear invalid data
+              localStorage.removeItem('user')
+              localStorage.removeItem('token')
+              set({ isLoading: false })
+              return
+            }
+            
             set({
               token: storedToken,
-              user: JSON.parse(storedUser),
+              user: userData,
               isAuthenticated: true,
               isLoading: false
             })
@@ -27,6 +40,13 @@ const useAuthStore = create(
           }
         } catch (error) {
           console.error('Auth initialization error:', error)
+          // Clear potentially corrupted data
+          try {
+            localStorage.removeItem('token')
+            localStorage.removeItem('user')
+          } catch (clearError) {
+            console.error('Error clearing localStorage:', clearError)
+          }
           set({ isLoading: false })
         }
       },

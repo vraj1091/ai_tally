@@ -17,23 +17,37 @@ const ProfessionalLayout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Check Tally connection status
+  // Check Tally connection status - with error handling to prevent console spam
   useEffect(() => {
     const checkTallyStatus = async () => {
       try {
         const status = await tallyApi.getStatus();
-        setTallyStatus({
-          connected: status.connected,
-          lastSync: status.last_sync ? new Date(status.last_sync).toLocaleTimeString() : null
-        });
+        if (status && status.connected !== undefined) {
+          setTallyStatus({
+            connected: status.connected || status.is_connected || false,
+            lastSync: status.last_sync ? new Date(status.last_sync).toLocaleTimeString() : null
+          });
+        }
       } catch (error) {
+        // Silently handle errors - don't spam console
+        // Only log if it's not a 404 (which is expected when backend is not available)
+        if (error.response?.status !== 404) {
+          console.debug('Tally status check failed (non-critical):', error.message);
+        }
         setTallyStatus({ connected: false, lastSync: null });
       }
     };
 
-    checkTallyStatus();
-    const interval = setInterval(checkTallyStatus, 30000); // Check every 30 seconds
-    return () => clearInterval(interval);
+    // Initial check with delay to avoid blocking page load
+    const timeoutId = setTimeout(checkTallyStatus, 1000);
+    
+    // Then check every 30 seconds
+    const interval = setInterval(checkTallyStatus, 30000);
+    
+    return () => {
+      clearTimeout(timeoutId);
+      clearInterval(interval);
+    };
   }, []);
 
   const handleLogout = () => {

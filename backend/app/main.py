@@ -178,12 +178,23 @@ app = FastAPI(
     redoc_url="/redoc"
 )
 
+# Enhanced CORS configuration for production
+cors_origins = Config.CORS_ORIGINS.copy()
+# Remove wildcards and add specific Render domain
+cors_origins = [origin for origin in cors_origins if "*" not in origin]
+# Add Render frontend URL explicitly
+if "https://ai-tally-frontend.onrender.com" not in cors_origins:
+    cors_origins.append("https://ai-tally-frontend.onrender.com")
+
+logger.info(f"CORS Origins configured: {cors_origins}")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=Config.CORS_ORIGINS,
+    allow_origins=cors_origins,  # FastAPI doesn't support wildcards, use explicit origins
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 # Configure max body size for large file uploads (100 MB)

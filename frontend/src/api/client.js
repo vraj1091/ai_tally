@@ -1,10 +1,38 @@
 import axios from 'axios'
 
 // Get API URL from environment variable or use default
-const API_URL = import.meta.env.VITE_API_URL || '/api'
+// In production (Render), this should be set to Hugging Face backend URL
+// In development, use /api for Vite proxy
+const getApiUrl = () => {
+  // Check if we're in production (deployed on Render)
+  const isProduction = window.location.hostname.includes('onrender.com') || 
+                       window.location.hostname.includes('render.com')
+  
+  // If VITE_API_URL is explicitly set, use it
+  if (import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL
+  }
+  
+  // In production, default to Hugging Face backend
+  if (isProduction) {
+    // Default Hugging Face backend URL - update this with your actual HF Space URL
+    return 'https://vraj1091-ai-tally-backend.hf.space/api'
+  }
+  
+  // In development, use /api for Vite proxy
+  return '/api'
+}
+
+const API_URL = getApiUrl()
+
+console.log('🌐 API Client initialized:', {
+  baseURL: API_URL,
+  hostname: window.location.hostname,
+  isProduction: window.location.hostname.includes('onrender.com')
+})
 
 const apiClient = axios.create({
-  baseURL: API_URL, // <-- CHANGED
+  baseURL: API_URL,
   timeout: 600000, // 10 minutes for large file uploads and batch processing
   headers: {
     'Content-Type': 'application/json'
@@ -34,7 +62,13 @@ apiClient.interceptors.response.use(
   (error) => {
     if (error.response) {
       // Server responded with error
-      console.error('API Error:', error.response.data)
+      // Don't log 404s for status checks (expected when backend unavailable)
+      const isStatusCheck = error.config?.url?.includes('/tally/status') || 
+                           error.config?.url?.includes('/backup/companies')
+      
+      if (!isStatusCheck || error.response.status !== 404) {
+        console.error('API Error:', error.response.status, error.response.data)
+      }
 
       // Handle 401 Unauthorized (token expired or invalid)
       if (error.response.status === 401) {
@@ -60,9 +94,18 @@ apiClient.interceptors.response.use(
       if (error.response.status === 500) {
         console.error('Internal server error')
       }
+      
+      // Handle 404 - don't spam console for expected 404s
+      if (error.response.status === 404 && isStatusCheck) {
+        // Silently handle - these are expected when backend is not available
+        return Promise.reject(error)
+      }
     } else if (error.request) {
-      // Request made but no response
-      console.error('Network Error:', error.request)
+      // Request made but no response - network error
+      const isStatusCheck = error.config?.url?.includes('/tally/status')
+      if (!isStatusCheck) {
+        console.error('Network Error:', error.request)
+      }
     } else {
       // Something else happened
       console.error('Error:', error.message)

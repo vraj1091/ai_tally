@@ -76,10 +76,19 @@ class Config:
     # ===== CORS CONFIGURATION =====
     CORS_ORIGINS_STR = os.getenv(
         "CORS_ORIGINS",
-        "http://localhost:5173,http://localhost:3000"
+        "http://localhost:5173,http://localhost:3000,https://ai-tally-frontend.onrender.com,https://*.onrender.com"
     )
     # Split and clean CORS origins
     CORS_ORIGINS = [origin.strip() for origin in CORS_ORIGINS_STR.split(",") if origin.strip()]
+    
+    # Add wildcard support for Render domains
+    if "https://*.onrender.com" in CORS_ORIGINS:
+        CORS_ORIGINS.remove("https://*.onrender.com")
+        # Add common Render patterns
+        CORS_ORIGINS.extend([
+            "https://ai-tally-frontend.onrender.com",
+            "https://*.onrender.com"
+        ])
     
     # ===== LOGGING =====
     LOG_LEVEL = os.getenv("LOG_LEVEL", "INFO")

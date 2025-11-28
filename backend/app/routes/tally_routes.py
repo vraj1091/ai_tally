@@ -204,6 +204,7 @@ async def get_tally_status(
 ):
     """
     Get Tally connection status using user's configured connection
+    Returns status even if not connected (for backup mode support)
     """
     try:
         logger.info(f"📡 STATUS CHECK for user: {current_user.email}")
@@ -218,10 +219,15 @@ async def get_tally_status(
             logger.info(f"   Found configured connection: {connection_url}")
             logger.info(f"   Connection type: {connection.connection_type.value}")
             
-            connected = tally_service.check_connection()
-            logger.info(f"   Connection test result: {connected}")
+            # Don't fail if connection test fails - return status anyway
+            try:
+                connected = tally_service.check_connection()
+                logger.info(f"   Connection test result: {connected}")
+            except Exception as conn_error:
+                logger.warning(f"   Connection test failed (non-critical): {conn_error}")
+                connected = False
             
-            message = "Connected to Tally" if connected else "Cannot connect to Tally - ensure Tally is running and Gateway is enabled"
+            message = "Connected to Tally" if connected else "Tally not connected - using backup/cached data"
             
             return {
                 "success": True,
@@ -233,12 +239,19 @@ async def get_tally_status(
                 "tally_url": connection_url
             }
         else:
-            # No configured connection, try localhost as fallback
-            logger.info("   No configured connection found, trying localhost...")
-            from app.services.custom_tally_connector import CustomTallyConnector
-            connector = CustomTallyConnector()
-            connected, message = connector.test_connection()
-            logger.info(f"   Localhost connection result: {connected}")
+            # No configured connection - this is OK for backup mode
+            logger.info("   No configured connection found - OK for backup mode")
+            
+            # Try localhost as fallback, but don't fail if it doesn't work
+            try:
+                from app.services.custom_tally_connector import CustomTallyConnector
+                connector = CustomTallyConnector()
+                connected, message = connector.test_connection()
+                logger.info(f"   Localhost connection result: {connected}")
+            except Exception as conn_error:
+                logger.info(f"   Localhost connection test skipped: {conn_error}")
+                connected = False
+                message = "Tally not connected - use backup file mode"
             
             return {
                 "success": True,
@@ -251,11 +264,12 @@ async def get_tally_status(
             }
     except Exception as e:
         logger.error(f"❌ Error checking Tally status: {e}", exc_info=True)
+        # Return success=False but don't raise exception - allow frontend to handle gracefully
         return {
             "success": False,
             "connected": False,
             "is_connected": False,
-            "message": f"Error: {str(e)}",
+            "message": f"Status check error: {str(e)}",
             "connection_type": "unknown",
             "last_sync": None,
             "tally_url": None

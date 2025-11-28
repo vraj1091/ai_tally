@@ -88,16 +88,37 @@ export const tallyApi = {
     }
   },
 
-  // Get connection status
+  // Get connection status - with graceful error handling
   getStatus: async (tallyUrl = null) => {
     try {
       const params = {}
       if (tallyUrl) params.tally_url = tallyUrl
 
-      const response = await apiClient.get('/tally/status', { params })
+      const response = await apiClient.get('/tally/status', { 
+        params,
+        timeout: 5000  // 5 second timeout - should be fast
+      })
       return response.data
     } catch (error) {
-      throw error
+      // Return default status instead of throwing - allows app to work without Tally
+      if (error.response?.status === 404) {
+        // Endpoint not found - return disconnected status
+        return {
+          success: false,
+          connected: false,
+          is_connected: false,
+          message: "Tally status endpoint not available - using backup mode",
+          connection_type: "unknown"
+        }
+      }
+      // For other errors, return disconnected status
+      return {
+        success: false,
+        connected: false,
+        is_connected: false,
+        message: error.message || "Unable to check Tally status",
+        connection_type: "unknown"
+      }
     }
   },
 
