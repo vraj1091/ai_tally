@@ -27,6 +27,8 @@ export default defineConfig({
     }
   },
   // Ensure public files are copied to dist
-  publicDir: 'public'
+  publicDir: 'public',
+  // Base path for production
+  base: '/'
 })
  
