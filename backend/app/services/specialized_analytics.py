@@ -2532,27 +2532,58 @@ class SpecializedAnalytics:
     # ==================== HELPER FUNCTIONS ====================
     
     def _get_ledger_balance(self, ledger: Dict) -> float:
-        """Robust helper to extract balance from any ledger field"""
+        """Robust helper to extract balance from any ledger field - ENHANCED to find ANY balance"""
         if not ledger:
             return 0.0
         
         # Try all possible balance fields in priority order
-        for field in ['current_balance', 'closing_balance', 'balance', 'opening_balance', 
-                     'BALANCE', 'CLOSINGBALANCE', 'CURRENTBALANCE', 'OPENINGBALANCE']:
+        balance_fields = [
+            'current_balance', 'closing_balance', 'balance', 'opening_balance',
+            'BALANCE', 'CLOSINGBALANCE', 'CURRENTBALANCE', 'OPENINGBALANCE',
+            'Current Balance', 'Closing Balance', 'Opening Balance', 'Balance',
+            'currentbalance', 'closingbalance', 'openingbalance'
+        ]
+        
+        # First pass: try standard fields
+        for field in balance_fields:
             val = ledger.get(field)
             if val is not None and val != '':
                 try:
                     # Handle string values with currency symbols
                     if isinstance(val, str):
-                        cleaned = val.replace('₹', '').replace(',', '').replace('Dr', '').replace('Cr', '').strip()
+                        cleaned = val.replace('₹', '').replace(',', '').replace('Dr', '').replace('Cr', '').replace(' ', '').strip()
                         if cleaned:
                             balance = float(cleaned)
-                            return abs(balance)
+                            if balance > 0:
+                                return abs(balance)
                     else:
                         balance = float(val)
-                        return abs(balance)
+                        if balance > 0:
+                            return abs(balance)
                 except (ValueError, TypeError):
                     continue
+        
+        # Second pass: try ANY field that might contain a balance (case-insensitive search)
+        for key, val in ledger.items():
+            if val is None or val == '':
+                continue
+            key_lower = str(key).lower()
+            # Check if this field name suggests it's a balance field
+            if any(balance_word in key_lower for balance_word in ['balance', 'bal', 'amount', 'value', 'total']):
+                try:
+                    if isinstance(val, str):
+                        cleaned = val.replace('₹', '').replace(',', '').replace('Dr', '').replace('Cr', '').replace(' ', '').strip()
+                        if cleaned:
+                            balance = float(cleaned)
+                            if balance > 0:
+                                return abs(balance)
+                    else:
+                        balance = float(val)
+                        if balance > 0:
+                            return abs(balance)
+                except (ValueError, TypeError):
+                    continue
+        
         return 0.0
     
     def _calculate_revenue(self, ledgers: List[Dict], vouchers: Optional[List[Dict]] = None) -> float:
