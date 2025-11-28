@@ -1911,52 +1911,44 @@ class SpecializedAnalytics:
                 
                 total_revenue = self._calculate_revenue(ledgers, vouchers)
             
-            # Ensure minimum revenue
+            # DO NOT USE PLACEHOLDER - only use real data
             if total_revenue == 0:
-                total_revenue = 100000  # Placeholder
-                logger.warning("Revenue Analysis - Revenue is 0, using placeholder")
+                logger.warning("Revenue Analysis - Revenue is 0, no placeholder used - returning real value")
             
-            # Get income breakdown with fallbacks
+            # Get income breakdown with fallbacks - NO FAKE DATA
             income_breakdown = self._get_income_breakdown(ledgers)
             if not income_breakdown:
                 # Try top revenue sources
                 income_breakdown = self._top_revenue_sources(ledgers, 10)
+            # DO NOT CREATE FAKE INCOME BREAKDOWN - return empty if no real data
             if not income_breakdown:
-                # Create from total revenue
-                income_breakdown = [
-                    {"name": "Sales Revenue", "amount": total_revenue * 0.6},
-                    {"name": "Service Income", "amount": total_revenue * 0.25},
-                    {"name": "Other Income", "amount": total_revenue * 0.15}
-                ]
-                logger.warning("Revenue Analysis - No income breakdown found, creating placeholders")
+                logger.warning("Revenue Analysis - No income breakdown found, returning empty list - no fake data")
+                income_breakdown = []
             
-            # Get top revenue sources with fallbacks
+            # Get top revenue sources with fallbacks - NO FAKE DATA
             top_revenue_sources = self._top_revenue_sources(ledgers, 10)
             if not top_revenue_sources:
                 top_revenue_sources = income_breakdown[:10]
+            # DO NOT CREATE FAKE REVENUE SOURCES - return empty if no real data
             if not top_revenue_sources:
-                top_revenue_sources = [
-                    {"name": "Primary Revenue", "amount": total_revenue * 0.5},
-                    {"name": "Secondary Revenue", "amount": total_revenue * 0.3},
-                    {"name": "Other Revenue", "amount": total_revenue * 0.2}
-                ]
+                logger.warning("Revenue Analysis - No revenue sources found, returning empty list - no fake data")
+                top_revenue_sources = []
             
             # Filter out zero values
             top_revenue_sources = [r for r in top_revenue_sources if r.get('amount', 0) > 0]
             
-            # Get revenue by channel
-            revenue_by_channel = self._sales_by_channel(ledgers)
+            # Get revenue by channel - extract from real data
+            revenue_by_channel = self._sales_by_channel(ledgers, vouchers)
+            # DO NOT CREATE FAKE CHANNEL DATA - return empty if no real data
             if not revenue_by_channel:
-                revenue_by_channel = [
-                    {"name": "Direct Sales", "amount": total_revenue * 0.6},
-                    {"name": "Online", "amount": total_revenue * 0.3},
-                    {"name": "Retail", "amount": total_revenue * 0.1}
-                ]
+                logger.warning("Revenue Analysis - No revenue by channel found, returning empty list - no fake data")
+                revenue_by_channel = []
             
-            # Calculate growth
+            # Calculate growth - use real estimation or 0
             growth_rate = self._estimate_growth(ledgers)
+            # DO NOT USE DEFAULT GROWTH - return 0 if no real data
             if growth_rate == 0:
-                growth_rate = 12.0  # Default growth
+                logger.warning("Revenue Analysis - Growth rate is 0, no default used")
             
             logger.info(f"Revenue Analysis - Final: total_revenue={total_revenue}, income_streams={len(income_breakdown)}, top_sources={len(top_revenue_sources)}")
             
@@ -2169,10 +2161,9 @@ class SpecializedAnalytics:
                     is_estimated = True  # Mark as estimated since we don't have actual today's data
                     logger.info(f"Real-time Operations - Live data: No today's vouchers found, estimating daily revenue: {revenue_today}")
             
-            # Ensure minimum value
+            # DO NOT USE PLACEHOLDER - only use real calculated values
             if revenue_today == 0:
-                revenue_today = 10000  # Placeholder minimum
-                logger.warning("Real-time Operations - Revenue today is 0, using placeholder")
+                logger.warning("Real-time Operations - Revenue today is 0, no placeholder used - showing actual value")
             
             # Calculate transactions today with fallbacks
             if source == "live" and today_vouchers:
@@ -3906,10 +3897,87 @@ class SpecializedAnalytics:
         return total / count if count > 0 else 0.0
     def _sales_growth(self, vouchers): 
         """Calculate sales growth from real voucher data - returns 0 if no data"""
-        # TODO: Implement real growth calculation from historical vouchers
-        # For now, return 0 instead of fake default
+        if not vouchers or len(vouchers) < 2:
+            return 0.0
+        
+        # Calculate average monthly sales from vouchers
+        # Group vouchers by month and calculate growth
+        monthly_sales = defaultdict(float)
+        
+        for voucher in vouchers:
+            v_date = voucher.get('date')
+            if v_date:
+                try:
+                    if isinstance(v_date, str):
+                        parsed_date = datetime.strptime(v_date.split('T')[0], '%Y-%m-%d')
+                    elif isinstance(v_date, datetime):
+                        parsed_date = v_date
+                    else:
+                        continue
+                    
+                    month_key = f"{parsed_date.year}-{parsed_date.month:02d}"
+                    amount = abs(float(voucher.get('amount', 0) or voucher.get('value', 0) or 0))
+                    if amount > 0:
+                        monthly_sales[month_key] += amount
+                except:
+                    continue
+        
+        if len(monthly_sales) < 2:
+            return 0.0
+        
+        # Calculate growth from last two months
+        sorted_months = sorted(monthly_sales.keys())
+        if len(sorted_months) >= 2:
+            last_month = monthly_sales[sorted_months[-1]]
+            prev_month = monthly_sales[sorted_months[-2]]
+            
+            if prev_month > 0:
+                growth = ((last_month - prev_month) / prev_month) * 100
+                return round(growth, 2)
+        
         return 0.0
-    def _sales_by_channel(self, ledgers): return []
+    def _sales_by_channel(self, ledgers, vouchers=None):
+        """Extract sales by channel from real ledger data"""
+        if not ledgers:
+            return []
+        
+        # Try to extract from revenue ledgers by analyzing names
+        channels = {}
+        revenue_keywords = ['sales', 'income', 'revenue', 'receipt', 'service']
+        
+        for ledger in ledgers:
+            parent = (ledger.get('parent') or '').lower()
+            name = (ledger.get('name') or '').lower()
+            
+            # Check if this is a revenue ledger
+            is_revenue = any(kw in parent for kw in revenue_keywords) or any(kw in name for kw in revenue_keywords)
+            
+            if is_revenue:
+                balance = self._get_ledger_balance(ledger)
+                if balance > 0:
+                    # Try to identify channel from name
+                    channel_name = "Direct Sales"  # Default
+                    if 'online' in name or 'ecommerce' in name or 'web' in name:
+                        channel_name = "Online"
+                    elif 'retail' in name or 'store' in name or 'shop' in name:
+                        channel_name = "Retail"
+                    elif 'wholesale' in name or 'bulk' in name:
+                        channel_name = "Wholesale"
+                    elif 'export' in name:
+                        channel_name = "Export"
+                    elif 'service' in name or 'consulting' in name:
+                        channel_name = "Services"
+                    
+                    if channel_name not in channels:
+                        channels[channel_name] = 0.0
+                    channels[channel_name] += balance
+        
+        # Convert to list format
+        result = [{"name": name, "amount": amount} for name, amount in channels.items() if amount > 0]
+        result.sort(key=lambda x: x['amount'], reverse=True)
+        
+        logger.info(f"_sales_by_channel: Found {len(result)} channels from {len(ledgers)} ledgers")
+        return result
     def _top_customers(self, ledgers, count): 
         """Get top customers from real Tally data - filters out fake names"""
         if not ledgers: 
@@ -4608,10 +4676,20 @@ class SpecializedAnalytics:
     
     # ==================== ADDITIONAL HELPER METHODS ====================
     
-    def _income_breakdown(self, ledgers): 
+    def _get_income_breakdown(self, ledgers): 
+        """Get income breakdown - alias for top revenue sources"""
         return self._top_revenue_sources(ledgers, 10)
     
+    def _income_breakdown(self, ledgers): 
+        """Get income breakdown - alias for top revenue sources"""
+        return self._top_revenue_sources(ledgers, 10)
+    
+    def _get_expense_breakdown(self, ledgers): 
+        """Get expense breakdown - alias for top expenses"""
+        return self._top_expenses(ledgers, 10)
+    
     def _expense_breakdown(self, ledgers): 
+        """Get expense breakdown - alias for top expenses"""
         return self._top_expenses(ledgers, 10)
     
     def _current_assets(self, ledgers): 
