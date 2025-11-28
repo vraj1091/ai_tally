@@ -1,0 +1,12 @@
+# Render.com Frontend Deployment Configuration
+services:
+  - type: web
+    name: ai-tally-frontend
+    env: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://your-backend-space.hf.space
+        # Update this with your Hugging Face backend URL after deployment
+

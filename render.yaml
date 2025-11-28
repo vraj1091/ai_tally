@@ -1,0 +1,32 @@
+# Render.com Blueprint Configuration
+services:
+  # Backend API Service
+  - type: web
+    name: ai-tally-backend
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: TALLY_HOST
+        value: localhost
+      - key: TALLY_PORT
+        value: 9000
+      - key: OLLAMA_BASE_URL
+        value: http://localhost:11434
+      - key: DB_URL
+        value: sqlite:///./database.db
+      - key: DEBUG
+        value: False
+      - key: CORS_ORIGINS
+        value: https://ai-tally-frontend.onrender.com
+
+  # Frontend Static Site
+  - type: web
+    name: ai-tally-frontend
+    env: static
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    envVars:
+      - key: VITE_API_URL
+        value: https://ai-tally-backend.onrender.com
+
