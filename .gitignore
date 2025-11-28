@@ -36,6 +36,12 @@ env/
 *.db
 *.sqlite
 *.sqlite3
+*.db.backup
+
+# Large XML files
+*_data_*.xml
+00_*.xml
+tally_data_*.xml
 
 # Logs
 logs/
