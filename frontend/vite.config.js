@@ -25,6 +25,8 @@ export default defineConfig({
         }
       }
     }
-  }
+  },
+  // Ensure public files are copied to dist
+  publicDir: 'public'
 })
  
