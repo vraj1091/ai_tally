@@ -5,8 +5,7 @@ services:
     env: static
     buildCommand: npm install && npm run build
     staticPublishPath: dist
+    rootDir: frontend
     envVars:
       - key: VITE_API_URL
-        value: https://your-backend-space.hf.space
-        # Update this with your Hugging Face backend URL after deployment
-
+        value: https://vraj1091-ai-tally-backend.hf.space
