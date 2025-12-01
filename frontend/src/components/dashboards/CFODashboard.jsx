@@ -242,15 +242,15 @@ const CFODashboard = ({ dataSource = 'live' }) => {
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Profitability Analysis</h3>
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={[
-              { name: 'Gross Profit', value: profitability.gross_profit || 0 },
-              { name: 'Operating Profit', value: profitability.operating_profit || 0 },
-              { name: 'Net Profit', value: profitability.net_profit || 0 },
-              { name: 'EBITDA', value: profitability.ebitda || 0 }
+              { name: 'Gross Profit', value: Math.abs(profitability.gross_profit || 0) },
+              { name: 'Operating Profit', value: Math.abs(profitability.operating_profit || 0) },
+              { name: 'Net Profit', value: Math.abs(profitability.net_profit || 0) },
+              { name: 'EBITDA', value: Math.abs(profitability.ebitda || 0) }
             ]}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="name" tick={{ fontSize: 11 }} angle={-15} textAnchor="end" height={80} />
-              <YAxis tick={{ fontSize: 11 }} tickFormatter={(val) => formatCurrency(val)} />
-              <Tooltip formatter={(val) => formatCurrency(val)} />
+              <YAxis tick={{ fontSize: 11 }} tickFormatter={(val) => formatCurrency(Math.abs(val))} />
+              <Tooltip formatter={(val) => formatCurrency(Math.abs(val))} />
               <Bar dataKey="value" fill="#10b981" radius={[8, 8, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>

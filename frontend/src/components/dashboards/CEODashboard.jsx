@@ -264,7 +264,7 @@ const CEODashboard = ({ dataSource = 'live' }) => {
                 </div>
               ) : null}
               <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={topRevenue}>
+                <BarChart data={topRevenue.map(item => ({ ...item, amount: Math.abs(item.amount || 0) }))}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                   <XAxis 
                     dataKey="name" 
@@ -273,8 +273,8 @@ const CEODashboard = ({ dataSource = 'live' }) => {
                     textAnchor={topRevenue.length > 3 ? "end" : "middle"} 
                     height={topRevenue.length > 3 ? 100 : 60} 
                   />
-                  <YAxis tick={{ fontSize: 11 }} tickFormatter={(val) => formatCurrency(val)} />
-                  <Tooltip formatter={(val) => formatCurrency(val)} />
+                  <YAxis tick={{ fontSize: 11 }} tickFormatter={(val) => formatCurrency(Math.abs(val))} />
+                  <Tooltip formatter={(val) => formatCurrency(Math.abs(val))} />
                   <Bar dataKey="amount" fill="#3b82f6" radius={[8, 8, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
@@ -316,7 +316,7 @@ const CEODashboard = ({ dataSource = 'live' }) => {
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
                   <Pie
-                    data={topExpenses}
+                    data={topExpenses.map(item => ({ ...item, amount: Math.abs(item.amount || 0) }))}
                     cx="50%"
                     cy="50%"
                     labelLine={false}
@@ -332,7 +332,7 @@ const CEODashboard = ({ dataSource = 'live' }) => {
                       <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
-                  <Tooltip formatter={(val) => formatCurrency(val)} />
+                  <Tooltip formatter={(val) => formatCurrency(Math.abs(val))} />
                 </PieChart>
               </ResponsiveContainer>
               {/* Show list if only 1-2 items */}
