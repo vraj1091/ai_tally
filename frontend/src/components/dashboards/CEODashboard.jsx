@@ -52,11 +52,24 @@ const CEODashboard = ({ dataSource = 'live' }) => {
       }
       const companyList = response.companies || [];
       console.log(`CEO Dashboard - Loaded ${companyList.length} companies from ${dataSource}:`, companyList);
-      setCompanies(companyList);
-      if (companyList.length > 0) {
-        const firstCompany = companyList[0].name;
-        console.log(`CEO Dashboard - Setting selected company to: ${firstCompany}`);
-        setSelectedCompany(firstCompany);
+      
+      // Normalize company list - handle both string and object formats
+      const normalizedCompanies = companyList.map(company => {
+        if (typeof company === 'string') {
+          return { name: company };
+        }
+        return company;
+      });
+      setCompanies(normalizedCompanies);
+      
+      if (normalizedCompanies.length > 0) {
+        const firstCompany = normalizedCompanies[0];
+        const companyName = firstCompany.name || firstCompany;
+        console.log(`CEO Dashboard - Setting selected company to: "${companyName}"`);
+        // Use setTimeout to ensure state update happens before useEffect triggers
+        setTimeout(() => {
+          setSelectedCompany(companyName);
+        }, 50);
       } else {
         // Clear selected company if no companies found
         console.log('CEO Dashboard - No companies found, clearing selection');
