@@ -29,6 +29,7 @@ const CFODashboard = ({ dataSource = 'live' }) => {
 
   const loadCompanies = async () => {
     try {
+      setLoading(true);
       let response;
       if (dataSource === 'backup') {
         response = await tallyApi.getBackupCompanies();
@@ -39,21 +40,50 @@ const CFODashboard = ({ dataSource = 'live' }) => {
       setCompanies(companyList);
       if (companyList.length > 0) {
         setSelectedCompany(companyList[0].name);
+      } else {
+        setSelectedCompany('');
+        setCfoData(null);
       }
+      setLoading(false);
     } catch (error) {
-      toast.error(`Failed to load companies from ${dataSource}`);
+      console.error(`Failed to load companies from ${dataSource}:`, error);
+      setCompanies([]);
+      setSelectedCompany('');
+      setCfoData(null);
+      if (dataSource === 'live') {
+        toast.error(`Failed to load companies from ${dataSource}`);
+      }
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    if (selectedCompany && companies.length > 0) {
+      loadCFOData();
+    } else if (!selectedCompany) {
+      setCfoData(null);
+    }
+  }, [selectedCompany, dataSource, companies.length]);
+
   const loadCFOData = async () => {
+    if (!selectedCompany) {
+      setCfoData(null);
+      return;
+    }
+    
     setLoading(true);
     try {
-      const response = await apiClient.get(`/dashboards/cfo/${encodeURIComponent(selectedCompany)}?source=${dataSource}`);
+      const currentSource = dataSource || 'live';
+      const response = await apiClient.get(`/dashboards/cfo/${encodeURIComponent(selectedCompany)}?source=${currentSource}`);
       setCfoData(response.data.data);
     } catch (error) {
       console.error('Error loading CFO data:', error);
-      toast.error('Failed to load CFO dashboard data');
+      if (error.response?.status === 401 && dataSource === 'live') {
+        toast.error('Authentication required for live data. Please login or use backup data.');
+      } else {
+        toast.error('Failed to load CFO dashboard data');
+      }
+      setCfoData(null);
     } finally {
       setLoading(false);
     }

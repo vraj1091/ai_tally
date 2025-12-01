@@ -23,13 +23,18 @@ const CEODashboard = ({ dataSource = 'live' }) => {
   }, [dataSource]);
 
   useEffect(() => {
-    if (selectedCompany) {
+    // Only load data if we have a selected company AND it matches the current data source
+    if (selectedCompany && companies.length > 0) {
       loadCEOData();
+    } else if (!selectedCompany) {
+      // Clear data if no company selected
+      setCeoData(null);
     }
-  }, [selectedCompany, dataSource]);
+  }, [selectedCompany, dataSource, companies.length]);
 
   const loadCompanies = async () => {
     try {
+      setLoading(true);
       let response;
       if (dataSource === 'backup') {
         response = await tallyApi.getBackupCompanies();
@@ -40,17 +45,36 @@ const CEODashboard = ({ dataSource = 'live' }) => {
       setCompanies(companyList);
       if (companyList.length > 0) {
         setSelectedCompany(companyList[0].name);
+      } else {
+        // Clear selected company if no companies found
+        setSelectedCompany('');
+        setCeoData(null);
       }
+      setLoading(false);
     } catch (error) {
-      toast.error(`Failed to load companies from ${dataSource}`);
+      console.error(`Failed to load companies from ${dataSource}:`, error);
+      setCompanies([]);
+      setSelectedCompany('');
+      setCeoData(null);
+      // Only show error for live mode (backup mode can be empty)
+      if (dataSource === 'live') {
+        toast.error(`Failed to load companies from ${dataSource}`);
+      }
       setLoading(false);
     }
   };
 
   const loadCEOData = async () => {
+    if (!selectedCompany) {
+      setCeoData(null);
+      return;
+    }
+    
     setLoading(true);
     try {
-      const response = await apiClient.get(`/dashboards/ceo/${encodeURIComponent(selectedCompany)}?source=${dataSource}`);
+      // Ensure we use the current dataSource (not a stale closure value)
+      const currentSource = dataSource || 'live';
+      const response = await apiClient.get(`/dashboards/ceo/${encodeURIComponent(selectedCompany)}?source=${currentSource}`);
       console.log('CEO Dashboard Response:', response.data);
       console.log('CEO Data:', response.data.data);
       console.log('Top Revenue Sources:', response.data.data?.top_5_revenue_sources);
@@ -58,7 +82,12 @@ const CEODashboard = ({ dataSource = 'live' }) => {
       setCeoData(response.data.data);
     } catch (error) {
       console.error('Error loading CEO data:', error);
-      toast.error('Failed to load CEO dashboard data');
+      if (error.response?.status === 401 && dataSource === 'live') {
+        toast.error('Authentication required for live data. Please login or use backup data.');
+      } else {
+        toast.error('Failed to load CEO dashboard data');
+      }
+      setCeoData(null);
     } finally {
       setLoading(false);
     }
