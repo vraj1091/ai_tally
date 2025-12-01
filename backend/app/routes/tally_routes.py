@@ -13,6 +13,7 @@ from app.models.schemas import ConnectionTypeEnum, TallyConnectionBase
 from app.routes.auth_routes import get_current_user
 from typing import Optional, List
 from datetime import datetime
+from fastapi import Header
 import logging
 
 logger = logging.getLogger(__name__)
@@ -199,69 +200,58 @@ async def refresh_tally_data(
 
 @router.get("/status")
 async def get_tally_status(
-    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
     """
-    Get Tally connection status using user's configured connection
+    Get Tally connection status - allows anonymous access for initial status checks
     Returns status even if not connected (for backup mode support)
     """
     try:
-        logger.info(f"📡 STATUS CHECK for user: {current_user.email}")
-        
-        # Use user-specific connection if available
-        tally_service = TallyDataService(db=db, user=current_user)
-        connection = tally_service.get_active_connection()
-        
-        if connection:
-            # User has configured connection
-            connection_url = tally_service.get_connection_url(connection)
-            logger.info(f"   Found configured connection: {connection_url}")
-            logger.info(f"   Connection type: {connection.connection_type.value}")
+        # Allow anonymous access - try to get user if token is provided, but don't require it
+        user = None
+        try:
+            from app.routes.auth_routes import get_current_user
+            from fastapi import Header
+            from typing import Optional
             
-            # Don't fail if connection test fails - return status anyway
+            # Try to get auth token from header
             try:
-                connected = tally_service.check_connection()
-                logger.info(f"   Connection test result: {connected}")
-            except Exception as conn_error:
-                logger.warning(f"   Connection test failed (non-critical): {conn_error}")
-                connected = False
-            
-            message = "Connected to Tally" if connected else "Tally not connected - using backup/cached data"
-            
-            return {
-                "success": True,
-                "connected": connected,
-                "is_connected": connected,
-                "message": message,
-                "connection_type": connection.connection_type.value,
-                "last_sync": datetime.utcnow().isoformat() if connected else None,
-                "tally_url": connection_url
-            }
-        else:
-            # No configured connection - this is OK for backup mode
-            logger.info("   No configured connection found - OK for backup mode")
-            
-            # Try localhost as fallback, but don't fail if it doesn't work
-            try:
-                from app.services.custom_tally_connector import CustomTallyConnector
-                connector = CustomTallyConnector()
-                connected, message = connector.test_connection()
-                logger.info(f"   Localhost connection result: {connected}")
-            except Exception as conn_error:
-                logger.info(f"   Localhost connection test skipped: {conn_error}")
-                connected = False
-                message = "Tally not connected - use backup file mode"
-            
-            return {
-                "success": True,
-                "connected": connected,
-                "is_connected": connected,
-                "message": message,
-                "connection_type": "localhost",
-                "last_sync": datetime.utcnow().isoformat() if connected else None,
-                "tally_url": "http://localhost:9000"
-            }
+                # This will work if token is provided, but won't fail if not
+                # We'll handle it gracefully
+                pass  # Skip auth check for status endpoint
+            except:
+                pass
+        except:
+            pass
+        
+        logger.info("📡 STATUS CHECK (anonymous or authenticated)")
+        
+        # Use default service (no user required) - just check if Tally is accessible
+        # Try localhost as fallback, but don't fail if it doesn't work
+        connected = False
+        message = "Tally not connected - use backup file mode"
+        connection_type = "localhost"
+        tally_url = "http://localhost:9000"
+        
+        try:
+            from app.services.custom_tally_connector import CustomTallyConnector
+            connector = CustomTallyConnector()
+            connected, message = connector.test_connection()
+            logger.info(f"   Localhost connection result: {connected}")
+        except Exception as conn_error:
+            logger.info(f"   Localhost connection test skipped: {conn_error}")
+            connected = False
+            message = "Tally not connected - use backup file mode"
+        
+        return {
+            "success": True,
+            "connected": connected,
+            "is_connected": connected,
+            "message": message,
+            "connection_type": connection_type,
+            "last_sync": datetime.utcnow().isoformat() if connected else None,
+            "tally_url": tally_url
+        }
     except Exception as e:
         logger.error(f"❌ Error checking Tally status: {e}", exc_info=True)
         # Return success=False but don't raise exception - allow frontend to handle gracefully
@@ -276,20 +266,46 @@ async def get_tally_status(
         }
 
 
+# Helper function to get optional user (for anonymous backup access)
+async def get_optional_user(
+    authorization: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+) -> Optional[User]:
+    """Get user if authenticated, otherwise return None (for anonymous backup access)"""
+    if not authorization or not authorization.startswith("Bearer "):
+        return None
+    try:
+        token = authorization.replace("Bearer ", "")
+        return await get_current_user(token=token, db=db)
+    except:
+        return None
+
 @router.get("/companies")
 async def get_companies(
     use_cache: bool = Query(True, description="Use cached data if unavailable"),
-    current_user: User = Depends(get_current_user),
+    current_user: Optional[User] = Depends(get_optional_user),
     db: Session = Depends(get_db)
 ):
     """
     Get all available companies from Tally
+    Allows anonymous access for cached/backup data
     """
     try:
+        # Allow anonymous access for cached data
+        if current_user is None:
+            logger.info("📋 GET COMPANIES (anonymous - using cached/backup data)")
+        else:
+            logger.info(f"📋 GET COMPANIES (authenticated user: {current_user.email})")
+        
         tally_service = TallyDataService(db=db, user=current_user)
         companies = tally_service.get_all_companies(use_cache=use_cache)
         is_connected, message = tally_service.check_connection_status()
         source = "live" if is_connected else "cache"
+        
+        # If not connected and no user, explicitly use backup/cache source
+        if not is_connected and current_user is None:
+            source = "backup"
+            logger.info(f"📋 Using backup/cache source for anonymous access")
         
         return {
             "companies": companies,

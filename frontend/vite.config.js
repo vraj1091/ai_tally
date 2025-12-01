@@ -24,7 +24,9 @@ export default defineConfig({
           'chart-vendor': ['recharts'],
         }
       }
-    }
+    },
+    // Ensure _redirects file is copied to dist
+    copyPublicDir: true
   },
   // Ensure public files are copied to dist
   publicDir: 'public',

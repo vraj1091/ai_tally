@@ -3,3 +3,15 @@
 # Format: source destination [status]
 
 /*    /index.html   200
+
+# Additional routes for React Router
+/login    /index.html   200
+/register    /index.html   200
+/dashboard    /index.html   200
+/dashboards    /index.html   200
+/dashboards/*    /index.html   200
+/analytics    /index.html   200
+/tally    /index.html   200
+/documents    /index.html   200
+/chat    /index.html   200
+/settings    /index.html   200

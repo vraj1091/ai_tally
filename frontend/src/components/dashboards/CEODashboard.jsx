@@ -23,20 +23,22 @@ const CEODashboard = ({ dataSource = 'live' }) => {
   }, [dataSource]);
 
   useEffect(() => {
-    // Only load data if we have a selected company AND companies are loaded
-    if (selectedCompany && companies.length > 0) {
+    // Only load data if we have a selected company
+    if (selectedCompany) {
       console.log(`CEO Dashboard - useEffect triggered: selectedCompany="${selectedCompany}", companies.length=${companies.length}, dataSource=${dataSource}`);
-      // Force loadCEOData to run - don't wait for delay
+      // Force loadCEOData to run
       loadCEOData();
-    } else if (!selectedCompany) {
-      // Clear data if no company selected
-      console.log('CEO Dashboard - No company selected, clearing data');
-      setCeoData(null);
     } else {
-      console.log(`CEO Dashboard - Waiting for company selection. selectedCompany: ${selectedCompany}, companies.length: ${companies.length}`);
+      // Only clear data if we've finished loading companies and still have no selection
+      if (companies.length === 0 && !loading) {
+        console.log('CEO Dashboard - No company selected after loading, clearing data');
+        setCeoData(null);
+      } else {
+        console.log(`CEO Dashboard - Waiting for company selection. selectedCompany: ${selectedCompany}, companies.length: ${companies.length}, loading: ${loading}`);
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedCompany, dataSource, companies.length]);
+  }, [selectedCompany, dataSource]);
 
   const loadCompanies = async () => {
     try {
@@ -47,26 +49,42 @@ const CEODashboard = ({ dataSource = 'live' }) => {
       } else {
         response = await tallyApi.getCompanies();
       }
-      const companyList = response.companies || [];
+      
+      // Handle different response structures
+      let companyList = [];
+      if (response && response.companies) {
+        companyList = Array.isArray(response.companies) ? response.companies : [];
+      } else if (Array.isArray(response)) {
+        companyList = response;
+      } else if (response && response.data && response.data.companies) {
+        companyList = Array.isArray(response.data.companies) ? response.data.companies : [];
+      }
+      
+      console.log(`CEO Dashboard - Raw response:`, response);
       console.log(`CEO Dashboard - Loaded ${companyList.length} companies from ${dataSource}:`, companyList);
       
       // Normalize company list - handle both string and object formats
       const normalizedCompanies = companyList.map(company => {
         if (typeof company === 'string') {
           return { name: company };
+        } else if (company && company.name) {
+          return company;
+        } else if (company && typeof company === 'object') {
+          // Try to extract name from various possible fields
+          return { name: company.name || company.company_name || company.company || String(company) };
         }
-        return company;
+        return { name: String(company) };
       });
+      
+      console.log(`CEO Dashboard - Normalized companies:`, normalizedCompanies);
       setCompanies(normalizedCompanies);
       
       if (normalizedCompanies.length > 0) {
         const firstCompany = normalizedCompanies[0];
         const companyName = firstCompany.name || firstCompany;
         console.log(`CEO Dashboard - Setting selected company to: "${companyName}"`);
-        // Use setTimeout to ensure state update happens before useEffect triggers
-        setTimeout(() => {
-          setSelectedCompany(companyName);
-        }, 50);
+        // Set company immediately - don't use setTimeout to avoid race conditions
+        setSelectedCompany(companyName);
       } else {
         // Clear selected company if no companies found
         console.log('CEO Dashboard - No companies found, clearing selection');
@@ -199,6 +217,11 @@ const CEODashboard = ({ dataSource = 'live' }) => {
   // Extract data (execSummary already declared above)
   const keyMetrics = ceoData.key_metrics || {};
   const performance = ceoData.performance_indicators || {};
+  
+  // Debug logging
+  console.log('CEO Dashboard - Key Metrics:', keyMetrics);
+  console.log('CEO Dashboard - Active Products:', keyMetrics.active_products);
+  console.log('CEO Dashboard - Transaction Volume:', keyMetrics.transaction_volume);
   // CRITICAL: Handle both field name variations and ensure arrays are always arrays
   const topRevenue = (ceoData.top_5_revenue_sources || ceoData.topRevenue || []).filter(item => item && item.amount > 0);
   const topExpenses = (ceoData.top_5_expense_categories || ceoData.topExpenses || []).filter(item => item && item.amount > 0);
