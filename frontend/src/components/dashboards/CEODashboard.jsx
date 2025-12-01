@@ -74,18 +74,46 @@ const CEODashboard = ({ dataSource = 'live' }) => {
     try {
       // Ensure we use the current dataSource (not a stale closure value)
       const currentSource = dataSource || 'live';
-      const response = await apiClient.get(`/dashboards/ceo/${encodeURIComponent(selectedCompany)}?source=${currentSource}`);
+      console.log(`Loading CEO data for company: ${selectedCompany}, source: ${currentSource}`);
+      
+      // Add explicit timeout of 2 minutes for dashboard calculations
+      const response = await apiClient.get(`/dashboards/ceo/${encodeURIComponent(selectedCompany)}?source=${currentSource}`, {
+        timeout: 120000 // 2 minutes for complex calculations
+      });
+      
       console.log('CEO Dashboard Response:', response.data);
       console.log('CEO Data:', response.data.data);
       console.log('Top Revenue Sources:', response.data.data?.top_5_revenue_sources);
       console.log('Key Metrics:', response.data.data?.key_metrics);
-      setCeoData(response.data.data);
+      
+      if (response.data && response.data.data) {
+        setCeoData(response.data.data);
+      } else {
+        console.error('Invalid response structure:', response.data);
+        toast.error('Invalid data received from server');
+        setCeoData(null);
+      }
     } catch (error) {
       console.error('Error loading CEO data:', error);
-      if (error.response?.status === 401 && dataSource === 'live') {
+      console.error('Error details:', {
+        message: error.message,
+        code: error.code,
+        response: error.response?.data,
+        status: error.response?.status
+      });
+      
+      if (error.code === 'ECONNABORTED' || error.message.includes('timeout')) {
+        toast.error('Request timeout - Dashboard calculation is taking too long. Please try again or use a smaller backup file.');
+      } else if (error.response?.status === 401 && dataSource === 'live') {
         toast.error('Authentication required for live data. Please login or use backup data.');
+      } else if (error.response?.status === 404) {
+        toast.error('Dashboard endpoint not found. Please check backend deployment.');
+      } else if (error.response?.status === 500) {
+        toast.error('Server error while calculating dashboard. Please try again.');
+      } else if (!error.response) {
+        toast.error('Network error - Cannot reach backend server. Please check your connection.');
       } else {
-        toast.error('Failed to load CEO dashboard data');
+        toast.error(`Failed to load CEO dashboard data: ${error.response?.data?.detail || error.message}`);
       }
       setCeoData(null);
     } finally {
@@ -146,8 +174,13 @@ const CEODashboard = ({ dataSource = 'live' }) => {
   // Extract data (execSummary already declared above)
   const keyMetrics = ceoData.key_metrics || {};
   const performance = ceoData.performance_indicators || {};
-  const topRevenue = ceoData.top_5_revenue_sources || [];
-  const topExpenses = ceoData.top_5_expense_categories || [];
+  // CRITICAL: Handle both field name variations and ensure arrays are always arrays
+  const topRevenue = (ceoData.top_5_revenue_sources || ceoData.topRevenue || []).filter(item => item && item.amount > 0);
+  const topExpenses = (ceoData.top_5_expense_categories || ceoData.topExpenses || []).filter(item => item && item.amount > 0);
+  
+  // Log for debugging
+  console.log('CEO Dashboard - Top Revenue Sources:', topRevenue);
+  console.log('CEO Dashboard - Top Expense Categories:', topExpenses);
 
   return (
     <div className="space-y-6">
