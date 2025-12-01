@@ -26,12 +26,8 @@ const CEODashboard = ({ dataSource = 'live' }) => {
     // Only load data if we have a selected company AND companies are loaded
     if (selectedCompany && companies.length > 0) {
       console.log(`CEO Dashboard - useEffect triggered: selectedCompany="${selectedCompany}", companies.length=${companies.length}, dataSource=${dataSource}`);
-      // Add a small delay to ensure state is fully updated
-      const timer = setTimeout(() => {
-        console.log(`CEO Dashboard - Executing loadCEOData after delay`);
-        loadCEOData();
-      }, 100);
-      return () => clearTimeout(timer);
+      // Force loadCEOData to run - don't wait for delay
+      loadCEOData();
     } else if (!selectedCompany) {
       // Clear data if no company selected
       console.log('CEO Dashboard - No company selected, clearing data');
@@ -39,6 +35,7 @@ const CEODashboard = ({ dataSource = 'live' }) => {
     } else {
       console.log(`CEO Dashboard - Waiting for company selection. selectedCompany: ${selectedCompany}, companies.length: ${companies.length}`);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedCompany, dataSource, companies.length]);
 
   const loadCompanies = async () => {
