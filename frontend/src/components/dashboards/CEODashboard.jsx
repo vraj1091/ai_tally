@@ -210,33 +210,33 @@ const CEODashboard = ({ dataSource = 'live' }) => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">CEO Dashboard</h2>
-          <p className="text-gray-600 mt-1">Executive Overview & Strategic Insights</p>
+          <h2 className="text-xl sm:text-2xl font-bold text-gray-900">CEO Dashboard</h2>
+          <p className="text-sm sm:text-base text-gray-600 mt-1">Executive Overview & Strategic Insights</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
           <select
             value={selectedCompany}
             onChange={(e) => setSelectedCompany(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base w-full sm:w-auto"
           >
             {companies.map((company, idx) => (
-              <option key={idx} value={company.name}>{company.name}</option>
+              <option key={idx} value={company.name || company}>{company.name || company}</option>
             ))}
           </select>
           <button
             onClick={loadCEOData}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
+            className="px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center justify-center gap-2 text-sm sm:text-base"
           >
             <FiRefreshCw className="w-4 h-4" />
-            Refresh
+            <span className="hidden sm:inline">Refresh</span>
           </button>
         </div>
       </div>
 
       {/* Executive KPI Cards - UNIQUE TO CEO */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl shadow-lg p-6 text-white">
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-medium opacity-90">Total Revenue</p>
