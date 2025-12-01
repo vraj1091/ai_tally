@@ -23,12 +23,16 @@ const CEODashboard = ({ dataSource = 'live' }) => {
   }, [dataSource]);
 
   useEffect(() => {
-    // Only load data if we have a selected company AND it matches the current data source
+    // Only load data if we have a selected company AND companies are loaded
     if (selectedCompany && companies.length > 0) {
+      console.log(`CEO Dashboard - Triggering loadCEOData for: ${selectedCompany}, source: ${dataSource}`);
       loadCEOData();
     } else if (!selectedCompany) {
       // Clear data if no company selected
+      console.log('CEO Dashboard - No company selected, clearing data');
       setCeoData(null);
+    } else {
+      console.log(`CEO Dashboard - Waiting for company selection. selectedCompany: ${selectedCompany}, companies.length: ${companies.length}`);
     }
   }, [selectedCompany, dataSource, companies.length]);
 
@@ -76,9 +80,11 @@ const CEODashboard = ({ dataSource = 'live' }) => {
       const currentSource = dataSource || 'live';
       console.log(`Loading CEO data for company: ${selectedCompany}, source: ${currentSource}`);
       
-      // Add explicit timeout of 2 minutes for dashboard calculations
-      const response = await apiClient.get(`/dashboards/ceo/${encodeURIComponent(selectedCompany)}?source=${currentSource}`, {
-        timeout: 120000 // 2 minutes for complex calculations
+      // Add explicit timeout of 3 minutes for dashboard calculations (increased for large backup files)
+      const apiUrl = `/dashboards/ceo/${encodeURIComponent(selectedCompany)}?source=${currentSource}`;
+      console.log(`CEO Dashboard - Making API call to: ${apiUrl}`);
+      const response = await apiClient.get(apiUrl, {
+        timeout: 180000 // 3 minutes for complex calculations with large backup files
       });
       
       console.log('CEO Dashboard Response:', response.data);
