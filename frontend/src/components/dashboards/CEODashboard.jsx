@@ -46,11 +46,15 @@ const CEODashboard = ({ dataSource = 'live' }) => {
         response = await tallyApi.getCompanies();
       }
       const companyList = response.companies || [];
+      console.log(`CEO Dashboard - Loaded ${companyList.length} companies from ${dataSource}:`, companyList);
       setCompanies(companyList);
       if (companyList.length > 0) {
-        setSelectedCompany(companyList[0].name);
+        const firstCompany = companyList[0].name;
+        console.log(`CEO Dashboard - Setting selected company to: ${firstCompany}`);
+        setSelectedCompany(firstCompany);
       } else {
         // Clear selected company if no companies found
+        console.log('CEO Dashboard - No companies found, clearing selection');
         setSelectedCompany('');
         setCeoData(null);
       }
