@@ -21,14 +21,10 @@ const CustomerAnalyticsDashboard = ({ dataSource = 'live' }) => {
     loadCompanies();
   }, [dataSource]);
 
-  useEffect(() => {
-    if (selectedCompany) {
-      loadCustomerData();
-    }
-  }, [selectedCompany, dataSource]);
 
   const loadCompanies = async () => {
     try {
+      setLoading(true);
       let response;
       if (dataSource === 'backup') {
         response = await tallyApi.getBackupCompanies();
@@ -39,21 +35,50 @@ const CustomerAnalyticsDashboard = ({ dataSource = 'live' }) => {
       setCompanies(companyList);
       if (companyList.length > 0) {
         setSelectedCompany(companyList[0].name);
+      } else {
+        setSelectedCompany('');
+        setCustomerData(null);
       }
+      setLoading(false);
     } catch (error) {
-      toast.error(`Failed to load companies from ${dataSource}`);
+      console.error(`Failed to load companies from ${dataSource}:`, error);
+      setCompanies([]);
+      setSelectedCompany('');
+      setCustomerData(null);
+      if (dataSource === 'live') {
+        toast.error(`Failed to load companies from ${dataSource}`);
+      }
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    if (selectedCompany && companies.length > 0) {
+      loadCustomerData();
+    } else if (!selectedCompany) {
+      setCustomerData(null);
+    }
+  }, [selectedCompany, dataSource, companies.length]);
+
   const loadCustomerData = async () => {
+    if (!selectedCompany) {
+      setCustomerData(null);
+      return;
+    }
+    
     setLoading(true);
     try {
-      const response = await apiClient.get(`/dashboards/customer-analytics/${encodeURIComponent(selectedCompany)}?source=${dataSource}`);
+      const currentSource = dataSource || 'live';
+      const response = await apiClient.get(`/dashboards/customer-analytics/${encodeURIComponent(selectedCompany)}?source=${currentSource}`);
       setCustomerData(response.data.data);
     } catch (error) {
       console.error('Error loading Customer Analytics data:', error);
-      toast.error('Failed to load Customer Analytics data');
+      if (error.response?.status === 401 && dataSource === 'live') {
+        toast.error('Authentication required for live data. Please login or use backup data.');
+      } else {
+        toast.error('Failed to load Customer Analytics data');
+      }
+      setCustomerData(null);
     } finally {
       setLoading(false);
     }

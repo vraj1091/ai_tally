@@ -21,14 +21,10 @@ const ExpenseAnalysisDashboard = ({ dataSource = 'live' }) => {
     loadCompanies();
   }, [dataSource]);
 
-  useEffect(() => {
-    if (selectedCompany) {
-      loadExpenseData();
-    }
-  }, [selectedCompany, dataSource]);
 
   const loadCompanies = async () => {
     try {
+      setLoading(true);
       let response;
       if (dataSource === 'backup') {
         response = await tallyApi.getBackupCompanies();
@@ -39,21 +35,50 @@ const ExpenseAnalysisDashboard = ({ dataSource = 'live' }) => {
       setCompanies(companyList);
       if (companyList.length > 0) {
         setSelectedCompany(companyList[0].name);
+      } else {
+        setSelectedCompany('');
+        setExpenseData(null);
       }
+      setLoading(false);
     } catch (error) {
-      toast.error(`Failed to load companies from ${dataSource}`);
+      console.error(`Failed to load companies from ${dataSource}:`, error);
+      setCompanies([]);
+      setSelectedCompany('');
+      setExpenseData(null);
+      if (dataSource === 'live') {
+        toast.error(`Failed to load companies from ${dataSource}`);
+      }
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    if (selectedCompany && companies.length > 0) {
+      loadExpenseData();
+    } else if (!selectedCompany) {
+      setExpenseData(null);
+    }
+  }, [selectedCompany, dataSource, companies.length]);
+
   const loadExpenseData = async () => {
+    if (!selectedCompany) {
+      setExpenseData(null);
+      return;
+    }
+    
     setLoading(true);
     try {
-      const response = await apiClient.get(`/dashboards/expense-analysis/${encodeURIComponent(selectedCompany)}?source=${dataSource}`);
+      const currentSource = dataSource || 'live';
+      const response = await apiClient.get(`/dashboards/expense-analysis/${encodeURIComponent(selectedCompany)}?source=${currentSource}`);
       setExpenseData(response.data.data);
     } catch (error) {
       console.error('Error loading Expense Analysis data:', error);
-      toast.error('Failed to load Expense Analysis data');
+      if (error.response?.status === 401 && dataSource === 'live') {
+        toast.error('Authentication required for live data. Please login or use backup data.');
+      } else {
+        toast.error('Failed to load Expense Analysis data');
+      }
+      setExpenseData(null);
     } finally {
       setLoading(false);
     }

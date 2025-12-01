@@ -21,14 +21,10 @@ const AccountsReceivableDashboard = ({ dataSource = 'live' }) => {
     loadCompanies();
   }, [dataSource]);
 
-  useEffect(() => {
-    if (selectedCompany) {
-      loadARData();
-    }
-  }, [selectedCompany, dataSource]);
 
   const loadCompanies = async () => {
     try {
+      setLoading(true);
       let response;
       if (dataSource === 'backup') {
         response = await tallyApi.getBackupCompanies();
@@ -39,21 +35,50 @@ const AccountsReceivableDashboard = ({ dataSource = 'live' }) => {
       setCompanies(companyList);
       if (companyList.length > 0) {
         setSelectedCompany(companyList[0].name);
+      } else {
+        setSelectedCompany('');
+        setArData(null);
       }
+      setLoading(false);
     } catch (error) {
-      toast.error(`Failed to load companies from ${dataSource}`);
+      console.error(`Failed to load companies from ${dataSource}:`, error);
+      setCompanies([]);
+      setSelectedCompany('');
+      setArData(null);
+      if (dataSource === 'live') {
+        toast.error(`Failed to load companies from ${dataSource}`);
+      }
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    if (selectedCompany && companies.length > 0) {
+      loadARData();
+    } else if (!selectedCompany) {
+      setArData(null);
+    }
+  }, [selectedCompany, dataSource, companies.length]);
+
   const loadARData = async () => {
+    if (!selectedCompany) {
+      setArData(null);
+      return;
+    }
+    
     setLoading(true);
     try {
-      const response = await apiClient.get(`/dashboards/accounts-receivable/${encodeURIComponent(selectedCompany)}?source=${dataSource}`);
+      const currentSource = dataSource || 'live';
+      const response = await apiClient.get(`/dashboards/accounts-receivable/${encodeURIComponent(selectedCompany)}?source=${currentSource}`);
       setArData(response.data.data);
     } catch (error) {
       console.error('Error loading Accounts Receivable data:', error);
-      toast.error('Failed to load Accounts Receivable data');
+      if (error.response?.status === 401 && dataSource === 'live') {
+        toast.error('Authentication required for live data. Please login or use backup data.');
+      } else {
+        toast.error('Failed to load Accounts Receivable data');
+      }
+      setArData(null);
     } finally {
       setLoading(false);
     }

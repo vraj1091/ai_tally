@@ -21,14 +21,10 @@ const AccountsPayableDashboard = ({ dataSource = 'live' }) => {
     loadCompanies();
   }, [dataSource]);
 
-  useEffect(() => {
-    if (selectedCompany) {
-      loadAPData();
-    }
-  }, [selectedCompany, dataSource]);
 
   const loadCompanies = async () => {
     try {
+      setLoading(true);
       let response;
       if (dataSource === 'backup') {
         response = await tallyApi.getBackupCompanies();
@@ -39,21 +35,50 @@ const AccountsPayableDashboard = ({ dataSource = 'live' }) => {
       setCompanies(companyList);
       if (companyList.length > 0) {
         setSelectedCompany(companyList[0].name);
+      } else {
+        setSelectedCompany('');
+        setApData(null);
       }
+      setLoading(false);
     } catch (error) {
-      toast.error(`Failed to load companies from ${dataSource}`);
+      console.error(`Failed to load companies from ${dataSource}:`, error);
+      setCompanies([]);
+      setSelectedCompany('');
+      setApData(null);
+      if (dataSource === 'live') {
+        toast.error(`Failed to load companies from ${dataSource}`);
+      }
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    if (selectedCompany && companies.length > 0) {
+      loadAPData();
+    } else if (!selectedCompany) {
+      setApData(null);
+    }
+  }, [selectedCompany, dataSource, companies.length]);
+
   const loadAPData = async () => {
+    if (!selectedCompany) {
+      setApData(null);
+      return;
+    }
+    
     setLoading(true);
     try {
-      const response = await apiClient.get(`/dashboards/accounts-payable/${encodeURIComponent(selectedCompany)}?source=${dataSource}`);
+      const currentSource = dataSource || 'live';
+      const response = await apiClient.get(`/dashboards/accounts-payable/${encodeURIComponent(selectedCompany)}?source=${currentSource}`);
       setApData(response.data.data);
     } catch (error) {
       console.error('Error loading Accounts Payable data:', error);
-      toast.error('Failed to load Accounts Payable data');
+      if (error.response?.status === 401 && dataSource === 'live') {
+        toast.error('Authentication required for live data. Please login or use backup data.');
+      } else {
+        toast.error('Failed to load Accounts Payable data');
+      }
+      setApData(null);
     } finally {
       setLoading(false);
     }

@@ -19,21 +19,10 @@ const RealtimeOperationsDashboard = ({ dataSource = 'live' }) => {
     loadCompanies();
   }, [dataSource]);
 
-  useEffect(() => {
-    if (selectedCompany) {
-      loadRealtimeData();
-    }
-    // Auto-refresh every 30 seconds
-    const interval = setInterval(() => {
-      if (selectedCompany) {
-        loadRealtimeData();
-      }
-    }, 30000);
-    return () => clearInterval(interval);
-  }, [selectedCompany, dataSource]);
 
   const loadCompanies = async () => {
     try {
+      setLoading(true);
       let response;
       if (dataSource === 'backup') {
         response = await tallyApi.getBackupCompanies();
@@ -44,21 +33,57 @@ const RealtimeOperationsDashboard = ({ dataSource = 'live' }) => {
       setCompanies(companyList);
       if (companyList.length > 0) {
         setSelectedCompany(companyList[0].name);
+      } else {
+        setSelectedCompany('');
+        setRealtimeData(null);
       }
+      setLoading(false);
     } catch (error) {
-      toast.error(`Failed to load companies from ${dataSource}`);
+      console.error(`Failed to load companies from ${dataSource}:`, error);
+      setCompanies([]);
+      setSelectedCompany('');
+      setRealtimeData(null);
+      if (dataSource === 'live') {
+        toast.error(`Failed to load companies from ${dataSource}`);
+      }
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    if (selectedCompany && companies.length > 0) {
+      loadRealtimeData();
+      // Auto-refresh every 30 seconds
+      const interval = setInterval(() => {
+        if (selectedCompany && companies.length > 0) {
+          loadRealtimeData();
+        }
+      }, 30000);
+      return () => clearInterval(interval);
+    } else if (!selectedCompany) {
+      setRealtimeData(null);
+    }
+  }, [selectedCompany, dataSource, companies.length]);
+
   const loadRealtimeData = async () => {
+    if (!selectedCompany) {
+      setRealtimeData(null);
+      return;
+    }
+    
     setLoading(true);
     try {
-      const response = await apiClient.get(`/dashboards/realtime-operations/${encodeURIComponent(selectedCompany)}?source=${dataSource}`);
+      const currentSource = dataSource || 'live';
+      const response = await apiClient.get(`/dashboards/realtime-operations/${encodeURIComponent(selectedCompany)}?source=${currentSource}`);
       setRealtimeData(response.data.data);
     } catch (error) {
       console.error('Error loading Real-time Operations data:', error);
-      toast.error('Failed to load Real-time Operations data');
+      if (error.response?.status === 401 && dataSource === 'live') {
+        toast.error('Authentication required for live data. Please login or use backup data.');
+      } else {
+        toast.error('Failed to load Real-time Operations data');
+      }
+      setRealtimeData(null);
     } finally {
       setLoading(false);
     }

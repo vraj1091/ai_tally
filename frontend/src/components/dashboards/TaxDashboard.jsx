@@ -21,14 +21,10 @@ const TaxDashboard = ({ dataSource = 'live' }) => {
     loadCompanies();
   }, [dataSource]);
 
-  useEffect(() => {
-    if (selectedCompany) {
-      loadTaxData();
-    }
-  }, [selectedCompany, dataSource]);
 
   const loadCompanies = async () => {
     try {
+      setLoading(true);
       let response;
       if (dataSource === 'backup') {
         response = await tallyApi.getBackupCompanies();
@@ -39,21 +35,50 @@ const TaxDashboard = ({ dataSource = 'live' }) => {
       setCompanies(companyList);
       if (companyList.length > 0) {
         setSelectedCompany(companyList[0].name);
+      } else {
+        setSelectedCompany('');
+        setTaxData(null);
       }
+      setLoading(false);
     } catch (error) {
-      toast.error(`Failed to load companies from ${dataSource}`);
+      console.error(`Failed to load companies from ${dataSource}:`, error);
+      setCompanies([]);
+      setSelectedCompany('');
+      setTaxData(null);
+      if (dataSource === 'live') {
+        toast.error(`Failed to load companies from ${dataSource}`);
+      }
       setLoading(false);
     }
   };
 
+  useEffect(() => {
+    if (selectedCompany && companies.length > 0) {
+      loadTaxData();
+    } else if (!selectedCompany) {
+      setTaxData(null);
+    }
+  }, [selectedCompany, dataSource, companies.length]);
+
   const loadTaxData = async () => {
+    if (!selectedCompany) {
+      setTaxData(null);
+      return;
+    }
+    
     setLoading(true);
     try {
-      const response = await apiClient.get(`/dashboards/tax/${encodeURIComponent(selectedCompany)}?source=${dataSource}`);
+      const currentSource = dataSource || 'live';
+      const response = await apiClient.get(`/dashboards/tax/${encodeURIComponent(selectedCompany)}?source=${currentSource}`);
       setTaxData(response.data.data);
     } catch (error) {
       console.error('Error loading Tax data:', error);
-      toast.error('Failed to load Tax & Compliance data');
+      if (error.response?.status === 401 && dataSource === 'live') {
+        toast.error('Authentication required for live data. Please login or use backup data.');
+      } else {
+        toast.error('Failed to load Tax & Compliance data');
+      }
+      setTaxData(null);
     } finally {
       setLoading(false);
     }
