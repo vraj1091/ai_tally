@@ -268,16 +268,30 @@ async def get_tally_status(
 
 # Helper function to get optional user (for anonymous backup access)
 async def get_optional_user(
-    authorization: Optional[str] = Header(None),
+    authorization: Optional[str] = Header(None, alias="Authorization"),
     db: Session = Depends(get_db)
 ) -> Optional[User]:
     """Get user if authenticated, otherwise return None (for anonymous backup access)"""
     if not authorization or not authorization.startswith("Bearer "):
         return None
     try:
-        token = authorization.replace("Bearer ", "")
-        return await get_current_user(token=token, db=db)
-    except:
+        from jose import JWTError, jwt
+        import os
+        
+        # Get secret key and algorithm from environment or defaults (same as auth_routes)
+        SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-this-in-production")
+        ALGORITHM = "HS256"
+        
+        token = authorization.replace("Bearer ", "").strip()
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        email: str = payload.get("sub")
+        if email is None:
+            return None
+        
+        user = db.query(User).filter(User.email == email).first()
+        return user
+    except Exception as e:
+        logger.debug(f"Optional user authentication failed: {e}")
         return None
 
 @router.get("/companies")
