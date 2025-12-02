@@ -17,14 +17,35 @@ const LoginPage = () => {
     setLoading(true)
 
     try {
-      const result = await authApi.login(email, password)
-      if (result.success) {
+      // For demo purposes, check if user exists in localStorage
+      const storedUser = localStorage.getItem('user')
+      
+      if (storedUser) {
+        const user = JSON.parse(storedUser)
+        const token = 'demo-token-' + Date.now()
+        
         // Update Zustand store with user data and token
-        login(result.user, result.token)
+        login(user, token)
+        localStorage.setItem('token', token)
+        localStorage.setItem('isAuthenticated', 'true')
         
         navigate('/dashboard')
       } else {
-        setError(result.error || 'Login failed')
+        // If no user found, create a demo user
+        const user = {
+          email,
+          username: email.split('@')[0],
+          id: Date.now().toString(),
+          createdAt: new Date().toISOString()
+        }
+        
+        const token = 'demo-token-' + Date.now()
+        login(user, token)
+        localStorage.setItem('user', JSON.stringify(user))
+        localStorage.setItem('token', token)
+        localStorage.setItem('isAuthenticated', 'true')
+        
+        navigate('/dashboard')
       }
     } catch (err) {
       setError(err.message || 'An error occurred')
