@@ -393,15 +393,47 @@ class TallyDataService:
             except Exception as e:
                 logger.error(f"Error fetching companies: {e}")
 
-        # Fallback to cache if user mode and cache enabled
+        # Fallback to cache (supports both authenticated and anonymous users)
         logger.info(f"[CACHE DEBUG] Trying cache: use_cache={use_cache}, has_user={bool(self.user)}")
-        if use_cache and self.user:
+        if use_cache:
+            # Try regular cache first
             cached = self._get_cached_data(cache_key)
-            logger.info(f"[CACHE DEBUG] Cache result: {bool(cached)}, data={cached.keys() if cached else None}")
+            logger.info(f"[CACHE DEBUG] Regular cache result: {bool(cached)}, data={cached.keys() if cached else None}")
             if cached:
                 companies = cached.get("companies", [])
                 logger.info(f"Returning {len(companies)} cached companies")
                 return companies
+            
+            # For anonymous users, also check backup cache for company names
+            if not self.user:
+                logger.info("[CACHE DEBUG] Anonymous user - checking backup cache for companies")
+                try:
+                    user_id = None
+                    backup_entries = self.db.query(TallyCache).filter(
+                        TallyCache.user_id == user_id,
+                        TallyCache.source == "backup",
+                        TallyCache.cache_key.like("backup_data_%")
+                    ).all()
+                    
+                    # Extract unique company names from backup cache
+                    company_names = set()
+                    for entry in backup_entries:
+                        try:
+                            data = json.loads(entry.cache_data) if isinstance(entry.cache_data, str) else entry.cache_data
+                            company = data.get("company", {})
+                            company_name = company.get("name", "")
+                            if company_name:
+                                company_names.add(company_name)
+                        except Exception as e:
+                            logger.debug(f"Error extracting company from backup entry: {e}")
+                            continue
+                    
+                    if company_names:
+                        companies = [{"name": name} for name in sorted(company_names)]
+                        logger.info(f"Found {len(companies)} companies from backup cache")
+                        return companies
+                except Exception as e:
+                    logger.warning(f"Error checking backup cache for companies: {e}")
         
         logger.warning("[CACHE DEBUG] No data available (not connected and no cache)")
         return []
@@ -664,10 +696,40 @@ class TallyDataService:
         if source == "backup":
             # Fetch from backup cache
             cache_key = f"backup_data_{company_name}"
+            user_id = self.user.id if self.user else None
+            logger.info(f"Fetching backup data for '{company_name}' (user_id={user_id}, cache_key={cache_key})")
+            
             cached_data = self._get_cached_data(cache_key, source="backup")
             
+            # If not found with exact match, try case-insensitive search
+            if not cached_data:
+                logger.info(f"Exact match not found, trying case-insensitive search for '{company_name}'")
+                try:
+                    # Query all backup entries for this user (or anonymous)
+                    all_backup_entries = self.db.query(TallyCache).filter(
+                        TallyCache.user_id == user_id,
+                        TallyCache.source == "backup",
+                        TallyCache.cache_key.like("backup_data_%")
+                    ).all()
+                    
+                    company_name_lower = company_name.lower()
+                    for entry in all_backup_entries:
+                        try:
+                            data = json.loads(entry.cache_data) if isinstance(entry.cache_data, str) else entry.cache_data
+                            cached_company = data.get("company", {})
+                            cached_company_name = cached_company.get("name", "")
+                            if cached_company_name.lower() == company_name_lower:
+                                cached_data = data
+                                logger.info(f"Found backup data with case-insensitive match: '{cached_company_name}'")
+                                break
+                        except Exception as e:
+                            logger.debug(f"Error checking cache entry: {e}")
+                            continue
+                except Exception as e:
+                    logger.warning(f"Error in case-insensitive search: {e}")
+            
             if cached_data:
-                logger.info(f"Fetched backup data for {company_name} - {len(cached_data.get('ledgers', []))} ledgers, {len(cached_data.get('vouchers', []))} vouchers")
+                logger.info(f"✓ Fetched backup data for {company_name} - {len(cached_data.get('ledgers', []))} ledgers, {len(cached_data.get('vouchers', []))} vouchers")
                 
                 # Validate data before returning
                 validation_result = DataValidator.validate_all_data(cached_data)
@@ -698,7 +760,16 @@ class TallyDataService:
                     }
                 }
             else:
-                logger.warning(f"No backup data found for {company_name}")
+                logger.warning(f"✗ No backup data found for '{company_name}' (user_id={user_id})")
+                # Log available cache keys for debugging
+                try:
+                    available_keys = self.db.query(TallyCache.cache_key).filter(
+                        TallyCache.user_id == user_id,
+                        TallyCache.source == "backup"
+                    ).all()
+                    logger.info(f"Available backup cache keys: {[k[0] for k in available_keys]}")
+                except:
+                    pass
                 return {
                     "ledgers": [],
                     "vouchers": [],
@@ -802,18 +873,21 @@ class TallyDataService:
             self.db.rollback()
 
     def _get_cached_data(self, cache_key: str, source: str = None) -> Optional[Dict]:
-        """Retrieve data from user-specific cache
+        """Retrieve data from user-specific cache (supports anonymous users)
         
         Args:
             cache_key: Cache key to look up
             source: Optional source filter ('live', 'backup', etc.)
         """
-        if not self.db or not self.user:
+        if not self.db:
             return None
 
         try:
+            # Handle both authenticated and anonymous users
+            user_id = self.user.id if self.user else None
+            
             query = self.db.query(TallyCache).filter(
-                TallyCache.user_id == self.user.id,
+                TallyCache.user_id == user_id,  # Can be None for anonymous users
                 TallyCache.cache_key == cache_key
             )
             
