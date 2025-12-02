@@ -57,10 +57,10 @@ const LoginPage = () => {
             color: '#333',
             marginBottom: '8px'
           }}>
-            AI Tally Assistant
+            TallyDash Pro
           </h1>
           <p style={{ color: '#666', fontSize: '14px' }}>
-            Sign in to your account
+            AI-Powered Analytics for Tally ERP
           </p>
         </div>
 

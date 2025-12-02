@@ -1,0 +1,19 @@
+Force rebuild timestamp: 2025-12-02 12:45:00
+This file triggers a rebuild of the HuggingFace Space.
+
+Recent fixes:
+- Fixed backup_routes missing from dummy router fallback
+- Fixed syntax error in auth routes registration  
+- Added comprehensive error handling for all route registrations
+- Added debug endpoint at /api/debug/routes
+- All routes should now register correctly
+
+Expected routes:
+- /api/tally/status (GET)
+- /api/backup/companies (GET)
+- /api/backup/upload (POST)
+- /api/auth/register (POST)
+- /api/auth/login (POST)
+- /api/dashboards/ceo/{company_name} (GET)
+- /api/debug/routes (GET)
+

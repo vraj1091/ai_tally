@@ -29,9 +29,15 @@ export default function Navbar() {
             </svg>
           </button>
 
-          <h1 className="text-2xl font-bold text-gray-900">
-            AI Tally Assistant
-          </h1>
+          <div className="flex items-center space-x-3">
+            <img src="/logo.svg" alt="TallyDash Pro" className="w-10 h-10" />
+            <div>
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">
+                TallyDash Pro
+              </h1>
+              <p className="text-xs text-gray-500 -mt-1">AI-Powered Analytics</p>
+            </div>
+          </div>
         </div>
 
         <div className="flex items-center space-x-4">

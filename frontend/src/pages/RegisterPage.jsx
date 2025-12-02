@@ -75,7 +75,7 @@ const RegisterPage = () => {
             Create Account
           </h1>
           <p style={{ color: '#666', fontSize: '14px' }}>
-            Join AI Tally Assistant
+            Join TallyDash Pro - AI-Powered Analytics
           </p>
         </div>
 

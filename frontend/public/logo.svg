@@ -1,0 +1,61 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background Circle with Gradient -->
+  <defs>
+    <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8b5cf6;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#6366f1;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="accentGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10b981;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#06b6d4;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  
+  <!-- Main Circle Background -->
+  <circle cx="100" cy="100" r="95" fill="url(#bgGradient)" filter="url(#shadow)"/>
+  
+  <!-- Dashboard Grid Icon (3x3 grid representing dashboards) -->
+  <g transform="translate(45, 45)">
+    <!-- Top Row -->
+    <rect x="0" y="0" width="30" height="30" rx="4" fill="white" opacity="0.9"/>
+    <rect x="40" y="0" width="30" height="30" rx="4" fill="white" opacity="0.9"/>
+    <rect x="80" y="0" width="30" height="30" rx="4" fill="white" opacity="0.9"/>
+    
+    <!-- Middle Row -->
+    <rect x="0" y="40" width="30" height="30" rx="4" fill="white" opacity="0.9"/>
+    <rect x="40" y="40" width="30" height="30" rx="4" fill="url(#accentGradient)"/>
+    <rect x="80" y="40" width="30" height="30" rx="4" fill="white" opacity="0.9"/>
+    
+    <!-- Bottom Row -->
+    <rect x="0" y="80" width="30" height="30" rx="4" fill="white" opacity="0.9"/>
+    <rect x="40" y="80" width="30" height="30" rx="4" fill="white" opacity="0.9"/>
+    <rect x="80" y="80" width="30" height="30" rx="4" fill="white" opacity="0.9"/>
+    
+    <!-- Analytics Line Chart Overlay -->
+    <path d="M 10 25 L 25 15 L 50 55 L 65 45 L 85 20 L 100 25" 
+          stroke="url(#accentGradient)" 
+          stroke-width="3" 
+          fill="none" 
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          opacity="0.8"/>
+    
+    <!-- Data Points -->
+    <circle cx="10" cy="25" r="3" fill="#10b981"/>
+    <circle cx="25" cy="15" r="3" fill="#10b981"/>
+    <circle cx="50" cy="55" r="3" fill="#10b981"/>
+    <circle cx="65" cy="45" r="3" fill="#10b981"/>
+    <circle cx="85" cy="20" r="3" fill="#10b981"/>
+    <circle cx="100" cy="25" r="3" fill="#10b981"/>
+  </g>
+  
+  <!-- "Pro" Badge -->
+  <g transform="translate(140, 30)">
+    <rect x="0" y="0" width="45" height="20" rx="10" fill="#10b981"/>
+    <text x="22.5" y="14" font-family="Arial, sans-serif" font-size="12" font-weight="bold" fill="white" text-anchor="middle">PRO</text>
+  </g>
+</svg>
+
