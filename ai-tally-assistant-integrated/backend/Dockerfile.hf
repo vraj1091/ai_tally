@@ -1,0 +1,40 @@
+# Hugging Face Spaces Dockerfile
+FROM python:3.11-slim
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    tesseract-ocr \
+    libtesseract-dev \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy requirements
+COPY requirements.txt .
+
+# Install Python dependencies
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copy application code
+COPY . .
+
+# Create necessary directories
+RUN mkdir -p /app/logs /app/uploads /app/chroma_db /app/cache /app/database
+
+# Set environment variables
+ENV API_HOST=0.0.0.0
+ENV API_PORT=7860
+ENV PYTHONUNBUFFERED=1
+
+# Expose port (Hugging Face uses 7860)
+EXPOSE 7860
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:7860/health || exit 1
+
+# Run application
+CMD ["python", "app.py"]
+

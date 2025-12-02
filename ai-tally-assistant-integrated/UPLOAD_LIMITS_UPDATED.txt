@@ -1,0 +1,121 @@
+================================================================================
+        UPLOAD LIMITS UPDATED FOR LARGE XML FILES
+================================================================================
+
+Date: November 21, 2025
+Status: ✓ COMPLETE - SERVERS RUNNING
+
+================================================================================
+WHAT WAS UPDATED
+================================================================================
+
+1. REQUEST TIMEOUT INCREASED
+   - Old timeout: 60 seconds (1 minute)
+   - New timeout: 180 seconds (3 minutes)
+   - File: frontend/src/api/client.js
+   - This allows large XML files (like your 18MB file) to fully upload and process
+
+2. FILE SIZE LIMIT INCREASED
+   - New maximum: 100 MB
+   - File: backend/app/routes/backup_routes.py
+   - File: backend/app/main.py (app state configuration)
+   - You can now upload files up to 100 MB in size
+
+3. IMPROVED USER FEEDBACK
+   - Shows file size during upload
+   - Displays progress message: "X.XX MB - Large files may take 1-3 minutes to process"
+   - Better error messages for different failure scenarios
+   - File: frontend/src/components/common/DataSourceSelector.jsx
+
+4. ENHANCED BACKEND LOGGING
+   - Logs when upload starts with file size
+   - Logs parsing progress for large files
+   - Logs completion with data counts (companies, ledgers, vouchers)
+   - File: backend/app/routes/backup_routes.py
+
+================================================================================
+HOW TO UPLOAD YOUR 18MB XML FILE
+================================================================================
+
+1. REFRESH YOUR BROWSER
+   - Press Ctrl + F5 to clear cache and reload
+   - Or: Ctrl + Shift + R
+
+2. LOGIN
+   - Email: test2@mail.com
+   - Password: test2@123
+
+3. NAVIGATE TO DASHBOARD HUB
+   - Click "Dashboard Hub" in the navigation menu
+
+4. UPLOAD YOUR XML FILE
+   - At the top of the page, you'll see "Data Source:" selector
+   - Click "Upload Backup" button
+   - Select your 18MB Master.xml file
+   - Wait 1-3 minutes for it to process (progress will be shown)
+   - The system will automatically switch to "Backup Mode" when done
+
+5. VIEW YOUR DATA
+   - All dashboards will now show data from your XML file
+   - You can switch between "Live Tally" and "Backup File" modes anytime
+
+================================================================================
+SUPPORTED FILE FORMATS
+================================================================================
+
+✓ .xml   - Tally XML exports (like your Master.xml)
+✓ .tbk   - Tally backup files
+✓ .001   - Multi-part Tally backup files (.002, .003, .004, .005)
+✓ .zip   - Compressed backup files
+
+Maximum file size: 100 MB
+Maximum upload time: 3 minutes
+
+================================================================================
+CURRENT SERVER STATUS
+================================================================================
+
+✓ Backend:  RUNNING on localhost:8000
+✓ Frontend: RUNNING on localhost:5173
+
+All systems are ready for your large file upload!
+
+================================================================================
+TECHNICAL DETAILS (For Reference)
+================================================================================
+
+Frontend Changes:
+- api/client.js: timeout = 180000ms (3 minutes)
+- components/common/DataSourceSelector.jsx: 
+  * Shows file size during upload
+  * Displays "1-3 minutes" message for large files
+  * Updated helper text with new limits
+
+Backend Changes:
+- app/main.py: app.state.max_upload_size = 100 * 1024 * 1024 (100 MB)
+- routes/backup_routes.py:
+  * Added file size validation (100 MB limit)
+  * Added progress logging
+  * Better error messages with file size info
+
+================================================================================
+NEXT STEPS
+================================================================================
+
+1. Refresh your browser (Ctrl + F5)
+2. Login with test2@mail.com
+3. Go to Dashboard Hub
+4. Click "Upload Backup"
+5. Select your Master.xml file (18MB)
+6. Wait for the upload to complete (1-3 minutes)
+7. Your dashboards will display data from the XML file!
+
+================================================================================
+
+Your system is now configured to handle large XML files up to 100 MB!
+The 3-minute timeout should be more than enough for your 18MB file.
+
+Happy analyzing! 🚀
+
+================================================================================
+
