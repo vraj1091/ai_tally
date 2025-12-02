@@ -42,6 +42,8 @@ env/
 *_data_*.xml
 00_*.xml
 tally_data_*.xml
+tally_sample_200k_comprehensive.xml
+sample_tally_200k_comprehensive.xml
 
 # Logs
 logs/
