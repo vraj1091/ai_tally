@@ -553,7 +553,7 @@ class SpecializedAnalytics:
                             "amount": abs(float(balance))
                         })
                 
-                # ULTIMATE FALLBACK: Try extracting from vouchers FIRST before using fabricated data
+                # ULTIMATE FALLBACK: Try extracting from vouchers FIRST - NO FABRICATED DATA
                 if not all_with_balance and vouchers and revenue > 0:
                     logger.warning("CEO Analytics - ULTIMATE FALLBACK: No ledger balances, trying voucher extraction for REAL data")
                     voucher_revenue = self._extract_revenue_from_vouchers(vouchers, 5)
@@ -561,16 +561,14 @@ class SpecializedAnalytics:
                         all_with_balance = voucher_revenue
                         logger.warning(f"CEO Analytics - ULTIMATE FALLBACK: Found {len(all_with_balance)} revenue sources from vouchers (REAL DATA)")
                     else:
-                        # Only if voucher extraction also fails, use fabricated split
-                        logger.error("CEO Analytics - ULTIMATE FALLBACK: Voucher extraction also failed, using estimated split (FABRICATED DATA)")
-                        valid_ledgers = [l for l in ledgers if (l.get('name') or '').strip() and l.get('name') != 'Unknown'][:5]
-                        if valid_ledgers:
-                            amount_per_ledger = revenue / len(valid_ledgers) if valid_ledgers else revenue / 5
-                            all_with_balance = [{
-                                "name": (l.get('name') or '').strip(),
-                                "amount": float(amount_per_ledger)
-                            } for l in valid_ledgers]
-                            logger.warning(f"CEO Analytics - ULTIMATE FALLBACK: Created {len(all_with_balance)} revenue sources from ledger names (ESTIMATED)")
+                        # DO NOT CREATE FABRICATED DATA - Return empty list instead
+                        logger.error("CEO Analytics - ULTIMATE FALLBACK: Voucher extraction failed - NO FABRICATED DATA - Returning empty list")
+                        logger.error(f"CEO Analytics - DEBUG: Vouchers available: {len(vouchers) if vouchers else 0}, Revenue: {revenue}")
+                        if vouchers:
+                            sample_voucher = vouchers[0] if vouchers else {}
+                            logger.error(f"CEO Analytics - DEBUG: Sample voucher keys: {list(sample_voucher.keys())}")
+                            logger.error(f"CEO Analytics - DEBUG: Sample voucher type: {sample_voucher.get('voucher_type')}, amount: {sample_voucher.get('amount')}")
+                        all_with_balance = []  # Return empty instead of fabricated data
                 
                 if all_with_balance:
                     all_with_balance.sort(key=lambda x: x['amount'], reverse=True)
@@ -597,7 +595,7 @@ class SpecializedAnalytics:
                             "amount": abs(float(balance))
                         })
                 
-                # ULTIMATE FALLBACK: Try extracting from vouchers FIRST before using fabricated data
+                # ULTIMATE FALLBACK: Try extracting from vouchers FIRST - NO FABRICATED DATA
                 if not all_with_balance and vouchers and expense > 0:
                     logger.warning("CEO Analytics - ULTIMATE FALLBACK: No ledger balances, trying voucher extraction for REAL data")
                     voucher_expenses = self._extract_expenses_from_vouchers(vouchers, 5)
@@ -605,19 +603,14 @@ class SpecializedAnalytics:
                         all_with_balance = voucher_expenses
                         logger.warning(f"CEO Analytics - ULTIMATE FALLBACK: Found {len(all_with_balance)} expense categories from vouchers (REAL DATA)")
                     else:
-                        # Only if voucher extraction also fails, use fabricated split
-                        logger.error("CEO Analytics - ULTIMATE FALLBACK: Voucher extraction also failed, using estimated split (FABRICATED DATA)")
-                        valid_ledgers = [l for l in ledgers 
-                                       if (l.get('name') or '').strip() 
-                                       and l.get('name') != 'Unknown'
-                                       and not any(kw in (l.get('name') or '').lower() for kw in exclude)][:5]
-                        if valid_ledgers:
-                            amount_per_ledger = expense / len(valid_ledgers) if valid_ledgers else expense / 5
-                            all_with_balance = [{
-                                "name": (l.get('name') or '').strip(),
-                                "amount": float(amount_per_ledger)
-                            } for l in valid_ledgers]
-                            logger.warning(f"CEO Analytics - ULTIMATE FALLBACK: Created {len(all_with_balance)} expense categories from ledger names (ESTIMATED)")
+                        # DO NOT CREATE FABRICATED DATA - Return empty list instead
+                        logger.error("CEO Analytics - ULTIMATE FALLBACK: Voucher extraction failed - NO FABRICATED DATA - Returning empty list")
+                        logger.error(f"CEO Analytics - DEBUG: Vouchers available: {len(vouchers) if vouchers else 0}, Expense: {expense}")
+                        if vouchers:
+                            sample_voucher = vouchers[0] if vouchers else {}
+                            logger.error(f"CEO Analytics - DEBUG: Sample voucher keys: {list(sample_voucher.keys())}")
+                            logger.error(f"CEO Analytics - DEBUG: Sample voucher type: {sample_voucher.get('voucher_type')}, amount: {sample_voucher.get('amount')}")
+                        all_with_balance = []  # Return empty instead of fabricated data
                 
                 if all_with_balance:
                     all_with_balance.sort(key=lambda x: x['amount'], reverse=True)
@@ -3660,16 +3653,25 @@ class SpecializedAnalytics:
         logger.info(f"_extract_expenses_from_vouchers: Processing {len(vouchers)} vouchers for expense extraction")
         voucher_count = 0
         for voucher in vouchers:
-            vtype = (voucher.get('voucher_type', '') or '').lower()
+            vtype = (voucher.get('voucher_type', '') or voucher.get('type', '') or '').lower()
             amount = abs(float(voucher.get('amount', 0) or 0))
-            category = (voucher.get('narration', '') or voucher.get('party_name', '') or '').strip()
+            category = (voucher.get('narration', '') or voucher.get('party_name', '') or voucher.get('party', '') or '').strip()
             
             # Skip if category contains "auto" or "generat" (fake data)
             if category and ('auto' in category.lower() or 'generat' in category.lower()):
                 continue
             
-            # Check if this is an expense voucher
+            # Check if this is an expense voucher - be more aggressive
             is_expense_voucher = any(keyword in vtype for keyword in expense_keywords)
+            
+            # Also check ledger entries for expense indicators
+            if not is_expense_voucher:
+                ledger_entries = voucher.get('ledger_entries', []) or voucher.get('entries', [])
+                for entry in ledger_entries:
+                    ledger_name = (entry.get('ledger_name') or entry.get('name') or '').lower()
+                    if any(kw in ledger_name for kw in ['purchase', 'expense', 'payment', 'cost', 'salary', 'rent']):
+                        is_expense_voucher = True
+                        break
             
             if is_expense_voucher and amount > 0:
                 voucher_count += 1
