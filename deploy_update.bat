@@ -12,9 +12,12 @@ git push origin main
 echo.
 echo 2. Pushing to Hugging Face (vraj1091/ai_tally_backend)...
 cd hf-backend
+echo.
+set /p HF_TOKEN="Enter your Hugging Face Access Token (hidden input not supported, paste carefully): "
+echo.
 git add .
 git commit -m "Fix: Document upload RAG error handling and Dashboard data accuracy improvements"
-git push https://huggingface.co/spaces/vraj1091/ai_tally_backend main
+git push https://vraj1091:%HF_TOKEN%@huggingface.co/spaces/vraj1091/ai_tally_backend main
 cd ..
 
 echo.
