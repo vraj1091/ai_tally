@@ -17,6 +17,11 @@ set /p HF_TOKEN="Enter your Hugging Face Access Token (hidden input not supporte
 echo.
 git add .
 git commit -m "Fix: Document upload RAG error handling and Dashboard data accuracy improvements"
+echo.
+echo Pulling latest changes from Hugging Face to avoid conflicts...
+git pull https://vraj1091:%HF_TOKEN%@huggingface.co/spaces/vraj1091/ai_tally_backend main
+echo.
+echo Pushing to Hugging Face...
 git push https://vraj1091:%HF_TOKEN%@huggingface.co/spaces/vraj1091/ai_tally_backend main
 cd ..
 
