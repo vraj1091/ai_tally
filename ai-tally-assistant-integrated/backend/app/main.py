@@ -90,6 +90,7 @@ except ImportError as e:
     vector_store_routes = type('obj', (object,), {'router': APIRouter()})
     google_drive_routes = type('obj', (object,), {'router': APIRouter()})
     specialized_analytics_routes = type('obj', (object,), {'router': APIRouter()})
+    backup_routes = type('obj', (object,), {'router': APIRouter()})
 
 # Import authentication routes (with full error output)
 try:
@@ -336,46 +337,87 @@ if AUTH_ROUTES_AVAILABLE:
 
 # Include routers
 if ROUTES_LOADED:
-    app.include_router(
-        chat_routes.router,
-        prefix="/api/chat",  # <-- CHANGED
-        tags=["Chat & RAG"]
-    )
-    app.include_router(
-        tally_routes.router,
-        prefix="/api/tally",  # <-- CHANGED
-        tags=["Tally ERP"]
-    )
-    app.include_router(
-        document_routes.router,
-        prefix="/api/documents",  # <-- CHANGED
-        tags=["Document Management"]
-    )
-    app.include_router(
-        analytics_routes.router,
-        prefix="/api/analytics",  # <-- CHANGED
-        tags=["Analytics"]
-    )
-    app.include_router(
-        specialized_analytics_routes.router,
-        prefix="/api/dashboards",
-        tags=["Specialized Dashboards"]
-    )
-    app.include_router(
-        backup_routes.router,
-        prefix="/api/backup",
-        tags=["Backup Files"]
-    )
-    app.include_router(
-        vector_store_routes.router,
-        prefix="/api/vector-store",  # <-- CHANGED
-        tags=["Vector Store"]
-    )
-    app.include_router(
-        google_drive_routes.router,
-        prefix="/api/google-drive",  # <-- CHANGED
-        tags=["Google Drive"]
-    )
+    try:
+        app.include_router(
+            chat_routes.router,
+            prefix="/api/chat",
+            tags=["Chat & RAG"]
+        )
+        logger.info("✓ Chat routes registered at /api/chat")
+    except Exception as e:
+        logger.error(f"✗ Failed to register chat routes: {e}")
+    
+    try:
+        app.include_router(
+            tally_routes.router,
+            prefix="/api/tally",
+            tags=["Tally ERP"]
+        )
+        logger.info("✓ Tally routes registered at /api/tally")
+    except Exception as e:
+        logger.error(f"✗ Failed to register tally routes: {e}")
+    
+    try:
+        app.include_router(
+            document_routes.router,
+            prefix="/api/documents",
+            tags=["Document Management"]
+        )
+        logger.info("✓ Document routes registered at /api/documents")
+    except Exception as e:
+        logger.error(f"✗ Failed to register document routes: {e}")
+    
+    try:
+        app.include_router(
+            analytics_routes.router,
+            prefix="/api/analytics",
+            tags=["Analytics"]
+        )
+        logger.info("✓ Analytics routes registered at /api/analytics")
+    except Exception as e:
+        logger.error(f"✗ Failed to register analytics routes: {e}")
+    
+    try:
+        app.include_router(
+            specialized_analytics_routes.router,
+            prefix="/api/dashboards",
+            tags=["Specialized Dashboards"]
+        )
+        logger.info("✓ Specialized analytics routes registered at /api/dashboards")
+    except Exception as e:
+        logger.error(f"✗ Failed to register specialized analytics routes: {e}")
+    
+    try:
+        app.include_router(
+            backup_routes.router,
+            prefix="/api/backup",
+            tags=["Backup Files"]
+        )
+        logger.info("✓ Backup routes registered at /api/backup")
+    except Exception as e:
+        logger.error(f"✗ Failed to register backup routes: {e}")
+    
+    try:
+        app.include_router(
+            vector_store_routes.router,
+            prefix="/api/vector-store",
+            tags=["Vector Store"]
+        )
+        logger.info("✓ Vector store routes registered at /api/vector-store")
+    except Exception as e:
+        logger.error(f"✗ Failed to register vector store routes: {e}")
+    
+    try:
+        app.include_router(
+            google_drive_routes.router,
+            prefix="/api/google-drive",
+            tags=["Google Drive"]
+        )
+        logger.info("✓ Google Drive routes registered at /api/google-drive")
+    except Exception as e:
+        logger.error(f"✗ Failed to register google drive routes: {e}")
+else:
+    logger.error("✗ ROUTES_LOADED is False - routes will not be registered!")
 
 logger.info("OK: FastAPI application initialized")
 logger.info("OK: All routes registered")

@@ -221,7 +221,8 @@ async def get_backup_companies(
 ):
     """Get list of companies from uploaded backup files - optimized for speed"""
     try:
-        logger.info(f"Fetching backup companies for user {current_user.email}")
+        user_email = current_user.email if current_user else "anonymous"
+        logger.info(f"Fetching backup companies for user {user_email}")
         
         # Optimized query - use filter_by for faster lookup, limit to 1 result
         cache_entry = db.query(TallyCache).filter_by(
