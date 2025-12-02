@@ -33,12 +33,10 @@ export default function Sidebar() {
       fixed lg:relative z-30
     `}>
       <div className="flex items-center space-x-2 mb-8 px-2">
-        <div className="w-10 h-10 bg-primary-600 rounded-lg flex items-center justify-center">
-          <span className="text-xl font-bold">AI</span>
-        </div>
+        <img src="/logo.svg" alt="TallyDash Pro" className="w-10 h-10" />
         <div>
-          <h2 className="font-bold text-lg">Tally Assistant</h2>
-          <p className="text-xs text-gray-400">Powered by Phi4:14b</p>
+          <h2 className="font-bold text-lg">TallyDash Pro</h2>
+          <p className="text-xs text-gray-400">AI-Powered Analytics</p>
         </div>
       </div>
 
