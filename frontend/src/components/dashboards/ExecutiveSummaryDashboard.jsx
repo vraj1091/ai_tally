@@ -8,6 +8,7 @@ import RupeeIcon from '../common/RupeeIcon';
 import { tallyApi } from '../../api/tallyApi';
 import apiClient from '../../api/client';
 import toast from 'react-hot-toast';
+import { validateChartData, validateNumeric } from '../../utils/chartDataValidator';
 
 const COLORS = ['#8b5cf6', '#10b981', '#3b82f6', '#f59e0b', '#ef4444'];
 
@@ -120,12 +121,12 @@ const ExecutiveSummaryDashboard = ({ dataSource = 'live' }) => {
   const operationalMetrics = execData.operational_metrics || {};
   const strategicInsights = execData.strategic_insights || {};
 
-  // Financial overview data
-  const financialData = [
-    { category: 'Revenue', value: financialSnapshot.revenue || 0 },
-    { category: 'Expenses', value: financialSnapshot.expenses || 0 },
-    { category: 'Profit', value: financialSnapshot.profit || 0 }
-  ];
+  // Financial overview data with validation
+  const financialData = validateChartData([
+    { category: 'Revenue', value: validateNumeric(financialSnapshot.revenue, 0) },
+    { category: 'Expenses', value: validateNumeric(financialSnapshot.expenses, 0) },
+    { category: 'Profit', value: validateNumeric(financialSnapshot.profit, 0) }
+  ], 'value', 'category');
 
   // Health score indicator
   const healthScore = keyHighlights.health_score || 0;

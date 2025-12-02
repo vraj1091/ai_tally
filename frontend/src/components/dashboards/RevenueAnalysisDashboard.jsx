@@ -8,6 +8,7 @@ import RupeeIcon from '../common/RupeeIcon';
 import { tallyApi } from '../../api/tallyApi';
 import apiClient from '../../api/client';
 import toast from 'react-hot-toast';
+import { validateChartData, validateNumeric, validateArrayData, prepareRevenueExpenseData } from '../../utils/chartDataValidator';
 
 const COLORS = ['#22d3ee', '#10b981', '#3b82f6', '#f59e0b', '#8b5cf6'];
 

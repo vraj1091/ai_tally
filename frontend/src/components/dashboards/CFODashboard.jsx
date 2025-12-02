@@ -8,6 +8,7 @@ import RupeeIcon from '../common/RupeeIcon';
 import { tallyApi } from '../../api/tallyApi';
 import apiClient from '../../api/client';
 import toast from 'react-hot-toast';
+import { validateChartData, validateNumeric } from '../../utils/chartDataValidator';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
@@ -123,14 +124,22 @@ const CFODashboard = ({ dataSource = 'live' }) => {
   const profitability = cfoData.profitability || {};
   const costAnalysis = cfoData.cost_analysis || {};
 
-  // Prepare radar chart data for financial ratios
-  const radarData = [
-    { metric: 'Current Ratio', value: (ratios.current_ratio || 0) * 20, fullMark: 100 },
-    { metric: 'Quick Ratio', value: (ratios.quick_ratio || 0) * 30, fullMark: 100 },
-    { metric: 'ROE', value: ratios.return_on_equity || 0, fullMark: 100 },
-    { metric: 'ROA', value: ratios.return_on_assets || 0, fullMark: 100 },
-    { metric: 'Asset Turn', value: (ratios.asset_turnover || 0) * 40, fullMark: 100 }
-  ];
+  // Prepare radar chart data for financial ratios with validation
+  const radarData = validateChartData([
+    { metric: 'Current Ratio', value: validateNumeric(ratios.current_ratio, 0) * 20, fullMark: 100 },
+    { metric: 'Quick Ratio', value: validateNumeric(ratios.quick_ratio, 0) * 30, fullMark: 100 },
+    { metric: 'ROE', value: validateNumeric(ratios.return_on_equity, 0), fullMark: 100 },
+    { metric: 'ROA', value: validateNumeric(ratios.return_on_assets, 0), fullMark: 100 },
+    { metric: 'Asset Turn', value: validateNumeric(ratios.asset_turnover, 0) * 40, fullMark: 100 }
+  ], 'value', 'metric');
+
+  // Prepare profitability chart data with validation
+  const profitabilityData = validateChartData([
+    { name: 'Gross Profit', value: validateNumeric(profitability.gross_profit, 0) },
+    { name: 'Operating Profit', value: validateNumeric(profitability.operating_profit, 0) },
+    { name: 'Net Profit', value: validateNumeric(profitability.net_profit, 0) },
+    { name: 'EBITDA', value: validateNumeric(profitability.ebitda, 0) }
+  ]);
 
   return (
     <div className="space-y-6">
@@ -241,12 +250,7 @@ const CFODashboard = ({ dataSource = 'live' }) => {
         <div className="bg-white rounded-xl shadow-sm p-6">
           <h3 className="text-lg font-semibold text-gray-900 mb-4">Profitability Analysis</h3>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={[
-              { name: 'Gross Profit', value: Math.abs(profitability.gross_profit || 0) },
-              { name: 'Operating Profit', value: Math.abs(profitability.operating_profit || 0) },
-              { name: 'Net Profit', value: Math.abs(profitability.net_profit || 0) },
-              { name: 'EBITDA', value: Math.abs(profitability.ebitda || 0) }
-            ]}>
+            <BarChart data={profitabilityData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="name" tick={{ fontSize: 11 }} angle={-15} textAnchor="end" height={80} />
               <YAxis tick={{ fontSize: 11 }} tickFormatter={(val) => formatCurrency(Math.abs(val))} />

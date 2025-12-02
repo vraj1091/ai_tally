@@ -9,6 +9,7 @@ import EmptyDataState from '../common/EmptyDataState';
 import { tallyApi } from '../../api/tallyApi';
 import apiClient from '../../api/client';
 import toast from 'react-hot-toast';
+import { prepareRevenueExpenseData } from '../../utils/chartDataValidator';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
@@ -127,10 +128,21 @@ const CEODashboard = ({ dataSource = 'live' }) => {
       console.log('CEO Dashboard Response:', response.data);
       console.log('CEO Data:', response.data.data);
       console.log('Top Revenue Sources:', response.data.data?.top_5_revenue_sources);
+      console.log('Top Expense Categories:', response.data.data?.top_5_expense_categories);
       console.log('Key Metrics:', response.data.data?.key_metrics);
       
       if (response.data && response.data.data) {
-        setCeoData(response.data.data);
+        const data = response.data.data;
+        // Log data structure for debugging
+        console.log('CEO Dashboard - Full data structure:', {
+          hasTopRevenue: !!data.top_5_revenue_sources,
+          topRevenueLength: data.top_5_revenue_sources?.length || 0,
+          hasTopExpenses: !!data.top_5_expense_categories,
+          topExpensesLength: data.top_5_expense_categories?.length || 0,
+          topRevenueSample: data.top_5_revenue_sources?.slice(0, 2),
+          topExpensesSample: data.top_5_expense_categories?.slice(0, 2)
+        });
+        setCeoData(data);
       } else {
         console.error('Invalid response structure:', response.data);
         toast.error('Invalid data received from server');
@@ -222,13 +234,22 @@ const CEODashboard = ({ dataSource = 'live' }) => {
   console.log('CEO Dashboard - Key Metrics:', keyMetrics);
   console.log('CEO Dashboard - Active Products:', keyMetrics.active_products);
   console.log('CEO Dashboard - Transaction Volume:', keyMetrics.transaction_volume);
+  
   // CRITICAL: Handle both field name variations and ensure arrays are always arrays
-  const topRevenue = (ceoData.top_5_revenue_sources || ceoData.topRevenue || []).filter(item => item && item.amount > 0);
-  const topExpenses = (ceoData.top_5_expense_categories || ceoData.topExpenses || []).filter(item => item && item.amount > 0);
+  // Get raw data first
+  const rawTopRevenue = ceoData.top_5_revenue_sources || ceoData.topRevenue || [];
+  const rawTopExpenses = ceoData.top_5_expense_categories || ceoData.topExpenses || [];
+  
+  console.log('CEO Dashboard - Raw Top Revenue Sources:', rawTopRevenue);
+  console.log('CEO Dashboard - Raw Top Expense Categories:', rawTopExpenses);
+  
+  // Process and filter data using validation utility
+  const topRevenue = prepareRevenueExpenseData(rawTopRevenue);
+  const topExpenses = prepareRevenueExpenseData(rawTopExpenses);
   
   // Log for debugging
-  console.log('CEO Dashboard - Top Revenue Sources:', topRevenue);
-  console.log('CEO Dashboard - Top Expense Categories:', topExpenses);
+  console.log('CEO Dashboard - Processed Top Revenue Sources:', topRevenue);
+  console.log('CEO Dashboard - Processed Top Expense Categories:', topExpenses);
 
   return (
     <div className="space-y-6">

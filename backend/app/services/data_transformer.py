@@ -18,16 +18,35 @@ class DataTransformer:
             return {}
         
         # Helper function to extract numeric value from any field
-        def extract_balance_value(val):
-            """Extract numeric balance from string or number"""
+        def extract_balance_value(val, preserve_sign=True):
+            """Extract numeric balance while preserving Tally sign (Dr=positive, Cr=negative)"""
             if val is None:
                 return 0.0
+            
             try:
                 if isinstance(val, str):
+                    original = val
+                    # CRITICAL: Detect Cr (Credit) BEFORE cleaning
+                    is_credit = 'Cr' in val or original.strip().endswith('Cr')
+                    
+                    # Clean the string
                     cleaned = val.replace('₹', '').replace(',', '').replace('Dr', '').replace('Cr', '').strip()
-                    return abs(float(cleaned)) if cleaned else 0.0
+                    
+                    if not cleaned:
+                        return 0.0
+                    
+                    balance = float(cleaned)
+                    
+                    # PRESERVE SIGN: Cr balances should be negative, Dr positive
+                    if preserve_sign and is_credit and balance > 0:
+                        return -abs(balance)  # Credit = Negative
+                    elif preserve_sign and not is_credit and balance > 0:
+                        return abs(balance)   # Debit = Positive
+                    return balance
                 else:
-                    return abs(float(val))
+                    # For numeric values, assume positive (Dr)
+                    balance = float(val)
+                    return abs(balance) if balance >= 0 else balance
             except (ValueError, TypeError):
                 return 0.0
         
@@ -48,13 +67,13 @@ class DataTransformer:
             'opening_balance': ['opening_balance', 'OPENINGBALANCE', 'openingbalance', 'Opening Balance']
         }
         
-        # Extract each balance field separately
+        # Extract each balance field separately - PRESERVE SIGNS
         for balance_type, field_names in balance_fields.items():
             for field_name in field_names:
                 val = ledger.get(field_name)
                 if val is not None:
-                    extracted = extract_balance_value(val)
-                    if extracted > 0:
+                    extracted = extract_balance_value(val, preserve_sign=True)
+                    if extracted != 0:  # Accept both positive and negative
                         if balance_type == 'balance':
                             balance = extracted
                         elif balance_type == 'closing_balance':
@@ -65,10 +84,13 @@ class DataTransformer:
                             opening_balance = extracted
                         break
         
-        # Use the highest non-zero balance as the primary balance
-        primary_balance = max(balance, closing_balance, current_balance, opening_balance)
-        if primary_balance == 0:
-            primary_balance = balance  # Fallback to balance field
+        # Use the balance with highest absolute value as the primary balance
+        # This preserves the sign (Dr/Cr) while selecting the most significant balance
+        all_balances = [b for b in [balance, closing_balance, current_balance, opening_balance] if b != 0]
+        if all_balances:
+            primary_balance = max(all_balances, key=abs)  # Get balance with highest absolute value
+        else:
+            primary_balance = balance if balance != 0 else 0.0  # Fallback
         
         # Extract parent - try multiple field names
         parent = (ledger.get('parent') or 

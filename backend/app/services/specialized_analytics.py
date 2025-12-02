@@ -3735,6 +3735,153 @@ class SpecializedAnalytics:
         logger.info(f"_extract_expenses_from_vouchers: Found {len(result)} expense categories from {len(vouchers)} vouchers")
         return result
     
+    def _get_ledger_balance(self, ledger: Dict) -> float:
+        """
+        Get balance with CORRECT SIGN from ledger.
+        Dr (Debit) = Positive | Cr (Credit) = Negative
+        This is critical for revenue/expense classification
+        """
+        # Try each balance field in priority order
+        for field in ['balance', 'closing_balance', 'current_balance', 'opening_balance']:
+            val = ledger.get(field)
+            if val is not None and val != 0:
+                try:
+                    if isinstance(val, str):
+                        # Check for Cr (Credit) indicator BEFORE cleaning
+                        original_str = val.strip()
+                        is_credit = 'Cr' in original_str
+                        
+                        # Clean the value
+                        cleaned = val.replace('₹', '').replace(',', '').replace('Dr', '').replace('Cr', '').strip()
+                        
+                        if cleaned and cleaned != '0':
+                            balance = float(cleaned)
+                            # Apply correct sign based on Dr/Cr
+                            return -abs(balance) if is_credit else abs(balance)
+                    else:
+                        # Assume numeric values are positive (Dr) unless negative
+                        balance = float(val)
+                        if balance != 0:
+                            return balance
+                except (ValueError, TypeError):
+                    continue
+        
+        return 0.0
+    
+    def _calculate_revenue(self, ledgers: List[Dict], vouchers: List[Dict]) -> float:
+        """
+        Calculate revenue CORRECTLY respecting Tally sign convention:
+        - Revenue = Credit (Cr) Balances = NEGATIVE in ledger database
+        - Display as positive using absolute value
+        """
+        if not ledgers:
+            return 0.0
+        
+        revenue = 0.0
+        revenue_keywords = ['sales', 'income', 'revenue', 'receipt', 'service']
+        
+        for ledger in ledgers:
+            parent = (ledger.get('parent') or '').lower().strip()
+            name = (ledger.get('name') or '').lower().strip()
+            
+            # Skip empty names
+            if not name or name == 'unknown':
+                continue
+            
+            # Check if it's a revenue account
+            is_revenue = any(kw in parent or kw in name for kw in revenue_keywords)
+            is_revenue = is_revenue or ledger.get('is_revenue', False)
+            
+            if is_revenue:
+                # Get balance with CORRECT SIGN
+                balance = self._get_ledger_balance(ledger)
+                
+                # Revenue accounts typically have CREDIT balances (negative in Tally)
+                # Use absolute value for display/calculation
+                if balance != 0:
+                    revenue += abs(balance)
+                    logger.debug(f"Revenue ledger: {name} = {balance} (abs: {abs(balance)})")
+        
+        logger.info(f"Total revenue calculated: {revenue}")
+        return revenue
+    
+    def _calculate_expense(self, ledgers: List[Dict], vouchers: List[Dict]) -> float:
+        """
+        Calculate expense CORRECTLY respecting Tally sign convention:
+        - Expense = Debit (Dr) Balances = POSITIVE in ledger database
+        """
+        if not ledgers:
+            return 0.0
+        
+        expense = 0.0
+        expense_keywords = ['expense', 'purchase', 'cost', 'salary', 'rent', 'utilities', 'admin', 'labour']
+        
+        for ledger in ledgers:
+            parent = (ledger.get('parent') or '').lower().strip()
+            name = (ledger.get('name') or '').lower().strip()
+            
+            # Skip empty names
+            if not name or name == 'unknown':
+                continue
+            
+            # Check if it's an expense account
+            is_expense = any(kw in parent or kw in name for kw in expense_keywords)
+            is_expense = is_expense or ledger.get('is_expense', False)
+            
+            if is_expense:
+                # Get balance with CORRECT SIGN
+                balance = self._get_ledger_balance(ledger)
+                
+                # Expense accounts typically have DEBIT balances (positive in Tally)
+                if balance > 0:
+                    expense += balance
+                    logger.debug(f"Expense ledger: {name} = {balance}")
+                elif balance < 0:
+                    # Credit balance in expense account (rare)
+                    logger.warning(f"Expense account with credit balance: {name} = {balance}")
+        
+        logger.info(f"Total expense calculated: {expense}")
+        return expense
+    
+    def _calculate_assets(self, ledgers: List[Dict]) -> float:
+        """Calculate total assets (Debit balances)"""
+        assets = 0.0
+        asset_keywords = ['asset', 'bank', 'cash', 'investment', 'fixed asset', 'property']
+        
+        for ledger in ledgers:
+            parent = (ledger.get('parent') or '').lower()
+            name = (ledger.get('name') or '').lower()
+            
+            is_asset = any(kw in parent or kw in name for kw in asset_keywords)
+            
+            if is_asset:
+                balance = self._get_ledger_balance(ledger)
+                # Assets should have DEBIT balances (positive)
+                if balance > 0:
+                    assets += balance
+        
+        return assets
+    
+    def _calculate_liabilities(self, ledgers: List[Dict]) -> float:
+        """Calculate total liabilities (Credit balances)"""
+        liabilities = 0.0
+        liability_keywords = ['liability', 'loan', 'payable', 'debt', 'capital', 'equity']
+        
+        for ledger in ledgers:
+            parent = (ledger.get('parent') or '').lower()
+            name = (ledger.get('name') or '').lower()
+            
+            is_liability = any(kw in parent or kw in name for kw in liability_keywords)
+            
+            if is_liability:
+                balance = self._get_ledger_balance(ledger)
+                # Liabilities should have CREDIT balances (negative)
+                # Use absolute value
+                if balance < 0:
+                    liabilities += abs(balance)
+        
+        return liabilities
+    
     def _find_individual_revenue_sources(self, ledgers: List[Dict], vouchers: Optional[List[Dict]], count: int) -> List[Dict]:
         """Find individual revenue sources by analyzing all revenue-related ledgers in detail"""
         result = []
