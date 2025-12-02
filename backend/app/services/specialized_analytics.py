@@ -216,8 +216,33 @@ class SpecializedAnalytics:
                 ]
                 
                 for ledger in ledgers:
-                    # Use robust balance extraction
+                    # Use robust balance extraction - try _get_ledger_balance first
                     balance = self._get_ledger_balance(ledger)
+                    
+                    # FALLBACK: If _get_ledger_balance returns 0, try direct field access
+                    if balance == 0:
+                        # Try to get balance directly from fields
+                        for field in ['balance', 'closing_balance', 'current_balance', 'opening_balance']:
+                            val = ledger.get(field)
+                            if val is not None:
+                                try:
+                                    if isinstance(val, str):
+                                        # Quick parse without full normalization
+                                        cleaned = val.replace('₹', '').replace(',', '').replace('Dr', '').replace('Cr', '').replace('dr', '').replace('cr', '').strip()
+                                        if cleaned and cleaned != '0':
+                                            balance = float(cleaned)
+                                            # Check for Cr indicator
+                                            if 'Cr' in str(val) or 'cr' in str(val):
+                                                balance = -abs(balance)
+                                            else:
+                                                balance = abs(balance)
+                                            break
+                                    else:
+                                        balance = float(val)
+                                        if balance != 0:
+                                            break
+                                except (ValueError, TypeError):
+                                    continue
                     
                     # Revenue can have negative (Credit) or positive (Debit) balances
                     if balance != 0:
@@ -349,8 +374,33 @@ class SpecializedAnalytics:
                 ]
                 
                 for ledger in ledgers:
-                    # Use robust balance extraction
+                    # Use robust balance extraction - try _get_ledger_balance first
                     balance = self._get_ledger_balance(ledger)
+                    
+                    # FALLBACK: If _get_ledger_balance returns 0, try direct field access
+                    if balance == 0:
+                        # Try to get balance directly from fields
+                        for field in ['balance', 'closing_balance', 'current_balance', 'opening_balance']:
+                            val = ledger.get(field)
+                            if val is not None:
+                                try:
+                                    if isinstance(val, str):
+                                        # Quick parse without full normalization
+                                        cleaned = val.replace('₹', '').replace(',', '').replace('Dr', '').replace('Cr', '').replace('dr', '').replace('cr', '').strip()
+                                        if cleaned and cleaned != '0':
+                                            balance = float(cleaned)
+                                            # Check for Cr indicator
+                                            if 'Cr' in str(val) or 'cr' in str(val):
+                                                balance = -abs(balance)
+                                            else:
+                                                balance = abs(balance)
+                                            break
+                                    else:
+                                        balance = float(val)
+                                        if balance != 0:
+                                            break
+                                except (ValueError, TypeError):
+                                    continue
                     
                     # Expenses can have positive (Debit) or negative (Credit) balances
                     if balance != 0:
