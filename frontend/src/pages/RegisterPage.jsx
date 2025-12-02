@@ -42,12 +42,19 @@ const RegisterPage = () => {
       localStorage.setItem('token', 'demo-token-' + Date.now())
       localStorage.setItem('isAuthenticated', 'true')
 
+      // Clear any previous errors
+      setError('')
+      
+      // Show success and navigate
+      console.log('✅ Registration successful!', user)
+      
       // Navigate to dashboard
       setTimeout(() => {
         navigate('/dashboard')
-      }, 500)
+      }, 300)
     } catch (err) {
-      setError(err.message || 'An error occurred')
+      console.error('❌ Registration error:', err)
+      setError(err.message || 'An error occurred during registration')
     } finally {
       setLoading(false)
     }
