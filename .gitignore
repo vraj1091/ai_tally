@@ -44,6 +44,8 @@ env/
 tally_data_*.xml
 tally_sample_200k_comprehensive.xml
 sample_tally_200k_comprehensive.xml
+tally_complete_export_200k.xml
+tally_120000_FY2024_25_all_masters.xml
 
 # Logs
 logs/
