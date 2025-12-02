@@ -242,6 +242,14 @@ const CEODashboard = ({ dataSource = 'live' }) => {
   
   console.log('CEO Dashboard - Raw Top Revenue Sources:', rawTopRevenue);
   console.log('CEO Dashboard - Raw Top Expense Categories:', rawTopExpenses);
+  console.log('CEO Dashboard - Raw data types:', {
+    revenueType: typeof rawTopRevenue,
+    revenueIsArray: Array.isArray(rawTopRevenue),
+    revenueLength: rawTopRevenue?.length,
+    expenseType: typeof rawTopExpenses,
+    expenseIsArray: Array.isArray(rawTopExpenses),
+    expenseLength: rawTopExpenses?.length
+  });
   
   // Process and filter data using validation utility
   const topRevenue = prepareRevenueExpenseData(rawTopRevenue);
@@ -250,6 +258,10 @@ const CEODashboard = ({ dataSource = 'live' }) => {
   // Log for debugging
   console.log('CEO Dashboard - Processed Top Revenue Sources:', topRevenue);
   console.log('CEO Dashboard - Processed Top Expense Categories:', topExpenses);
+  console.log('CEO Dashboard - Processed lengths:', {
+    revenueLength: topRevenue?.length,
+    expenseLength: topExpenses?.length
+  });
 
   return (
     <div className="space-y-6">

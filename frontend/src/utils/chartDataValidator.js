@@ -86,35 +86,47 @@ export const validateNumeric = (value, defaultValue = 0) => {
  * @returns {Array} Validated data for chart rendering
  */
 export const prepareRevenueExpenseData = (rawData) => {
+  // Log for debugging
+  console.log('prepareRevenueExpenseData - Input:', rawData);
+  
   if (!rawData || !Array.isArray(rawData) || rawData.length === 0) {
-    return [
-      { name: 'No Data', amount: 0 },
-      { name: 'No Data', amount: 0 }
-    ];
+    console.log('prepareRevenueExpenseData - No data or empty array');
+    return [];
   }
 
   const processed = rawData
-    .filter(item => item && item.name && (item.amount || item.value || item.total))
-    .map(item => ({
-      name: item.name || item.label || item.source || item.category || 'Unknown',
-      amount: Math.abs(parseFloat(item.amount || item.value || item.total || 0))
-    }))
-    .filter(item => item.amount > 0)
+    .filter(item => {
+      const hasData = item && item.name && (item.amount !== undefined || item.value !== undefined || item.total !== undefined);
+      if (!hasData) {
+        console.log('prepareRevenueExpenseData - Filtered out item:', item);
+      }
+      return hasData;
+    })
+    .map(item => {
+      const amount = Math.abs(parseFloat(item.amount || item.value || item.total || 0));
+      const result = {
+        name: item.name || item.label || item.source || item.category || 'Unknown',
+        amount: amount
+      };
+      console.log('prepareRevenueExpenseData - Mapped item:', result);
+      return result;
+    })
+    .filter(item => {
+      const isValid = !isNaN(item.amount) && item.amount > 0;
+      if (!isValid) {
+        console.log('prepareRevenueExpenseData - Filtered out zero/NaN:', item);
+      }
+      return isValid;
+    })
     .sort((a, b) => b.amount - a.amount)
     .slice(0, 5); // Top 5
 
-  if (processed.length === 0) {
-    return [
-      { name: 'No Data', amount: 0 },
-      { name: 'No Data', amount: 0 }
-    ];
-  }
+  console.log('prepareRevenueExpenseData - Final processed:', processed);
 
-  if (processed.length === 1) {
-    return [
-      { name: 'Previous', amount: processed[0].amount * 0.8 },
-      ...processed
-    ];
+  // Return empty array if no valid data - let the component handle empty state
+  if (processed.length === 0) {
+    console.log('prepareRevenueExpenseData - No valid data after processing');
+    return [];
   }
 
   return processed;
