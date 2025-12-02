@@ -630,22 +630,39 @@ class TallyDataService:
             for ledger in ledgers:
                 balance = ledger.get('closing_balance', 0)
                 parent = ledger.get('parent', '').lower()
-
-                # Check for revenue/expense (if available from custom connector)
-                if ledger.get('is_revenue', False):
+                
+                # Improved Logic: Check for standard Tally Primary Groups
+                # Revenue
+                if 'sales accounts' in parent or 'direct incomes' in parent or 'indirect incomes' in parent or 'income (direct)' in parent or 'income (indirect)' in parent:
+                    total_revenue += balance
+                # Expense
+                elif 'purchase accounts' in parent or 'direct expenses' in parent or 'indirect expenses' in parent or 'expenses (direct)' in parent or 'expenses (indirect)' in parent:
+                    total_expense += balance
+                # Assets
+                elif 'fixed assets' in parent or 'current assets' in parent or 'investments' in parent or 'bank accounts' in parent or 'cash-in-hand' in parent or 'stock-in-hand' in parent or 'sundry debtors' in parent:
+                    total_assets += balance
+                # Liabilities
+                elif 'capital account' in parent or 'loans (liability)' in parent or 'current liabilities' in parent or 'sundry creditors' in parent or 'duties & taxes' in parent or 'provisions' in parent:
+                    total_liabilities += balance
+                
+                # Fallback to legacy string matching if no standard group found (for custom groups)
+                elif ledger.get('is_revenue', False):
                     total_revenue += balance
                 elif ledger.get('is_expense', False):
                     total_expense += balance
-                # Fallback to parent name analysis
-                elif 'asset' in parent or 'bank' in parent or 'cash' in parent:
+                elif 'asset' in parent:
                     total_assets += balance
-                elif 'liability' in parent or 'capital' in parent or 'loan' in parent:
+                elif 'liability' in parent:
                     total_liabilities += balance
                 elif 'income' in parent or 'sales' in parent or 'revenue' in parent:
                     total_revenue += balance
                 elif 'expense' in parent or 'purchase' in parent:
                     total_expense += balance
 
+            # Ensure positive values for revenue and expense for display (Tally often returns credit as negative)
+            total_revenue = abs(total_revenue)
+            total_expense = abs(total_expense)
+            
             net_profit = total_revenue - total_expense
 
             summary = {
@@ -653,8 +670,8 @@ class TallyDataService:
                 "total_revenue": total_revenue,
                 "total_expense": total_expense,
                 "net_profit": net_profit,
-                "total_assets": total_assets,
-                "total_liabilities": total_liabilities,
+                "total_assets": abs(total_assets),
+                "total_liabilities": abs(total_liabilities),
                 "ledger_count": len(ledgers)
             }
 

@@ -62,7 +62,6 @@ async def upload_document(file: UploadFile = File(...)):
         # Save file
         os.makedirs(Config.UPLOAD_FOLDER, exist_ok=True)
         file_path = os.path.join(Config.UPLOAD_FOLDER, file.filename)
-        
         with open(file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
         

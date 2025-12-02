@@ -20,7 +20,19 @@ export default function DocumentUpload({ onUploadSuccess }) {
     try {
       const response = await documentApi.upload(file)
       if (response.success) {
-        toast.success(response.message)
+        if (response.rag_status && response.rag_status !== 'stored_in_rag') {
+          toast(response.message, {
+            icon: '⚠️',
+            style: {
+              borderRadius: '10px',
+              background: '#FFF3CD',
+              color: '#856404',
+            },
+            duration: 5000,
+          })
+        } else {
+          toast.success(response.message)
+        }
         onUploadSuccess && onUploadSuccess()
       } else {
         toast.error('Upload failed')
