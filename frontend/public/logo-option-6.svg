@@ -1,0 +1,56 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- NEW OPTION 6: ORBITAL RINGS WITH DATA CENTER -->
+  <defs>
+    <linearGradient id="orb1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8b5cf6"/>
+      <stop offset="100%" style="stop-color:#6366f1"/>
+    </linearGradient>
+    <linearGradient id="orb2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4f46e5"/>
+      <stop offset="100%" style="stop-color:#7c3aed"/>
+    </linearGradient>
+    <linearGradient id="orbAccent" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10b981"/>
+      <stop offset="100%" style="stop-color:#34d399"/>
+    </linearGradient>
+    <filter id="shadowOrb">
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-opacity="0.3"/>
+    </filter>
+    <filter id="glowOrb">
+      <feGaussianBlur stdDeviation="4" result="coloredBlur"/>
+      <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+  
+  <!-- Outer orbital ring -->
+  <ellipse cx="100" cy="100" rx="88" ry="35" fill="none" stroke="url(#orb1)" stroke-width="4" opacity="0.4" transform="rotate(-20, 100, 100)"/>
+  
+  <!-- Middle orbital ring -->
+  <ellipse cx="100" cy="100" rx="75" ry="30" fill="none" stroke="url(#orb2)" stroke-width="5" opacity="0.6" transform="rotate(25, 100, 100)"/>
+  
+  <!-- Inner orbital ring -->
+  <ellipse cx="100" cy="100" rx="60" ry="25" fill="none" stroke="url(#orbAccent)" stroke-width="3" opacity="0.8" transform="rotate(-45, 100, 100)" filter="url(#glowOrb)"/>
+  
+  <!-- Center sphere -->
+  <circle cx="100" cy="100" r="40" fill="url(#orb1)" filter="url(#shadowOrb)"/>
+  <circle cx="100" cy="100" r="32" fill="url(#orb2)"/>
+  
+  <!-- Inner highlight -->
+  <circle cx="90" cy="90" r="15" fill="white" opacity="0.2"/>
+  
+  <!-- Center icon - Bar chart -->
+  <g transform="translate(75, 82)">
+    <rect x="0" y="22" width="10" height="14" rx="2" fill="white" opacity="0.8"/>
+    <rect x="14" y="12" width="10" height="24" rx="2" fill="white"/>
+    <rect x="28" y="0" width="10" height="36" rx="2" fill="url(#orbAccent)" filter="url(#glowOrb)"/>
+    <rect x="42" y="16" width="10" height="20" rx="2" fill="white" opacity="0.8"/>
+  </g>
+  
+  <!-- Orbital dots -->
+  <circle cx="25" cy="85" r="6" fill="url(#orbAccent)" filter="url(#glowOrb)"/>
+  <circle cx="175" cy="115" r="6" fill="url(#orb1)"/>
+  <circle cx="100" cy="25" r="5" fill="white" opacity="0.7"/>
+  <circle cx="55" cy="160" r="4" fill="url(#orbAccent)" opacity="0.8"/>
+  <circle cx="150" cy="45" r="4" fill="white" opacity="0.5"/>
+</svg>
+
