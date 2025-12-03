@@ -73,12 +73,10 @@ const ProfessionalLayout = ({ children }) => {
             {/* Left: Logo & Brand */}
             <div className="flex items-center">
               <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-lg flex items-center justify-center shadow-lg">
-                  <FiActivity className="w-6 h-6 text-white" />
-                </div>
+                <img src="/logo.svg" alt="TallyDash Pro" className="w-10 h-10" />
                 <div>
-                  <h1 className="text-xl font-bold text-gray-900">Tally Intelligence</h1>
-                  <p className="text-xs text-gray-500">Business Analytics Platform</p>
+                  <h1 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-indigo-600 bg-clip-text text-transparent">TallyDash Pro</h1>
+                  <p className="text-xs text-gray-500">AI-Powered Analytics</p>
                 </div>
               </div>
             </div>

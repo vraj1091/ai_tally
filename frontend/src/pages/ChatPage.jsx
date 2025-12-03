@@ -21,7 +21,7 @@ export default function ChatPage() {
     setMessages([
       {
         type: 'system',
-        content: `Welcome to AI Tally Assistant! Select a chat mode to get started.`,
+        content: `Welcome to TallyDash Pro! Select a chat mode to get started.`,
         sources: []
       }
     ])
