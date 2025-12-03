@@ -116,8 +116,17 @@ const ExecutiveSummaryDashboard = ({ dataSource = 'live' }) => {
     );
   }
 
-  const keyHighlights = execData.key_highlights || {};
-  const financialSnapshot = execData.financial_snapshot || {};
+  const keyHighlights = execData.key_highlights || {
+    total_revenue: execData.total_revenue || execData.revenue || 0,
+    net_profit: execData.net_profit || execData.profit || 0,
+    total_assets: execData.total_assets || execData.assets || 0,
+    profit_margin: execData.profit_margin || 0
+  };
+  const financialSnapshot = execData.financial_snapshot || {
+    revenue: execData.total_revenue || execData.revenue || 0,
+    expenses: execData.total_expenses || execData.expense || 0,
+    profit: execData.net_profit || execData.profit || 0
+  };
   const operationalMetrics = execData.operational_metrics || {};
   const strategicInsights = execData.strategic_insights || {};
 

@@ -116,10 +116,20 @@ const ProductPerformanceDashboard = ({ dataSource = 'live' }) => {
     );
   }
 
-  const productSummary = productData.product_summary || {};
+  const productSummary = productData.product_summary || {
+    total_products: productData.total_products || 0,
+    active_products: productData.active_products || 0,
+    total_inventory_value: productData.total_inventory_value || productData.inventory_value || 0,
+    avg_product_value: productData.avg_product_value || 0
+  };
   const topProducts = productData.top_products || [];
-  const productPerformance = productData.product_performance || {};
+  const productPerformanceRaw = productData.product_performance || [];
   const inventoryMetrics = productData.inventory_metrics || {};
+  
+  // Create product performance object from array if needed
+  const productPerformance = Array.isArray(productPerformanceRaw) 
+    ? { items: productPerformanceRaw }
+    : productPerformanceRaw;
 
   // Top products chart data
   const topProductsChart = topProducts.slice(0, 15).map(p => ({

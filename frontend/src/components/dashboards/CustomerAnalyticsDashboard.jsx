@@ -118,15 +118,17 @@ const CustomerAnalyticsDashboard = ({ dataSource = 'live' }) => {
 
   const customerSummary = customerData.customer_summary || {};
   const topCustomers = customerData.top_customers || [];
-  const customerSegmentation = customerData.customer_segmentation || {};
+  const customerSegmentationRaw = customerData.customer_segmentation || [];
   const customerBehavior = customerData.customer_behavior || {};
 
-  // Customer segmentation data
-  const segmentationData = [
-    { name: 'Premium', value: customerSegmentation.premium || 0 },
-    { name: 'Regular', value: customerSegmentation.regular || 0 },
-    { name: 'New', value: customerSegmentation.new || 0 }
-  ];
+  // Customer segmentation data - handle both array and object formats
+  const segmentationData = Array.isArray(customerSegmentationRaw) && customerSegmentationRaw.length > 0
+    ? customerSegmentationRaw.map(s => ({ name: s.segment || s.name, value: s.value || s.count || 0 }))
+    : [
+        { name: 'Premium', value: customerSegmentationRaw.premium || 0 },
+        { name: 'Regular', value: customerSegmentationRaw.regular || 0 },
+        { name: 'New', value: customerSegmentationRaw.new || 0 }
+      ];
 
   // Top customers chart data - handle both object and array formats
   const topCustomersChart = topCustomers.slice(0, 10).map(c => {

@@ -117,17 +117,18 @@ const TaxDashboard = ({ dataSource = 'live' }) => {
   }
 
   const taxSummary = taxData.tax_summary || {};
-  const gstBreakdown = taxData.gst_breakdown || {};
+  const gstBreakdownRaw = taxData.gst_breakdown || [];
   const complianceStatus = taxData.compliance_status || {};
   const upcomingDeadlines = taxData.upcoming_deadlines || [];
 
-  // GST breakdown data
-  const gstData = [
-    { name: 'CGST', value: gstBreakdown.cgst || 0 },
-    { name: 'SGST', value: gstBreakdown.sgst || 0 },
-    { name: 'IGST', value: gstBreakdown.igst || 0 },
-    { name: 'CESS', value: gstBreakdown.cess || 0 }
-  ];
+  // GST breakdown data - handle both array and object formats
+  const gstData = Array.isArray(gstBreakdownRaw) && gstBreakdownRaw.length > 0
+    ? gstBreakdownRaw.map(g => ({ name: g.name, value: g.value || g.amount || 0 }))
+    : [
+        { name: 'CGST', value: taxData.cgst || 0 },
+        { name: 'SGST', value: taxData.sgst || 0 },
+        { name: 'IGST', value: taxData.igst || 0 }
+      ];
 
   // Tax liability breakdown
   const taxBreakdown = [
