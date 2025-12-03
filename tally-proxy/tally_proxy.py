@@ -6,9 +6,11 @@ This small proxy runs on your computer and forwards requests to Tally,
 adding the necessary CORS headers so your browser can communicate with Tally.
 
 Usage:
-  python tally_proxy.py
+  python tally_proxy.py                    # Connect to localhost:9000
+  python tally_proxy.py 192.168.1.3        # Connect to Tally on another computer
+  python tally_proxy.py 192.168.1.3 9000   # Custom IP and port
 
-The proxy will run on http://localhost:8765 and forward to Tally at localhost:9000
+The proxy will run on http://localhost:8765
 """
 
 from http.server import HTTPServer, BaseHTTPRequestHandler
@@ -16,7 +18,10 @@ import urllib.request
 import urllib.error
 import sys
 
-TALLY_URL = "http://localhost:9000"
+# Parse command line arguments for Tally IP/port
+TALLY_HOST = sys.argv[1] if len(sys.argv) > 1 else "localhost"
+TALLY_PORT = sys.argv[2] if len(sys.argv) > 2 else "9000"
+TALLY_URL = f"http://{TALLY_HOST}:{TALLY_PORT}"
 PROXY_PORT = 8765
 
 class TallyProxyHandler(BaseHTTPRequestHandler):
