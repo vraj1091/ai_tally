@@ -1,0 +1,47 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- STYLE: TD Monogram - Gradient Layers -->
+  <defs>
+    <linearGradient id="n9g1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#a78bfa"/>
+      <stop offset="100%" style="stop-color:#8b5cf6"/>
+    </linearGradient>
+    <linearGradient id="n9g2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#7c3aed"/>
+      <stop offset="100%" style="stop-color:#6366f1"/>
+    </linearGradient>
+    <linearGradient id="n9g3" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4f46e5"/>
+      <stop offset="100%" style="stop-color:#3730a3"/>
+    </linearGradient>
+    <linearGradient id="n9g4" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10b981"/>
+      <stop offset="100%" style="stop-color:#34d399"/>
+    </linearGradient>
+    <filter id="n9s"><feDropShadow dx="0" dy="8" stdDeviation="12" flood-opacity="0.35"/></filter>
+  </defs>
+  
+  <!-- Layer 3 (back) -->
+  <rect x="25" y="25" width="150" height="150" rx="30" fill="url(#n9g3)" filter="url(#n9s)"/>
+  
+  <!-- Layer 2 -->
+  <rect x="35" y="35" width="130" height="130" rx="25" fill="url(#n9g2)"/>
+  
+  <!-- Layer 1 (front) -->
+  <rect x="45" y="45" width="110" height="110" rx="20" fill="url(#n9g1)"/>
+  
+  <!-- T Letter -->
+  <rect x="55" y="60" width="45" height="10" rx="5" fill="white"/>
+  <rect x="72" y="60" width="10" height="75" rx="5" fill="white"/>
+  
+  <!-- D Letter -->
+  <rect x="100" y="60" width="10" height="75" rx="5" fill="white" opacity="0.95"/>
+  <path d="M 105 60 Q 150 60 150 97 Q 150 135 105 135" fill="none" stroke="white" stroke-width="10" stroke-linecap="round" opacity="0.95"/>
+  
+  <!-- Bottom accent bar -->
+  <rect x="55" y="145" width="90" height="6" rx="3" fill="url(#n9g4)"/>
+  
+  <!-- Corner sparkle -->
+  <circle cx="160" cy="40" r="8" fill="url(#n9g4)"/>
+  <circle cx="160" cy="40" r="4" fill="white"/>
+</svg>
+

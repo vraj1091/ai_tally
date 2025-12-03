@@ -1,0 +1,36 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- STYLE: Orbital - Double Ring with Center -->
+  <defs>
+    <linearGradient id="n2g1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#7c3aed"/>
+      <stop offset="100%" style="stop-color:#6366f1"/>
+    </linearGradient>
+    <linearGradient id="n2g2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10b981"/>
+      <stop offset="100%" style="stop-color:#34d399"/>
+    </linearGradient>
+    <filter id="n2s"><feDropShadow dx="0" dy="5" stdDeviation="8" flood-opacity="0.25"/></filter>
+    <filter id="n2g"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  
+  <!-- Outer ring -->
+  <circle cx="100" cy="100" r="88" fill="none" stroke="url(#n2g1)" stroke-width="6" opacity="0.4"/>
+  
+  <!-- Inner ring with glow -->
+  <circle cx="100" cy="100" r="65" fill="none" stroke="url(#n2g2)" stroke-width="4" filter="url(#n2g)"/>
+  
+  <!-- Center filled circle -->
+  <circle cx="100" cy="100" r="45" fill="url(#n2g1)" filter="url(#n2s)"/>
+  
+  <!-- TD Letters in center -->
+  <g transform="translate(65, 80)">
+    <text x="0" y="30" font-family="Arial" font-size="32" font-weight="900" fill="white">TD</text>
+  </g>
+  
+  <!-- Orbital dots -->
+  <circle cx="100" cy="12" r="8" fill="url(#n2g2)" filter="url(#n2g)"/>
+  <circle cx="188" cy="100" r="6" fill="url(#n2g1)"/>
+  <circle cx="100" cy="188" r="6" fill="url(#n2g1)"/>
+  <circle cx="12" cy="100" r="8" fill="url(#n2g2)"/>
+</svg>
+
