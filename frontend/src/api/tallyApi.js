@@ -3,6 +3,12 @@ import apiClient from './client'
 // Local Tally Proxy URL (runs on user's machine)
 const LOCAL_TALLY_PROXY = 'http://localhost:8765';
 
+// Get auth token from localStorage (user sets this from proxy console)
+const getTallyAuthToken = () => localStorage.getItem('tallyAuthToken') || '';
+
+// Set auth token (called from settings)
+export const setTallyAuthToken = (token) => localStorage.setItem('tallyAuthToken', token);
+
 // Direct Tally connection functions (via local proxy)
 const directTally = {
   /**
@@ -15,6 +21,10 @@ const directTally = {
         timeout: 5000
       });
       if (response.ok) {
+        const statusData = await response.json();
+        const isSecure = statusData.secure || false;
+        const authRequired = statusData.auth_required || false;
+        
         // Proxy is running, now test Tally
         const xmlRequest = `<ENVELOPE>
           <HEADER><VERSION>1</VERSION><TALLYREQUEST>Export</TALLYREQUEST><TYPE>Collection</TYPE><ID>Test</ID></HEADER>
@@ -22,28 +32,64 @@ const directTally = {
           <TDL><TDLMESSAGE><COLLECTION NAME="Test"><TYPE>Company</TYPE><FETCH>Name</FETCH></COLLECTION></TDLMESSAGE></TDL>
           </DESC></BODY></ENVELOPE>`;
         
+        const headers = { 'Content-Type': 'application/xml' };
+        
+        // Add auth token if secure proxy
+        if (authRequired) {
+          const token = getTallyAuthToken();
+          if (!token) {
+            return { 
+              connected: false, 
+              message: 'Secure proxy requires authentication token. Go to Settings → Set Tally Auth Token',
+              needsToken: true
+            };
+          }
+          headers['X-Tally-Auth'] = token;
+        }
+        
         const tallyResponse = await fetch(LOCAL_TALLY_PROXY, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/xml' },
+          headers,
           body: xmlRequest
         });
+        
+        if (tallyResponse.status === 401) {
+          return { 
+            connected: false, 
+            message: 'Invalid authentication token. Check the token shown in proxy console.',
+            needsToken: true
+          };
+        }
         
         if (tallyResponse.ok) {
           const text = await tallyResponse.text();
           if (text.length > 50 && text.includes('COMPANY')) {
-            return { connected: true, message: '✓ Connected to Tally via local proxy!' };
+            const secureMsg = isSecure ? ' (Secure mode)' : '';
+            return { connected: true, message: `✓ Connected to Tally via local proxy!${secureMsg}` };
           }
         }
-        return { connected: false, message: 'Proxy running but cannot reach Tally. Ensure Tally is open with Gateway enabled (F12 → Server → Port 9000)' };
+        return { connected: false, message: `Proxy running but cannot reach Tally at ${statusData.tally_url}. Ensure Tally is open with Gateway enabled.` };
       }
     } catch (error) {
       return { 
         connected: false, 
-        message: 'Local proxy not running. Run "python tally_proxy.py" to enable direct Tally connection.',
+        message: 'Local proxy not running. Run "python tally_proxy.py" or "python secure_tally_proxy.py"',
         needsProxy: true
       };
     }
     return { connected: false, message: 'Connection test failed' };
+  },
+
+  /**
+   * Get headers with optional auth token
+   */
+  getHeaders() {
+    const headers = { 'Content-Type': 'application/xml' };
+    const token = getTallyAuthToken();
+    if (token) {
+      headers['X-Tally-Auth'] = token;
+    }
+    return headers;
   },
 
   /**
@@ -58,9 +104,13 @@ const directTally = {
     
     const response = await fetch(LOCAL_TALLY_PROXY, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/xml' },
+      headers: this.getHeaders(),
       body: xmlRequest
     });
+    
+    if (response.status === 401) {
+      throw new Error('Authentication failed. Check your Tally Auth Token in Settings.');
+    }
     
     const text = await response.text();
     return parseCompaniesXml(text);
@@ -78,9 +128,13 @@ const directTally = {
     
     const response = await fetch(LOCAL_TALLY_PROXY, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/xml' },
+      headers: this.getHeaders(),
       body: xmlRequest
     });
+    
+    if (response.status === 401) {
+      throw new Error('Authentication failed. Check your Tally Auth Token in Settings.');
+    }
     
     const text = await response.text();
     return parseLedgersXml(text);
@@ -99,9 +153,13 @@ const directTally = {
     
     const response = await fetch(LOCAL_TALLY_PROXY, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/xml' },
+      headers: this.getHeaders(),
       body: xmlRequest
     });
+    
+    if (response.status === 401) {
+      throw new Error('Authentication failed. Check your Tally Auth Token in Settings.');
+    }
     
     const text = await response.text();
     return parseVouchersXml(text);
