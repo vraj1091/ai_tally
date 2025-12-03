@@ -276,7 +276,7 @@ const AccountsPayableDashboard = ({ dataSource = 'live' }) => {
                   <td className="p-3 text-sm text-gray-600">#{idx + 1}</td>
                   <td className="p-3 text-sm font-medium text-gray-900">{creditor.name || 'Unknown'}</td>
                   <td className="p-3 text-sm font-bold text-pink-600 text-right">
-                    {formatCurrency(parseFloat(creditor.balance || creditor.closing_balance || creditor.current_balance || 0))}
+                    {formatCurrency(parseFloat(creditor.outstanding || creditor.payable || creditor.amount || creditor.spend || creditor.balance || creditor.closing_balance || 0))}
                   </td>
                 </tr>
               ))}

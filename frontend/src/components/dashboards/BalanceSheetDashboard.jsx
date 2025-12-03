@@ -116,9 +116,13 @@ const BalanceSheetDashboard = ({ dataSource = 'live' }) => {
     );
   }
 
-  const balanceSheet = bsData.balance_sheet || {};
-  const assetsBreakdown = bsData.assets_breakdown || {};
-  const liabilitiesBreakdown = bsData.liabilities_breakdown || {};
+  const balanceSheet = bsData.balance_sheet || bsData.balance_summary || {
+    total_assets: bsData.total_assets || 0,
+    total_liabilities: bsData.total_liabilities || 0,
+    total_equity: bsData.total_equity || 0
+  };
+  const assetsBreakdown = bsData.assets_breakdown || [];
+  const liabilitiesBreakdown = bsData.liabilities_breakdown || [];
   const financialPosition = bsData.financial_position || {};
 
   // Assets data for charts

@@ -121,9 +121,14 @@ const RealtimeOperationsDashboard = ({ dataSource = 'live' }) => {
     );
   }
 
-  const liveMetrics = realtimeData.live_metrics || {};
-  const operationalKPIs = realtimeData.operational_kpis || {};
-  const activitySummary = realtimeData.activity_summary || {};
+  const liveMetrics = realtimeData.live_metrics || {
+    transactions_today: realtimeData.daily_transactions || realtimeData.today_summary?.transactions || 0,
+    revenue_today: realtimeData.daily_revenue || realtimeData.today_summary?.revenue || 0,
+    expenses_today: realtimeData.daily_expense || realtimeData.today_summary?.expenses || 0,
+    profit_today: realtimeData.daily_profit || realtimeData.today_summary?.profit || 0
+  };
+  const operationalKPIs = realtimeData.operational_kpis || realtimeData.current_status || {};
+  const activitySummary = realtimeData.activity_summary || realtimeData.today_summary || {};
 
   // Activity timeline data
   const activityData = [

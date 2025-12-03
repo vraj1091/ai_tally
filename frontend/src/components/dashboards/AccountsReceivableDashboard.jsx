@@ -277,7 +277,7 @@ const AccountsReceivableDashboard = ({ dataSource = 'live' }) => {
                     <td className="p-3 text-sm text-gray-600">#{idx + 1}</td>
                     <td className="p-3 text-sm font-medium text-gray-900">{debtor.name || 'Unknown'}</td>
                     <td className="p-3 text-sm font-bold text-green-600 text-right">
-                      {formatCurrency(parseFloat(debtor.balance || debtor.closing_balance || debtor.current_balance || 0))}
+                      {formatCurrency(parseFloat(debtor.outstanding || debtor.amount || debtor.revenue || debtor.balance || debtor.closing_balance || 0))}
                     </td>
                   </tr>
                 ))}

@@ -117,6 +117,9 @@ const CashFlowDashboard = ({ dataSource = 'live' }) => {
   const investing = cashFlowData.investing_activities || {};
   const financing = cashFlowData.financing_activities || {};
   const forecast = cashFlowData.cash_forecast || {};
+  // Add fallback for burn rate and runway
+  const burnRate = cashFlowData.daily_burn_rate || cashFlowData.burn_rate?.daily || cashSummary.cash_burn_rate || 0;
+  const runwayDays = forecast.runway_days || forecast.cash_runway_days || cashFlowData.cash_runway || cashSummary.cash_runway || 0;
 
   // Waterfall data for cash flow visualization
   const waterfallData = [
@@ -189,7 +192,7 @@ const CashFlowDashboard = ({ dataSource = 'live' }) => {
             <p className="text-sm font-medium opacity-90">Cash Runway</p>
             <FiClock className="w-6 h-6 opacity-75" />
           </div>
-          <p className="text-4xl font-bold mb-2">{forecast.runway_days || 0}</p>
+          <p className="text-4xl font-bold mb-2">{runwayDays}</p>
           <p className="text-sm opacity-75">Days remaining</p>
         </div>
       </div>
@@ -298,12 +301,12 @@ const CashFlowDashboard = ({ dataSource = 'live' }) => {
               <p className="text-sm text-gray-600 mb-1">Next Quarter (90 days)</p>
               <p className="text-3xl font-bold text-purple-700">{formatCurrency(forecast.next_quarter)}</p>
             </div>
-            <div className={`p-4 rounded-lg ${forecast.runway_days < 90 ? 'bg-red-50' : 'bg-green-50'}`}>
+            <div className={`p-4 rounded-lg ${runwayDays < 90 ? 'bg-red-50' : 'bg-green-50'}`}>
               <p className="text-sm text-gray-600 mb-1">Cash Runway</p>
-              <p className={`text-3xl font-bold ${forecast.runway_days < 90 ? 'text-red-700' : 'text-green-700'}`}>
-                {forecast.runway_days} days
+              <p className={`text-3xl font-bold ${runwayDays < 90 ? 'text-red-700' : 'text-green-700'}`}>
+                {runwayDays} days
               </p>
-              {forecast.runway_days < 90 && (
+              {runwayDays < 90 && (
                 <p className="text-xs text-red-600 mt-2">⚠️ Low runway - consider funding options</p>
               )}
             </div>
@@ -315,11 +318,11 @@ const CashFlowDashboard = ({ dataSource = 'live' }) => {
           <div className="space-y-4">
             <div className="p-4 bg-orange-50 rounded-lg border-l-4 border-orange-500">
               <p className="text-sm text-gray-600 mb-1">Daily Burn Rate</p>
-              <p className="text-3xl font-bold text-orange-700">{formatCurrency(cashSummary.cash_burn_rate)}/day</p>
+              <p className="text-3xl font-bold text-orange-700">{formatCurrency(burnRate)}/day</p>
             </div>
             <div className="p-4 bg-yellow-50 rounded-lg border-l-4 border-yellow-500">
               <p className="text-sm text-gray-600 mb-1">Monthly Burn Rate</p>
-              <p className="text-3xl font-bold text-yellow-700">{formatCurrency(cashSummary.cash_burn_rate * 30)}</p>
+              <p className="text-3xl font-bold text-yellow-700">{formatCurrency(burnRate * 30)}</p>
             </div>
             <div className="p-4 bg-gray-50 rounded-lg border-l-4 border-gray-500">
               <p className="text-sm text-gray-600 mb-1">Status</p>
@@ -346,13 +349,13 @@ const CashFlowDashboard = ({ dataSource = 'live' }) => {
           <div>
             <p className="text-sm font-medium text-gray-700 mb-2">Liquidity Position</p>
             <p className="text-xl font-bold text-cyan-700">
-              {forecast.runway_days > 180 ? 'Strong' : forecast.runway_days > 90 ? 'Adequate' : 'Weak'}
+              {runwayDays > 180 ? 'Strong' : runwayDays > 90 ? 'Adequate' : 'Weak'}
             </p>
           </div>
           <div>
             <p className="text-sm font-medium text-gray-700 mb-2">Recommendation</p>
             <p className="text-xl font-bold text-cyan-700">
-              {forecast.runway_days < 90 ? 'Reduce Burn' : 'Maintain Course'}
+              {runwayDays < 90 ? 'Reduce Burn' : 'Maintain Course'}
             </p>
           </div>
         </div>

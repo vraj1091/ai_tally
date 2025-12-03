@@ -116,7 +116,12 @@ const ProfitLossDashboard = ({ dataSource = 'live' }) => {
     );
   }
 
-  const incomeStatement = plData.income_statement || {};
+  const incomeStatement = plData.income_statement || plData.income_summary || {
+    total_income: plData.total_income || 0,
+    total_expenses: plData.total_expenses || 0,
+    net_profit: plData.net_profit || 0,
+    profit_margin: plData.profit_margin || 0
+  };
   const incomeBreakdown = plData.income_breakdown || [];
   const expenseBreakdown = plData.expense_breakdown || [];
   const profitabilityTrends = plData.profitability_trends || {};

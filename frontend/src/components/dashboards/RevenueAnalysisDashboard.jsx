@@ -116,8 +116,13 @@ const RevenueAnalysisDashboard = ({ dataSource = 'live' }) => {
     );
   }
 
-  const revenueSummary = revenueData.revenue_summary || {};
-  const revenueStreams = revenueData.revenue_streams || [];
+  const revenueSummary = revenueData.revenue_summary || {
+    total_revenue: revenueData.total_revenue || 0,
+    gross_revenue: revenueData.gross_revenue || 0,
+    net_revenue: revenueData.net_revenue || 0,
+    revenue_growth: revenueData.revenue_growth || 0
+  };
+  const revenueStreams = revenueData.revenue_streams || revenueData.top_revenue_sources || [];
   const revenueTrends = revenueData.revenue_trends || {};
   const topRevenueSources = revenueData.top_revenue_sources || [];
 

@@ -200,7 +200,7 @@ const CustomerAnalyticsDashboard = ({ dataSource = 'live' }) => {
             <p className="text-sm font-medium opacity-90">Avg Revenue/Customer</p>
             <FiDollarSign className="w-6 h-6 opacity-75" />
           </div>
-          <p className="text-4xl font-bold mb-2">{formatCurrency(customerSummary.avg_revenue_per_customer)}</p>
+          <p className="text-4xl font-bold mb-2">{formatCurrency(customerSummary.avg_revenue_per_customer || customerSummary.avg_revenue || 0)}</p>
           <p className="text-sm opacity-75">Per customer average</p>
         </div>
       </div>
@@ -263,7 +263,7 @@ const CustomerAnalyticsDashboard = ({ dataSource = 'live' }) => {
                     <td className="p-3 text-sm text-gray-600">#{idx + 1}</td>
                     <td className="p-3 text-sm font-medium text-gray-900">{customer.name || 'Unknown'}</td>
                     <td className="p-3 text-sm font-bold text-green-600 text-right">
-                      {formatCurrency(parseFloat(customer.balance || customer.closing_balance || customer.current_balance || 0))}
+                      {formatCurrency(parseFloat(customer.revenue || customer.value || customer.amount || customer.sales || customer.balance || customer.closing_balance || 0))}
                     </td>
                   </tr>
                 ))}

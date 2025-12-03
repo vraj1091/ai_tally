@@ -116,8 +116,15 @@ const ExpenseAnalysisDashboard = ({ dataSource = 'live' }) => {
     );
   }
 
-  const expenseSummary = expenseData.expense_summary || {};
-  const expenseBreakdown = expenseData.expense_breakdown || [];
+  const expenseSummary = expenseData.expense_summary || {
+    total_expenses: expenseData.total_expenses || 0,
+    operating_expenses: expenseData.operating_expenses || 0,
+    cogs: expenseData.cogs || 0,
+    mom_change: expenseData.mom_change || 0,
+    yoy_change: expenseData.yoy_change || 0,
+    trend: expenseData.trend || 'Stable'
+  };
+  const expenseBreakdown = expenseData.expense_breakdown || expenseData.top_expense_categories || [];
   const expenseTrends = expenseData.expense_trends || {};
   const topExpenseCategories = expenseData.top_expense_categories || [];
 

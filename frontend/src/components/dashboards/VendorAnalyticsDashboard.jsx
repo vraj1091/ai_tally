@@ -189,7 +189,7 @@ const VendorAnalyticsDashboard = ({ dataSource = 'live' }) => {
             <p className="text-sm font-medium opacity-90">Avg Spend/Vendor</p>
             <RupeeIcon className="w-6 h-6 opacity-75" />
           </div>
-          <p className="text-4xl font-bold mb-2">{formatCurrency(vendorSummary.avg_spend_per_vendor)}</p>
+          <p className="text-4xl font-bold mb-2">{formatCurrency(vendorSummary.avg_spend_per_vendor || vendorSummary.avg_spend || 0)}</p>
           <p className="text-sm opacity-75">Per vendor average</p>
         </div>
       </div>
