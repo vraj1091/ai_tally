@@ -1,6 +1,164 @@
 import apiClient from './client'
 
+// Local Tally Proxy URL (runs on user's machine)
+const LOCAL_TALLY_PROXY = 'http://localhost:8765';
+
+// Direct Tally connection functions (via local proxy)
+const directTally = {
+  /**
+   * Test direct connection to local Tally via proxy
+   */
+  async testConnection() {
+    try {
+      const response = await fetch(`${LOCAL_TALLY_PROXY}/status`, {
+        method: 'GET',
+        timeout: 5000
+      });
+      if (response.ok) {
+        // Proxy is running, now test Tally
+        const xmlRequest = `<ENVELOPE>
+          <HEADER><VERSION>1</VERSION><TALLYREQUEST>Export</TALLYREQUEST><TYPE>Collection</TYPE><ID>Test</ID></HEADER>
+          <BODY><DESC><STATICVARIABLES><SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT></STATICVARIABLES>
+          <TDL><TDLMESSAGE><COLLECTION NAME="Test"><TYPE>Company</TYPE><FETCH>Name</FETCH></COLLECTION></TDLMESSAGE></TDL>
+          </DESC></BODY></ENVELOPE>`;
+        
+        const tallyResponse = await fetch(LOCAL_TALLY_PROXY, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/xml' },
+          body: xmlRequest
+        });
+        
+        if (tallyResponse.ok) {
+          const text = await tallyResponse.text();
+          if (text.length > 50 && text.includes('COMPANY')) {
+            return { connected: true, message: '✓ Connected to Tally via local proxy!' };
+          }
+        }
+        return { connected: false, message: 'Proxy running but cannot reach Tally. Ensure Tally is open with Gateway enabled (F12 → Server → Port 9000)' };
+      }
+    } catch (error) {
+      return { 
+        connected: false, 
+        message: 'Local proxy not running. Run "python tally_proxy.py" to enable direct Tally connection.',
+        needsProxy: true
+      };
+    }
+    return { connected: false, message: 'Connection test failed' };
+  },
+
+  /**
+   * Get companies directly from Tally
+   */
+  async getCompanies() {
+    const xmlRequest = `<ENVELOPE>
+      <HEADER><VERSION>1</VERSION><TALLYREQUEST>Export</TALLYREQUEST><TYPE>Collection</TYPE><ID>CompanyList</ID></HEADER>
+      <BODY><DESC><STATICVARIABLES><SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT></STATICVARIABLES>
+      <TDL><TDLMESSAGE><COLLECTION NAME="CompanyList"><TYPE>Company</TYPE><FETCH>NAME, STARTINGFROM, ENDINGAT</FETCH></COLLECTION></TDLMESSAGE></TDL>
+      </DESC></BODY></ENVELOPE>`;
+    
+    const response = await fetch(LOCAL_TALLY_PROXY, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/xml' },
+      body: xmlRequest
+    });
+    
+    const text = await response.text();
+    return parseCompaniesXml(text);
+  },
+
+  /**
+   * Get ledgers for a company directly from Tally
+   */
+  async getLedgers(companyName) {
+    const xmlRequest = `<ENVELOPE>
+      <HEADER><VERSION>1</VERSION><TALLYREQUEST>Export</TALLYREQUEST><TYPE>Collection</TYPE><ID>LedgerList</ID></HEADER>
+      <BODY><DESC><STATICVARIABLES><SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT><SVCURRENTCOMPANY>${escapeXml(companyName)}</SVCURRENTCOMPANY></STATICVARIABLES>
+      <TDL><TDLMESSAGE><COLLECTION NAME="LedgerList"><TYPE>Ledger</TYPE><FETCH>NAME, PARENT, CLOSINGBALANCE</FETCH></COLLECTION></TDLMESSAGE></TDL>
+      </DESC></BODY></ENVELOPE>`;
+    
+    const response = await fetch(LOCAL_TALLY_PROXY, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/xml' },
+      body: xmlRequest
+    });
+    
+    const text = await response.text();
+    return parseLedgersXml(text);
+  },
+
+  /**
+   * Get vouchers for a company directly from Tally
+   */
+  async getVouchers(companyName, fromDate, toDate) {
+    const xmlRequest = `<ENVELOPE>
+      <HEADER><VERSION>1</VERSION><TALLYREQUEST>Export</TALLYREQUEST><TYPE>Collection</TYPE><ID>VoucherList</ID></HEADER>
+      <BODY><DESC><STATICVARIABLES><SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT><SVCURRENTCOMPANY>${escapeXml(companyName)}</SVCURRENTCOMPANY>
+      <SVFROMDATE>${fromDate}</SVFROMDATE><SVTODATE>${toDate}</SVTODATE></STATICVARIABLES>
+      <TDL><TDLMESSAGE><COLLECTION NAME="VoucherList"><TYPE>Voucher</TYPE><FETCH>DATE, VOUCHERNUMBER, VOUCHERTYPENAME, AMOUNT</FETCH></COLLECTION></TDLMESSAGE></TDL>
+      </DESC></BODY></ENVELOPE>`;
+    
+    const response = await fetch(LOCAL_TALLY_PROXY, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/xml' },
+      body: xmlRequest
+    });
+    
+    const text = await response.text();
+    return parseVouchersXml(text);
+  }
+};
+
+// XML Parsing helpers
+function escapeXml(text) {
+  return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function parseCompaniesXml(xml) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xml, 'text/xml');
+  const companies = [];
+  doc.querySelectorAll('COMPANY').forEach(node => {
+    companies.push({
+      name: node.querySelector('NAME')?.textContent || '',
+      financial_year_start: node.querySelector('STARTINGFROM')?.textContent || '',
+      financial_year_end: node.querySelector('ENDINGAT')?.textContent || ''
+    });
+  });
+  return companies;
+}
+
+function parseLedgersXml(xml) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xml, 'text/xml');
+  const ledgers = [];
+  doc.querySelectorAll('LEDGER').forEach(node => {
+    ledgers.push({
+      name: node.querySelector('NAME')?.textContent || '',
+      parent: node.querySelector('PARENT')?.textContent || '',
+      closing_balance: parseFloat(node.querySelector('CLOSINGBALANCE')?.textContent) || 0
+    });
+  });
+  return ledgers;
+}
+
+function parseVouchersXml(xml) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xml, 'text/xml');
+  const vouchers = [];
+  doc.querySelectorAll('VOUCHER').forEach(node => {
+    vouchers.push({
+      date: node.querySelector('DATE')?.textContent || '',
+      voucher_number: node.querySelector('VOUCHERNUMBER')?.textContent || '',
+      voucher_type: node.querySelector('VOUCHERTYPENAME')?.textContent || '',
+      amount: parseFloat(node.querySelector('AMOUNT')?.textContent) || 0
+    });
+  });
+  return vouchers;
+}
+
 export const tallyApi = {
+  // Direct Tally connection (via local proxy)
+  direct: directTally,
   // Configure Tally connection
   configureConnection: async (connectionType, serverUrl = null, port = 9000) => {
     try {
