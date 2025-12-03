@@ -1,14 +1,92 @@
-# TallyDash Pro - Local Tally Proxy
+# TallyDash Pro - Tally Connection Options
 
-This small proxy allows the TallyDash Pro web application (running in your browser) to communicate directly with Tally ERP running on your computer.
+Multiple secure ways to connect TallyDash Pro to your Tally ERP.
 
-## Why is this needed?
+## Connection Methods
+
+| Method | Security | Setup | Best For |
+|--------|----------|-------|----------|
+| **ODBC Connector** | ⭐⭐⭐⭐⭐ | Medium | Production use |
+| **Secure Proxy** | ⭐⭐⭐⭐ | Easy | Development |
+| **Basic Proxy** | ⭐⭐ | Easy | Quick testing |
+| **Backup File** | ⭐⭐⭐⭐⭐ | Easiest | Offline analysis |
+
+---
+
+## Method 1: ODBC Connector (Most Secure) ⭐
+
+Uses Windows ODBC driver - no open network ports!
+
+### Setup ODBC:
+
+1. **Open ODBC Data Sources:**
+   - Press `Win+R`, type `odbcad32`, press Enter
+   - Or search "ODBC Data Sources" in Start Menu
+
+2. **Add New DSN:**
+   - Go to "User DSN" or "System DSN" tab
+   - Click "Add..."
+   - Select "Tally ODBC Driver"
+   - Configure:
+     - Name: `Tally`
+     - Server: `localhost` (or Tally server IP)
+     - Port: `9000`
+   - Click "OK"
+
+3. **Enable ODBC in Tally:**
+   - In Tally: `F12` → `Connectivity` → Enable ODBC Server
+
+4. **Run ODBC Connector:**
+   ```bash
+   pip install pyodbc
+   python tally_odbc_connector.py
+   ```
+
+---
+
+## Method 2: Secure Proxy (Recommended)
+
+Has authentication, rate limiting, and logging.
+
+```bash
+python secure_tally_proxy.py 192.168.1.3 19000
+```
+
+Features:
+- 🔑 Authentication token required
+- 🌐 Localhost-only connections
+- ⏱️ Rate limiting (60 req/min)
+- 📝 Request logging
+
+---
+
+## Method 3: Basic Proxy (Quick Setup)
+
+Simple proxy for testing.
+
+```bash
+python tally_proxy.py 192.168.1.3 9000
+```
+
+---
+
+## Method 4: Backup File (Safest)
+
+No network connection needed!
+
+1. In Tally: `Gateway` → `Export` → `Data` → `Day Book`
+2. Export as XML
+3. Upload to TallyDash Pro
+
+---
+
+## Why is a proxy needed?
 
 - TallyDash Pro's backend runs in the cloud (HuggingFace)
 - Your Tally runs locally on your computer
 - The cloud cannot reach your local Tally
 - BUT your browser CAN reach your local Tally!
-- This proxy adds CORS headers so your browser can communicate with Tally
+- The proxy adds CORS headers so your browser can communicate with Tally
 
 ## Quick Start
 
