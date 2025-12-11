@@ -6,9 +6,9 @@ import {
 import { FiDollarSign, FiTrendingUp, FiAlertCircle, FiRefreshCw, FiLayers } from 'react-icons/fi';
 import RupeeIcon from '../common/RupeeIcon';
 import { tallyApi } from '../../api/tallyApi';
-import apiClient from '../../api/client';
 import toast from 'react-hot-toast';
 import { validateChartData, validateNumeric } from '../../utils/chartDataValidator';
+import { fetchDashboardData } from '../../utils/dashboardHelper';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
 
@@ -70,7 +70,7 @@ const BalanceSheetDashboard = ({ dataSource = 'live' }) => {
     setLoading(true);
     try {
       const currentSource = dataSource || 'live';
-      const response = await apiClient.get(`/dashboards/balance-sheet/${encodeURIComponent(selectedCompany)}?source=${currentSource}`);
+      const response = await fetchDashboardData('balance-sheet', selectedCompany, currentSource);
       setBsData(response.data.data);
     } catch (error) {
       console.error('Error loading Balance Sheet data:', error);

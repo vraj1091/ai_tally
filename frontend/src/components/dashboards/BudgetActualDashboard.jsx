@@ -6,7 +6,7 @@ import {
 import { FiTarget, FiTrendingUp, FiTrendingDown, FiAlertCircle, FiRefreshCw, FiDollarSign } from 'react-icons/fi';
 import RupeeIcon from '../common/RupeeIcon';
 import { tallyApi } from '../../api/tallyApi';
-import apiClient from '../../api/client';
+import { fetchDashboardData } from '../../utils/dashboardHelper';
 import toast from 'react-hot-toast';
 import { validateChartData, validateNumeric, validateArrayData } from '../../utils/chartDataValidator';
 
@@ -70,7 +70,7 @@ const BudgetActualDashboard = ({ dataSource = 'live' }) => {
     setLoading(true);
     try {
       const currentSource = dataSource || 'live';
-      const response = await apiClient.get(`/dashboards/budget-actual/${encodeURIComponent(selectedCompany)}?source=${currentSource}`);
+      const response = await fetchDashboardData('budget-actual', selectedCompany, currentSource);
       setBudgetData(response.data.data);
     } catch (error) {
       console.error('Error loading Budget vs Actual data:', error);

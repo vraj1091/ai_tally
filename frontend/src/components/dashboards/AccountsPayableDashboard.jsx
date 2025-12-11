@@ -6,9 +6,9 @@ import {
 import { FiDollarSign, FiTrendingDown, FiAlertCircle, FiRefreshCw, FiClock, FiCheckCircle } from 'react-icons/fi';
 import RupeeIcon from '../common/RupeeIcon';
 import { tallyApi } from '../../api/tallyApi';
-import apiClient from '../../api/client';
 import toast from 'react-hot-toast';
 import { validateChartData, validateNumeric, validateArrayData } from '../../utils/chartDataValidator';
+import { fetchDashboardData } from '../../utils/dashboardHelper';
 
 const COLORS = ['#ec4899', '#ef4444', '#f59e0b', '#3b82f6', '#8b5cf6'];
 
@@ -70,7 +70,7 @@ const AccountsPayableDashboard = ({ dataSource = 'live' }) => {
     setLoading(true);
     try {
       const currentSource = dataSource || 'live';
-      const response = await apiClient.get(`/dashboards/accounts-payable/${encodeURIComponent(selectedCompany)}?source=${currentSource}`);
+      const response = await fetchDashboardData('accounts-payable', selectedCompany, currentSource);
       setApData(response.data.data);
     } catch (error) {
       console.error('Error loading Accounts Payable data:', error);

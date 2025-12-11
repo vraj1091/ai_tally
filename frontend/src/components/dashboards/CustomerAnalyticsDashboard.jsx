@@ -6,7 +6,7 @@ import {
 import { FiUsers, FiTrendingUp, FiAlertCircle, FiRefreshCw, FiDollarSign, FiAward } from 'react-icons/fi';
 import RupeeIcon from '../common/RupeeIcon';
 import { tallyApi } from '../../api/tallyApi';
-import apiClient from '../../api/client';
+import { fetchDashboardData } from '../../utils/dashboardHelper';
 import toast from 'react-hot-toast';
 import { validateChartData, validateNumeric, validateArrayData, prepareRevenueExpenseData } from '../../utils/chartDataValidator';
 
@@ -70,7 +70,7 @@ const CustomerAnalyticsDashboard = ({ dataSource = 'live' }) => {
     setLoading(true);
     try {
       const currentSource = dataSource || 'live';
-      const response = await apiClient.get(`/dashboards/customer-analytics/${encodeURIComponent(selectedCompany)}?source=${currentSource}`);
+      const response = await fetchDashboardData('customer-analytics', selectedCompany, currentSource);
       setCustomerData(response.data.data);
     } catch (error) {
       console.error('Error loading Customer Analytics data:', error);

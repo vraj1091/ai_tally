@@ -6,9 +6,9 @@ import {
 import { FiDollarSign, FiTrendingUp, FiTrendingDown, FiAlertCircle, FiRefreshCw, FiClock } from 'react-icons/fi';
 import RupeeIcon from '../common/RupeeIcon';
 import { tallyApi } from '../../api/tallyApi';
-import apiClient from '../../api/client';
 import toast from 'react-hot-toast';
 import { validateChartData, validateNumeric, validateArrayData } from '../../utils/chartDataValidator';
+import { fetchDashboardData } from '../../utils/dashboardHelper';
 
 const CashFlowDashboard = ({ dataSource = 'live' }) => {
   const [loading, setLoading] = useState(true);
@@ -68,7 +68,7 @@ const CashFlowDashboard = ({ dataSource = 'live' }) => {
     setLoading(true);
     try {
       const currentSource = dataSource || 'live';
-      const response = await apiClient.get(`/dashboards/cashflow/${encodeURIComponent(selectedCompany)}?source=${currentSource}`);
+      const response = await fetchDashboardData('cashflow', selectedCompany, currentSource);
       setCashFlowData(response.data.data);
     } catch (error) {
       console.error('Error loading Cash Flow data:', error);

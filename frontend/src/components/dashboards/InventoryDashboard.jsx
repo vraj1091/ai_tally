@@ -6,9 +6,9 @@ import {
 import { FiPackage, FiAlertCircle, FiRefreshCw, FiTrendingUp, FiClock } from 'react-icons/fi';
 import RupeeIcon from '../common/RupeeIcon';
 import { tallyApi } from '../../api/tallyApi';
-import apiClient from '../../api/client';
 import toast from 'react-hot-toast';
 import { validateChartData, validateNumeric, validateArrayData } from '../../utils/chartDataValidator';
+import { fetchDashboardData } from '../../utils/dashboardHelper';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
 
@@ -70,7 +70,7 @@ const InventoryDashboard = ({ dataSource = 'live' }) => {
     setLoading(true);
     try {
       const currentSource = dataSource || 'live';
-      const response = await apiClient.get(`/dashboards/inventory/${encodeURIComponent(selectedCompany)}?source=${currentSource}`);
+      const response = await fetchDashboardData('inventory', selectedCompany, currentSource);
       setInventoryData(response.data.data);
     } catch (error) {
       console.error('Error loading Inventory data:', error);

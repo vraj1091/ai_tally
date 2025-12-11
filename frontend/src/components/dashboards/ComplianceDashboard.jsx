@@ -5,7 +5,7 @@ import {
 } from 'recharts';
 import { FiShield, FiAlertCircle, FiRefreshCw, FiCheckCircle, FiXCircle, FiFileText } from 'react-icons/fi';
 import { tallyApi } from '../../api/tallyApi';
-import apiClient from '../../api/client';
+import { fetchDashboardData } from '../../utils/dashboardHelper';
 import toast from 'react-hot-toast';
 import { validateChartData, validateNumeric, validateArrayData } from '../../utils/chartDataValidator';
 
@@ -69,7 +69,7 @@ const ComplianceDashboard = ({ dataSource = 'live' }) => {
     setLoading(true);
     try {
       const currentSource = dataSource || 'live';
-      const response = await apiClient.get(`/dashboards/compliance/${encodeURIComponent(selectedCompany)}?source=${currentSource}`);
+      const response = await fetchDashboardData('compliance', selectedCompany, currentSource);
       setComplianceData(response.data.data);
     } catch (error) {
       console.error('Error loading Compliance data:', error);

@@ -6,7 +6,7 @@ import {
 import { FiTruck, FiTrendingUp, FiAlertCircle, FiRefreshCw, FiClock } from 'react-icons/fi';
 import RupeeIcon from '../common/RupeeIcon';
 import { tallyApi } from '../../api/tallyApi';
-import apiClient from '../../api/client';
+import { fetchDashboardData } from '../../utils/dashboardHelper';
 import toast from 'react-hot-toast';
 import { validateChartData, validateNumeric, validateArrayData } from '../../utils/chartDataValidator';
 
@@ -70,7 +70,7 @@ const VendorAnalyticsDashboard = ({ dataSource = 'live' }) => {
     setLoading(true);
     try {
       const currentSource = dataSource || 'live';
-      const response = await apiClient.get(`/dashboards/vendor-analytics/${encodeURIComponent(selectedCompany)}?source=${currentSource}`);
+      const response = await fetchDashboardData('vendor-analytics', selectedCompany, currentSource);
       setVendorData(response.data.data);
     } catch (error) {
       console.error('Error loading Vendor Analytics data:', error);

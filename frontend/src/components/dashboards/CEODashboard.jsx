@@ -7,7 +7,7 @@ import { FiTrendingUp, FiTrendingDown, FiActivity, FiAlertCircle, FiRefreshCw, F
 import RupeeIcon from '../common/RupeeIcon';
 import EmptyDataState from '../common/EmptyDataState';
 import { tallyApi } from '../../api/tallyApi';
-import apiClient from '../../api/client';
+import { fetchDashboardData } from '../../utils/dashboardHelper';
 import toast from 'react-hot-toast';
 import { prepareRevenueExpenseData } from '../../utils/chartDataValidator';
 

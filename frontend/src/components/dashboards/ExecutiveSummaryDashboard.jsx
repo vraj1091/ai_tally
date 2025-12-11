@@ -6,9 +6,9 @@ import {
 import { FiTrendingUp, FiActivity, FiAlertCircle, FiRefreshCw, FiUsers, FiTarget } from 'react-icons/fi';
 import RupeeIcon from '../common/RupeeIcon';
 import { tallyApi } from '../../api/tallyApi';
-import apiClient from '../../api/client';
 import toast from 'react-hot-toast';
 import { validateChartData, validateNumeric } from '../../utils/chartDataValidator';
+import { fetchDashboardData } from '../../utils/dashboardHelper';
 
 const COLORS = ['#8b5cf6', '#10b981', '#3b82f6', '#f59e0b', '#ef4444'];
 
@@ -70,7 +70,7 @@ const ExecutiveSummaryDashboard = ({ dataSource = 'live' }) => {
     setLoading(true);
     try {
       const currentSource = dataSource || 'live';
-      const response = await apiClient.get(`/dashboards/executive-summary/${encodeURIComponent(selectedCompany)}?source=${currentSource}`);
+      const response = await fetchDashboardData('executive-summary', selectedCompany, currentSource);
       setExecData(response.data.data);
     } catch (error) {
       console.error('Error loading Executive Summary data:', error);

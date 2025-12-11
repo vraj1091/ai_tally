@@ -6,9 +6,9 @@ import {
 import { FiDollarSign, FiTrendingUp, FiAlertCircle, FiRefreshCw, FiClock, FiCheckCircle } from 'react-icons/fi';
 import RupeeIcon from '../common/RupeeIcon';
 import { tallyApi } from '../../api/tallyApi';
-import apiClient from '../../api/client';
 import toast from 'react-hot-toast';
 import { validateChartData, validateNumeric, validateArrayData } from '../../utils/chartDataValidator';
+import { fetchDashboardData } from '../../utils/dashboardHelper';
 
 const COLORS = ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'];
 
@@ -70,7 +70,7 @@ const AccountsReceivableDashboard = ({ dataSource = 'live' }) => {
     setLoading(true);
     try {
       const currentSource = dataSource || 'live';
-      const response = await apiClient.get(`/dashboards/accounts-receivable/${encodeURIComponent(selectedCompany)}?source=${currentSource}`);
+      const response = await fetchDashboardData('accounts-receivable', selectedCompany, currentSource);
       setArData(response.data.data);
     } catch (error) {
       console.error('Error loading Accounts Receivable data:', error);

@@ -6,7 +6,7 @@ import {
 import { FiTrendingUp, FiTrendingDown, FiAlertCircle, FiRefreshCw, FiBarChart2 } from 'react-icons/fi';
 import RupeeIcon from '../common/RupeeIcon';
 import { tallyApi } from '../../api/tallyApi';
-import apiClient from '../../api/client';
+import { fetchDashboardData } from '../../utils/dashboardHelper';
 import toast from 'react-hot-toast';
 import { validateChartData, validateNumeric, validateArrayData } from '../../utils/chartDataValidator';
 
@@ -68,7 +68,7 @@ const ForecastingDashboard = ({ dataSource = 'live' }) => {
     setLoading(true);
     try {
       const currentSource = dataSource || 'live';
-      const response = await apiClient.get(`/dashboards/forecasting/${encodeURIComponent(selectedCompany)}?source=${currentSource}`);
+      const response = await fetchDashboardData('forecasting', selectedCompany, currentSource);
       setForecastData(response.data.data);
     } catch (error) {
       console.error('Error loading Forecasting data:', error);

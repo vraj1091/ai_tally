@@ -6,9 +6,9 @@ import {
 import { FiFileText, FiAlertCircle, FiRefreshCw, FiCheckCircle, FiClock } from 'react-icons/fi';
 import RupeeIcon from '../common/RupeeIcon';
 import { tallyApi } from '../../api/tallyApi';
-import apiClient from '../../api/client';
 import toast from 'react-hot-toast';
 import { validateChartData, validateNumeric, validateArrayData } from '../../utils/chartDataValidator';
+import { fetchDashboardData } from '../../utils/dashboardHelper';
 
 const COLORS = ['#14b8a6', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444'];
 
@@ -70,7 +70,7 @@ const TaxDashboard = ({ dataSource = 'live' }) => {
     setLoading(true);
     try {
       const currentSource = dataSource || 'live';
-      const response = await apiClient.get(`/dashboards/tax/${encodeURIComponent(selectedCompany)}?source=${currentSource}`);
+      const response = await fetchDashboardData('tax', selectedCompany, currentSource);
       setTaxData(response.data.data);
     } catch (error) {
       console.error('Error loading Tax data:', error);

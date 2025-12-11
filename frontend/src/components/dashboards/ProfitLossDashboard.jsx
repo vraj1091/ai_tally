@@ -6,9 +6,9 @@ import {
 import { FiTrendingUp, FiTrendingDown, FiAlertCircle, FiRefreshCw, FiPercent } from 'react-icons/fi';
 import RupeeIcon from '../common/RupeeIcon';
 import { tallyApi } from '../../api/tallyApi';
-import apiClient from '../../api/client';
 import toast from 'react-hot-toast';
 import { validateChartData, validateNumeric, prepareRevenueExpenseData } from '../../utils/chartDataValidator';
+import { fetchDashboardData } from '../../utils/dashboardHelper';
 
 const COLORS = ['#10b981', '#ef4444', '#3b82f6', '#f59e0b', '#8b5cf6'];
 
@@ -70,7 +70,7 @@ const ProfitLossDashboard = ({ dataSource = 'live' }) => {
     setLoading(true);
     try {
       const currentSource = dataSource || 'live';
-      const response = await apiClient.get(`/dashboards/profit-loss/${encodeURIComponent(selectedCompany)}?source=${currentSource}`);
+      const response = await fetchDashboardData('profit-loss', selectedCompany, currentSource);
       setPlData(response.data.data);
     } catch (error) {
       console.error('Error loading Profit & Loss data:', error);

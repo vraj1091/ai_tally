@@ -6,9 +6,9 @@ import {
 import { FiShoppingCart, FiTrendingUp, FiUsers, FiAlertCircle, FiRefreshCw, FiAward } from 'react-icons/fi';
 import RupeeIcon from '../common/RupeeIcon';
 import { tallyApi } from '../../api/tallyApi';
-import apiClient from '../../api/client';
 import toast from 'react-hot-toast';
 import { validateChartData, validateArrayData, prepareRevenueExpenseData } from '../../utils/chartDataValidator';
+import { fetchDashboardData } from '../../utils/dashboardHelper';
 
 const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
@@ -70,7 +70,7 @@ const SalesDashboard = ({ dataSource = 'live' }) => {
     setLoading(true);
     try {
       const currentSource = dataSource || 'live';
-      const response = await apiClient.get(`/dashboards/sales/${encodeURIComponent(selectedCompany)}?source=${currentSource}`);
+      const response = await fetchDashboardData('sales', selectedCompany, currentSource);
       setSalesData(response.data.data);
     } catch (error) {
       console.error('Error loading Sales data:', error);

@@ -6,9 +6,9 @@ import {
 import { FiActivity, FiTrendingUp, FiAlertCircle, FiRefreshCw, FiClock, FiUsers } from 'react-icons/fi';
 import RupeeIcon from '../common/RupeeIcon';
 import { tallyApi } from '../../api/tallyApi';
-import apiClient from '../../api/client';
 import toast from 'react-hot-toast';
 import { validateChartData, validateNumeric, validateArrayData } from '../../utils/chartDataValidator';
+import { fetchDashboardData } from '../../utils/dashboardHelper';
 
 const RealtimeOperationsDashboard = ({ dataSource = 'live' }) => {
   const [loading, setLoading] = useState(true);
@@ -75,7 +75,7 @@ const RealtimeOperationsDashboard = ({ dataSource = 'live' }) => {
     setLoading(true);
     try {
       const currentSource = dataSource || 'live';
-      const response = await apiClient.get(`/dashboards/realtime-operations/${encodeURIComponent(selectedCompany)}?source=${currentSource}`);
+      const response = await fetchDashboardData('realtime-operations', selectedCompany, currentSource);
       setRealtimeData(response.data.data);
     } catch (error) {
       console.error('Error loading Real-time Operations data:', error);

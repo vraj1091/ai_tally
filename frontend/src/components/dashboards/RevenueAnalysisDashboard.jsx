@@ -6,7 +6,7 @@ import {
 import { FiTrendingUp, FiAlertCircle, FiRefreshCw, FiBarChart2, FiPercent } from 'react-icons/fi';
 import RupeeIcon from '../common/RupeeIcon';
 import { tallyApi } from '../../api/tallyApi';
-import apiClient from '../../api/client';
+import { fetchDashboardData } from '../../utils/dashboardHelper';
 import toast from 'react-hot-toast';
 import { validateChartData, validateNumeric, validateArrayData, prepareRevenueExpenseData } from '../../utils/chartDataValidator';
 
@@ -70,7 +70,7 @@ const RevenueAnalysisDashboard = ({ dataSource = 'live' }) => {
     setLoading(true);
     try {
       const currentSource = dataSource || 'live';
-      const response = await apiClient.get(`/dashboards/revenue-analysis/${encodeURIComponent(selectedCompany)}?source=${currentSource}`);
+      const response = await fetchDashboardData('revenue-analysis', selectedCompany, currentSource);
       setRevenueData(response.data.data);
     } catch (error) {
       console.error('Error loading Revenue Analysis data:', error);
