@@ -202,10 +202,22 @@ async def lifespan(app: FastAPI):
     if DATABASE_AVAILABLE:
         try:
             logger.info("Initializing database...")
-            Base.metadata.create_all(bind=engine)
+            # Use checkfirst=True to avoid "table already exists" errors
+            from sqlalchemy import inspect
+            inspector = inspect(engine)
+            existing_tables = inspector.get_table_names()
+            logger.info(f"Existing tables: {existing_tables}")
+            
+            # Only create tables that don't exist
+            Base.metadata.create_all(bind=engine, checkfirst=True)
             logger.info("OK: Database tables created/verified")
         except Exception as e:
-            logger.error(f"ERROR: Database initialization error: {e}")
+            # Ignore "already exists" errors - these are fine
+            error_msg = str(e).lower()
+            if "already exists" in error_msg:
+                logger.info("Database tables already exist - continuing...")
+            else:
+                logger.error(f"ERROR: Database initialization error: {e}")
 
     logger.info("=" * 70)
     # Ensure directories exist
