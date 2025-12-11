@@ -75,8 +75,8 @@ chroma_db/
 uploads/
 cache/
 
-# Tally
-TallyConnector/
+# Tally (keep TallyConnector in repo for users)
+# TallyConnector/ - NOT ignored, users need this
 
 # Testing
 .pytest_cache/

@@ -3,19 +3,22 @@ import { useNavigate } from 'react-router-dom'
 import Card from '../common/Card'
 import { tallyApi } from '../../api/tallyApi'
 import toast from 'react-hot-toast'
-import { FiServer, FiCheckCircle, FiXCircle } from 'react-icons/fi'
+import { FiServer, FiCheckCircle, FiXCircle, FiWifi, FiZap } from 'react-icons/fi'
 
 export default function ConnectionSetup() {
-  const [connectionType, setConnectionType] = useState('localhost')
+  const [connectionType, setConnectionType] = useState('BRIDGE')  // Default to Bridge for cloud
   const [serverUrl, setServerUrl] = useState('')
   const [port, setPort] = useState(9000)
+  const [bridgeToken, setBridgeToken] = useState('user_tally_bridge')  // Default bridge token
   const [loading, setLoading] = useState(false)
   const [status, setStatus] = useState(null)
   const [testing, setTesting] = useState(false)
+  const [bridgeStatus, setBridgeStatus] = useState(null)
   const navigate = useNavigate()
 
   useEffect(() => {
     checkStatus()
+    checkBridgeStatus()
   }, [])
 
   const checkStatus = async () => {
@@ -27,21 +30,44 @@ export default function ConnectionSetup() {
     }
   }
 
+  const checkBridgeStatus = async () => {
+    try {
+      const result = await tallyApi.getBridgeStatus(bridgeToken)
+      console.log('🌉 Bridge status:', result)
+      setBridgeStatus(result)
+    } catch (error) {
+      console.error('Error checking bridge status:', error)
+      setBridgeStatus(null)
+    }
+  }
+
   const handleTestConnection = async () => {
     setTesting(true)
     try {
-      const testUrl = connectionType === 'localhost' 
-        ? `http://localhost:${port}` 
-        : `${serverUrl}:${port}`
-
-      // Simple test to see if Tally is responding
-      const result = await tallyApi.getStatus()
-
-      if (result.connected || result.is_connected) {
-        toast.success('Connection successful!')
-        setStatus(result)
+      if (connectionType === 'BRIDGE') {
+        // Test bridge connection
+        const result = await tallyApi.getBridgeStatus(bridgeToken)
+        console.log('🌉 Bridge test result:', result)
+        
+        if (result && result.connected) {
+          toast.success('✅ Bridge connected! Tally: ' + (result.tally_connected ? 'Available' : 'Not detected'))
+          setBridgeStatus(result)
+          if (result.tally_connected) {
+            setStatus({ connected: true, message: 'Connected via Bridge' })
+          }
+        } else {
+          toast.error('❌ Bridge not connected. Run TallyConnector on your PC.')
+        }
       } else {
-        toast.error('Could not connect to Tally. Make sure Tally is running.')
+        // Direct connection test
+        const result = await tallyApi.getStatus()
+
+        if (result.connected || result.is_connected) {
+          toast.success('Connection successful!')
+          setStatus(result)
+        } else {
+          toast.error('Could not connect to Tally. Make sure Tally is running.')
+        }
       }
     } catch (error) {
       console.error('Connection test failed:', error)
@@ -57,11 +83,34 @@ export default function ConnectionSetup() {
     console.log('   connectionType:', connectionType)
     console.log('   serverUrl:', serverUrl)
     console.log('   port:', port)
+    console.log('   bridgeToken:', bridgeToken)
     
     try {
-      // If you have a configureConnection endpoint
-      if (tallyApi.configureConnection) {
+      if (connectionType === 'BRIDGE') {
+        // Bridge mode - save bridge token to localStorage and verify connection
+        console.log('🌉 Using Bridge mode...')
+        localStorage.setItem('tally_bridge_token', bridgeToken)
+        localStorage.setItem('tally_connection_type', 'BRIDGE')
+        
+        const result = await tallyApi.getBridgeStatus(bridgeToken)
+        
+        if (result && result.connected) {
+          toast.success('✅ Bridge connection saved!')
+          setStatus({ connected: true, message: 'Connected via Bridge' })
+          
+          if (result.tally_connected) {
+            toast.success('🎉 Tally is accessible via bridge!')
+            setTimeout(() => navigate('/dashboard'), 1000)
+          } else {
+            toast.warning('Bridge connected but Tally not detected. Make sure Tally is running.')
+          }
+        } else {
+          toast.error('❌ Bridge not connected. Run TallyConnector on your PC first.')
+        }
+      } else if (tallyApi.configureConnection) {
+        // Direct connection mode
         console.log('📡 Calling tallyApi.configureConnection...')
+        localStorage.setItem('tally_connection_type', connectionType)
         
         const result = await tallyApi.configureConnection(
           connectionType,
@@ -75,11 +124,8 @@ export default function ConnectionSetup() {
           console.log('✅ Success! Data:', result.data)
           toast.success('Connection configured successfully!')
           
-          // Refresh status to show connection state
-          console.log('🔄 Refreshing status...')
           await checkStatus()
           
-          // Check if actually connected
           if (result.data && result.data.connected) {
             console.log('✅ Connected to Tally!')
             toast.success(`Connected to Tally at ${result.data.url}`)
@@ -90,7 +136,6 @@ export default function ConnectionSetup() {
           }
         } else {
           console.error('❌ Configuration failed:', result.error)
-          // Handle Pydantic validation errors (arrays) or string errors
           let errorMsg = 'Failed to configure connection'
           if (Array.isArray(result.error)) {
             errorMsg = result.error.map(e => e.msg || JSON.stringify(e)).join(', ')
@@ -101,7 +146,6 @@ export default function ConnectionSetup() {
         }
       } else {
         console.warn('⚠️ configureConnection not available, using fallback')
-        // Fallback: just test connection
         await handleTestConnection()
         setTimeout(() => navigate('/dashboard'), 1500)
       }
@@ -179,10 +223,37 @@ export default function ConnectionSetup() {
               onChange={(e) => setConnectionType(e.target.value)}
               className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
             >
-              <option value="LOCALHOST">Localhost</option>
-              <option value="SERVER">Remote Server</option>
+              <option value="BRIDGE">🌉 Bridge (Cloud to Local)</option>
+              <option value="LOCALHOST">💻 Localhost (Backend on same PC as Tally)</option>
+              <option value="SERVER">🌐 Remote Server (Direct IP)</option>
             </select>
           </div>
+
+          {/* Bridge Mode Info */}
+          {connectionType === 'BRIDGE' && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <div className="flex items-start space-x-3">
+                <FiWifi className="w-5 h-5 text-blue-600 mt-0.5" />
+                <div>
+                  <h4 className="font-medium text-blue-900">Bridge Mode (Recommended for Cloud)</h4>
+                  <p className="text-sm text-blue-700 mt-1">
+                    Run TallyConnector on your PC to bridge local Tally to this cloud app.
+                  </p>
+                  {bridgeStatus && bridgeStatus.connected ? (
+                    <div className="mt-2 flex items-center text-green-600">
+                      <FiCheckCircle className="w-4 h-4 mr-1" />
+                      <span className="text-sm">Bridge Connected! Tally: {bridgeStatus.tally_connected ? '✅ Available' : '⚠️ Not detected'}</span>
+                    </div>
+                  ) : (
+                    <div className="mt-2 flex items-center text-yellow-600">
+                      <FiZap className="w-4 h-4 mr-1" />
+                      <span className="text-sm">Run: python TallyConnector/tally_connector.py</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Server URL (only for remote) */}
           {connectionType === 'SERVER' && (
@@ -203,21 +274,23 @@ export default function ConnectionSetup() {
             </div>
           )}
 
-          {/* Port */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Port
-            </label>
-            <input
-              type="number"
-              value={port}
-              onChange={(e) => setPort(parseInt(e.target.value) || 9000)}
-              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              Default Tally ODBC port is 9000
-            </p>
-          </div>
+          {/* Port (not for bridge) */}
+          {connectionType !== 'BRIDGE' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Port
+              </label>
+              <input
+                type="number"
+                value={port}
+                onChange={(e) => setPort(parseInt(e.target.value) || 9000)}
+                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Default Tally ODBC port is 9000
+              </p>
+            </div>
+          )}
 
           {/* Action Buttons */}
           <div className="flex space-x-3 pt-4">
@@ -242,21 +315,28 @@ export default function ConnectionSetup() {
       {/* Help Card */}
       <Card title="Connection Help">
         <div className="space-y-3 text-sm text-gray-600">
-          <div>
-            <h4 className="font-medium text-gray-900 mb-1">Localhost Connection</h4>
-            <p>Connect to Tally running on your computer (http://localhost:9000)</p>
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+            <h4 className="font-medium text-green-900 mb-1">🌉 Bridge (Recommended for Cloud)</h4>
+            <p className="text-green-700">Best for cloud deployment. Run TallyConnector on your PC:</p>
+            <code className="block mt-2 bg-green-100 px-2 py-1 rounded text-xs">
+              python TallyConnector/tally_connector.py
+            </code>
           </div>
           <div>
-            <h4 className="font-medium text-gray-900 mb-1">Remote Server Connection</h4>
-            <p>Connect to Tally running on another computer (e.g., http://192.168.1.100:9000)</p>
+            <h4 className="font-medium text-gray-900 mb-1">💻 Localhost</h4>
+            <p>Only if backend runs on same PC as Tally (http://localhost:9000)</p>
+          </div>
+          <div>
+            <h4 className="font-medium text-gray-900 mb-1">🌐 Remote Server</h4>
+            <p>Direct IP/ngrok URL to Tally server (e.g., https://abc.ngrok.io)</p>
           </div>
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mt-4">
-            <h4 className="font-medium text-yellow-900 mb-2">Important:</h4>
+            <h4 className="font-medium text-yellow-900 mb-2">Tally Setup:</h4>
             <ul className="list-disc list-inside space-y-1 text-yellow-800">
-              <li>Tally must be running</li>
-              <li>ODBC Server must be enabled in Tally</li>
-              <li>Gateway of Tally → F1 (Help) → Press Y for Yes</li>
-              <li>Default port is 9000</li>
+              <li>Open Tally ERP</li>
+              <li>Press F12 → Advanced Configuration</li>
+              <li>Enable ODBC Server = Yes</li>
+              <li>Port = 9000</li>
             </ul>
           </div>
         </div>

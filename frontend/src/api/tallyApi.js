@@ -278,6 +278,61 @@ export const tallyApi = {
     }
   },
 
+  // ==================== BRIDGE API (Cloud to Local) ====================
+  
+  // Get bridge status
+  getBridgeStatus: async (userToken = 'user_tally_bridge') => {
+    try {
+      console.log('🌉 Checking bridge status for:', userToken)
+      const response = await apiClient.get(`/bridge/${userToken}/status`)
+      console.log('🌉 Bridge status:', response.data)
+      return response.data
+    } catch (error) {
+      console.error('❌ Bridge status error:', error)
+      return { connected: false, error: error.message }
+    }
+  },
+
+  // List all connected bridges
+  listBridges: async () => {
+    try {
+      const response = await apiClient.get('/bridges')
+      return response.data
+    } catch (error) {
+      console.error('❌ List bridges error:', error)
+      return { bridges: [] }
+    }
+  },
+
+  // Get companies via bridge
+  getCompaniesViaBridge: async (userToken = 'user_tally_bridge') => {
+    try {
+      console.log('🌉 Getting companies via bridge:', userToken)
+      const response = await apiClient.get(`/bridge/${userToken}/companies`)
+      console.log('🌉 Companies via bridge:', response.data)
+      return response.data
+    } catch (error) {
+      console.error('❌ Bridge companies error:', error)
+      throw error
+    }
+  },
+
+  // Send Tally request via bridge
+  sendViaBridge: async (userToken = 'user_tally_bridge', xmlRequest) => {
+    try {
+      console.log('🌉 Sending request via bridge:', userToken)
+      const response = await apiClient.post(`/bridge/${userToken}/tally`, {
+        payload: xmlRequest,
+        headers: { 'Content-Type': 'text/xml' },
+        timeout: 60
+      })
+      return response.data
+    } catch (error) {
+      console.error('❌ Bridge request error:', error)
+      throw error
+    }
+  },
+
   // Get all companies - from live Tally only (for live mode)
   getCompanies: async (tallyUrl = null, useCache = true) => {
     try {
