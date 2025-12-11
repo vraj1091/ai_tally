@@ -1,25 +1,35 @@
 import axios from 'axios'
 
 // Get API URL from environment variable or use default
-// In production (Render), this should be set to Hugging Face backend URL
-// In development, use /api for Vite proxy
+// Supports: EC2, Render, Hugging Face, local development
 const getApiUrl = () => {
-  // Check if we're in production (deployed on Render)
-  const isProduction = window.location.hostname.includes('onrender.com') || 
-                       window.location.hostname.includes('render.com')
+  const hostname = window.location.hostname
   
-  // If VITE_API_URL is explicitly set, use it
+  // If VITE_API_URL is explicitly set, use it (highest priority)
   if (import.meta.env.VITE_API_URL) {
+    console.log('📍 Using VITE_API_URL:', import.meta.env.VITE_API_URL)
     return import.meta.env.VITE_API_URL
   }
   
-  // In production, default to Hugging Face backend
-  if (isProduction) {
-    // Default Hugging Face backend URL - update this with your actual HF Space URL
+  // Check deployment environment
+  const isRender = hostname.includes('onrender.com') || hostname.includes('render.com')
+  const isEC2 = hostname.includes('amazonaws.com') || hostname.includes('compute.amazonaws.com')
+  const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1'
+  
+  // Render deployment - use Hugging Face backend
+  if (isRender) {
     return 'https://vraj1091-ai-tally-backend.hf.space/api'
   }
   
-  // In development, use /api for Vite proxy
+  // EC2 or other production (accessed via IP or domain)
+  // Use relative /api path - nginx will proxy to backend
+  if (!isLocalhost) {
+    console.log('📍 Production mode - using relative /api path')
+    return '/api'
+  }
+  
+  // Local development - use /api for Vite proxy
+  console.log('📍 Development mode - using Vite proxy')
   return '/api'
 }
 

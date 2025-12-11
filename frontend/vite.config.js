@@ -8,8 +8,9 @@ export default defineConfig({
     port: 5173,
     host: true,
     proxy: {
+      // Proxy /api to backend - use base URL (without /api suffix)
       '/api': {
-        target: process.env.VITE_API_URL || 'http://localhost:8000',
+        target: process.env.VITE_BACKEND_URL || 'http://localhost:8000',
         changeOrigin: true,
         timeout: 1800000,  // 30 minutes for large file uploads
         proxyTimeout: 1800000,  // 30 minutes proxy timeout
@@ -21,6 +22,12 @@ export default defineConfig({
             }
           });
         }
+      },
+      // Proxy WebSocket connections
+      '/ws': {
+        target: process.env.VITE_BACKEND_URL || 'http://localhost:8000',
+        changeOrigin: true,
+        ws: true  // Enable WebSocket proxying
       }
     }
   },

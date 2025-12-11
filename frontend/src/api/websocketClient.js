@@ -17,16 +17,18 @@ class TallyBridgeWebSocket {
 
   /**
    * Get WebSocket URL based on environment
+   * Supports: EC2 (via nginx proxy), Render, Hugging Face, local development
    */
   getWebSocketUrl(userToken) {
-    const isProduction = window.location.hostname.includes('onrender.com') || 
-                         window.location.hostname.includes('render.com') ||
-                         window.location.hostname.includes('amazonaws.com') ||
-                         !window.location.hostname.includes('localhost');
+    const hostname = window.location.hostname;
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const isLocalhost = hostname === 'localhost' || hostname === '127.0.0.1';
+    const isRender = hostname.includes('onrender.com') || hostname.includes('render.com');
     
-    // Check for explicit WebSocket URL first
+    // Check for explicit WebSocket URL first (highest priority)
     const wsUrl = import.meta.env.VITE_WS_URL;
     if (wsUrl) {
+      console.log('🔌 Using VITE_WS_URL:', wsUrl);
       return `${wsUrl}/ws/tally-bridge/${userToken}`;
     }
     
@@ -38,27 +40,29 @@ class TallyBridgeWebSocket {
         .replace('https://', 'wss://')
         .replace('http://', 'ws://')
         .replace('/api', '');
+      console.log('🔌 Converted from VITE_API_URL:', convertedWsUrl);
       return `${convertedWsUrl}/ws/tally-bridge/${userToken}`;
     }
     
-    // For production on Render, use Hugging Face backend
-    if (isProduction && window.location.hostname.includes('onrender.com')) {
+    // Render deployment - use Hugging Face backend
+    if (isRender) {
       return `wss://vraj1091-ai-tally-backend.hf.space/ws/tally-bridge/${userToken}`;
     }
     
-    // For EC2 or other production environments - use same host with ws protocol
-    if (isProduction) {
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      // Use port 8000 for backend WebSocket
-      return `${protocol}//${window.location.hostname}:8000/ws/tally-bridge/${userToken}`;
+    // EC2 or other production (accessed via IP or domain)
+    // Use same host - nginx proxies /ws/ to backend
+    if (!isLocalhost) {
+      // In EC2/production, nginx handles WebSocket proxy on same port
+      // Use port from current location (default 80/443)
+      const wsUrlProd = `${protocol}//${hostname}/ws/tally-bridge/${userToken}`;
+      console.log('🔌 Production WebSocket URL:', wsUrlProd);
+      return wsUrlProd;
     }
     
-    // Development - use localhost
-    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = window.location.hostname;
-    const port = '8000'; // Backend port
-    
-    return `${protocol}//${host}:${port}/ws/tally-bridge/${userToken}`;
+    // Local development - connect directly to backend port
+    const wsUrlDev = `${protocol}//${hostname}:8000/ws/tally-bridge/${userToken}`;
+    console.log('🔌 Development WebSocket URL:', wsUrlDev);
+    return wsUrlDev;
   }
 
   /**

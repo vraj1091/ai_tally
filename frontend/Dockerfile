@@ -34,9 +34,10 @@ COPY nginx.conf /etc/nginx/conf.d/default.conf
 # Expose port 80 (nginx default)
 EXPOSE 80
 
-# Health check
+# Health check - use nginx-health for frontend container health
+# This doesn't depend on backend being ready
 HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost/health || exit 1
+    CMD wget --no-verbose --tries=1 --spider http://localhost/nginx-health || exit 1
 
 # Start nginx
 CMD ["nginx", "-g", "daemon off;"]
