@@ -333,10 +333,37 @@ export const tallyApi = {
     }
   },
 
-  // Get all companies - from live Tally only (for live mode)
+  // Helper to check if Bridge mode is active
+  isBridgeMode: () => {
+    return localStorage.getItem('tally_connection_type') === 'BRIDGE';
+  },
+
+  // Get bridge token
+  getBridgeToken: () => {
+    return localStorage.getItem('tally_bridge_token') || 'user_tally_bridge';
+  },
+
+  // Get all companies - supports both Bridge and Direct modes
   getCompanies: async (tallyUrl = null, useCache = true) => {
     try {
-      // Get companies from live Tally
+      // Check if Bridge mode is active
+      const connectionType = localStorage.getItem('tally_connection_type');
+      const bridgeToken = localStorage.getItem('tally_bridge_token') || 'user_tally_bridge';
+      
+      if (connectionType === 'BRIDGE') {
+        console.log('🌉 Fetching companies via Bridge...');
+        try {
+          const bridgeResponse = await apiClient.get(`/bridge/${bridgeToken}/companies`);
+          if (bridgeResponse.data && bridgeResponse.data.companies) {
+            console.log('✅ Bridge companies:', bridgeResponse.data.companies.length);
+            return bridgeResponse.data;
+          }
+        } catch (bridgeError) {
+          console.warn('Bridge companies failed, trying direct...', bridgeError.message);
+        }
+      }
+      
+      // Direct mode or Bridge fallback
       const params = { source: 'live' };
       if (tallyUrl) params.tally_url = tallyUrl;
       params.use_cache = useCache;
@@ -397,9 +424,32 @@ export const tallyApi = {
     }
   },
 
-  // Get connection status - with graceful error handling
+  // Get connection status - supports Bridge and Direct modes
   getStatus: async (tallyUrl = null) => {
     try {
+      // Check if Bridge mode is active
+      const connectionType = localStorage.getItem('tally_connection_type');
+      const bridgeToken = localStorage.getItem('tally_bridge_token') || 'user_tally_bridge';
+      
+      if (connectionType === 'BRIDGE') {
+        console.log('🌉 Checking status via Bridge...');
+        try {
+          const bridgeStatus = await apiClient.get(`/bridge/${bridgeToken}/status`, { timeout: 10000 });
+          if (bridgeStatus.data && bridgeStatus.data.connected) {
+            return {
+              connected: bridgeStatus.data.tally_connected || false,
+              is_connected: bridgeStatus.data.tally_connected || false,
+              via_bridge: true,
+              bridge_connected: true,
+              message: bridgeStatus.data.tally_connected ? 'Connected via Bridge' : 'Bridge connected, Tally not available'
+            };
+          }
+        } catch (bridgeError) {
+          console.warn('Bridge status failed:', bridgeError.message);
+        }
+      }
+      
+      // Direct mode or Bridge fallback
       const params = {}
       if (tallyUrl) params.tally_url = tallyUrl
 

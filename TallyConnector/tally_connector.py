@@ -132,6 +132,34 @@ class TallyConnector:
                     'tally_connected': self.tally_connected,
                     'tally_url': TALLY_URL
                 }))
+            
+            elif msg_type == 'get_companies':
+                # Fetch companies from Tally
+                self.log("📤 Fetching companies from Tally...", "INFO")
+                
+                companies_xml = """<ENVELOPE>
+                    <HEADER><VERSION>1</VERSION><TALLYREQUEST>Export</TALLYREQUEST><TYPE>Collection</TYPE><ID>Companies</ID></HEADER>
+                    <BODY><DESC><STATICVARIABLES><SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT></STATICVARIABLES>
+                    <TDL><TDLMESSAGE><COLLECTION NAME="Companies"><TYPE>Company</TYPE><FETCH>Name,StartingFrom,BooksFrom</FETCH></COLLECTION></TDLMESSAGE></TDL>
+                    </DESC></BODY></ENVELOPE>"""
+                
+                result = self.send_to_tally(companies_xml)
+                
+                companies = []
+                if result['success']:
+                    # Parse XML response to extract company names
+                    import re
+                    company_matches = re.findall(r'<NAME[^>]*>([^<]+)</NAME>', result.get('data', ''))
+                    companies = [{'name': name} for name in company_matches if name]
+                    self.log(f"✅ Found {len(companies)} companies", "SUCCESS")
+                
+                await self.ws.send(json.dumps({
+                    'type': 'companies_response',
+                    'id': msg_id,
+                    'success': result.get('success', False),
+                    'companies': companies,
+                    'error': result.get('error', None)
+                }))
                 
         except json.JSONDecodeError:
             self.log(f"❌ Invalid JSON message", "ERROR")
