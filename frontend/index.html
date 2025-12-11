@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="TallyDash Pro - Advanced AI-Powered Analytics for Tally ERP" />
+    <meta name="keywords" content="Tally, ERP, Analytics, Dashboard, Financial Intelligence, AI" />
+    <meta name="author" content="TallyDash Pro" />
+    <meta property="og:title" content="TallyDash Pro - AI-Powered Tally Analytics" />
+    <meta property="og:description" content="Transform your Tally data into actionable insights with 20+ advanced dashboards" />
+    <meta property="og:type" content="website" />
+    <title>TallyDash Pro - AI-Powered Tally Analytics</title>
+    <base href="/" />
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.jsx"></script>
+    <script>
+      // Fallback for React Router on static hosting
+      if (window.location.pathname !== '/' && !window.location.pathname.match(/\.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$/)) {
+        // This will be handled by React Router, but ensure we're on the right base
+        if (!document.getElementById('root').innerHTML) {
+          window.location.href = '/';
+        }
+      }
+    </script>
+  </body>
+</html>

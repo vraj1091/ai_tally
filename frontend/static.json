@@ -1,0 +1,25 @@
+{
+  "root": "dist",
+  "clean_urls": false,
+  "routes": {
+    "/login": "/index.html",
+    "/register": "/index.html",
+    "/dashboard": "/index.html",
+    "/dashboards": "/index.html",
+    "/dashboards/*": "/index.html",
+    "/analytics": "/index.html",
+    "/tally": "/index.html",
+    "/documents": "/index.html",
+    "/chat": "/index.html",
+    "/settings": "/index.html",
+    "/*": "/index.html"
+  },
+  "headers": {
+    "/*": {
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "DENY",
+      "X-XSS-Protection": "1; mode=block"
+    }
+  }
+}
+

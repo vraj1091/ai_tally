@@ -1,0 +1,61 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ai-tally-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - TALLY_HOST=${TALLY_HOST:-localhost}
+      - TALLY_PORT=${TALLY_PORT:-9000}
+      - TALLY_REMOTE_ENABLED=${TALLY_REMOTE_ENABLED:-True}
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://localhost:11434}
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-phi4:14b}
+      - DB_URL=${DB_URL:-sqlite:////app/data/database.db}
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - DEBUG=${DEBUG:-False}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://13.235.113.207:5173,http://13.235.113.207,http://13.235.113.207:80,ws://13.235.113.207:8000,wss://13.235.113.207:8000,http://localhost:5173,http://localhost:3000}
+      - SECRET_KEY=${SECRET_KEY:-change-this-secret-key}
+      - JWT_SECRET_KEY=${JWT_SECRET_KEY:-change-this-jwt-secret}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - backend_data:/app/data
+      - backend_logs:/app/logs
+      - backend_uploads:/app/uploads
+      - backend_chroma:/app/chroma_db
+      - backend_cache:/app/cache
+    restart: unless-stopped
+    networks:
+      - app-network
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - VITE_API_URL=${VITE_API_URL:-http://13.235.113.207:8000/api}
+        - VITE_WS_URL=${VITE_WS_URL:-ws://13.235.113.207:8000}
+    container_name: ai-tally-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+    networks:
+      - app-network
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  backend_data:
+  backend_logs:
+  backend_uploads:
+  backend_chroma:
+  backend_cache:
+

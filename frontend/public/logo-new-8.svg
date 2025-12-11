@@ -1,0 +1,37 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- STYLE: Orbital - Galaxy Spiral -->
+  <defs>
+    <linearGradient id="n8g1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#8b5cf6"/>
+      <stop offset="100%" style="stop-color:#6366f1"/>
+    </linearGradient>
+    <linearGradient id="n8g2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#10b981"/>
+      <stop offset="100%" style="stop-color:#34d399"/>
+    </linearGradient>
+    <filter id="n8s"><feDropShadow dx="0" dy="5" stdDeviation="8" flood-opacity="0.3"/></filter>
+    <filter id="n8g"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+  </defs>
+  
+  <!-- Spiral arms -->
+  <path d="M 100 100 Q 140 60 180 80 Q 200 100 180 140 Q 140 180 100 160" fill="none" stroke="url(#n8g1)" stroke-width="8" opacity="0.6" stroke-linecap="round"/>
+  <path d="M 100 100 Q 60 140 20 120 Q 0 100 20 60 Q 60 20 100 40" fill="none" stroke="url(#n8g1)" stroke-width="8" opacity="0.6" stroke-linecap="round"/>
+  
+  <!-- Inner spiral -->
+  <path d="M 100 100 Q 120 80 140 90 Q 150 110 130 130 Q 110 140 100 120" fill="none" stroke="url(#n8g2)" stroke-width="5" opacity="0.8" stroke-linecap="round" filter="url(#n8g)"/>
+  <path d="M 100 100 Q 80 120 60 110 Q 50 90 70 70 Q 90 60 100 80" fill="none" stroke="url(#n8g2)" stroke-width="5" opacity="0.8" stroke-linecap="round" filter="url(#n8g)"/>
+  
+  <!-- Center core -->
+  <circle cx="100" cy="100" r="28" fill="url(#n8g1)" filter="url(#n8s)"/>
+  <circle cx="100" cy="100" r="20" fill="#1e1b4b"/>
+  
+  <!-- TD in center -->
+  <text x="100" y="107" font-family="Arial" font-size="18" font-weight="900" fill="white" text-anchor="middle">TD</text>
+  
+  <!-- Star points -->
+  <circle cx="180" cy="80" r="5" fill="url(#n8g2)" filter="url(#n8g)"/>
+  <circle cx="20" cy="120" r="5" fill="url(#n8g2)" filter="url(#n8g)"/>
+  <circle cx="140" cy="170" r="4" fill="url(#n8g1)"/>
+  <circle cx="60" cy="30" r="4" fill="url(#n8g1)"/>
+</svg>
+
