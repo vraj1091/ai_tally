@@ -12,8 +12,10 @@ const DASHBOARD_TIMEOUT = 120000 // 120 seconds for bridge mode
  * Check if Bridge mode is active
  */
 const isBridgeMode = () => {
+  // Check both the connection type and data source settings
   const connectionType = localStorage.getItem('tally_connection_type')
-  return connectionType === 'BRIDGE'
+  const dataSource = localStorage.getItem('tally_data_source')
+  return connectionType === 'BRIDGE' || dataSource === 'bridge'
 }
 
 /**
@@ -27,6 +29,19 @@ const getBridgeToken = () => {
  * Determine the best data source based on connection settings
  */
 const getDataSource = () => {
+  // First check the data source selector setting
+  const dataSource = localStorage.getItem('tally_data_source')
+  if (dataSource === 'bridge') {
+    return 'bridge'
+  }
+  if (dataSource === 'backup') {
+    return 'backup'
+  }
+  if (dataSource === 'live') {
+    return 'live'
+  }
+  
+  // Fallback: check connection type
   if (isBridgeMode()) {
     return 'bridge'
   }

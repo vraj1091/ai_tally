@@ -1,7 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { FiDatabase, FiUploadCloud, FiX, FiCheckCircle, FiAlertCircle, FiTrash2, FiFile } from 'react-icons/fi';
+import { FiDatabase, FiUploadCloud, FiX, FiCheckCircle, FiAlertCircle, FiTrash2, FiFile, FiCloud } from 'react-icons/fi';
 import { tallyApi } from '../../api/tallyApi';
 import toast from 'react-hot-toast';
+
+// Check if we're on EC2/cloud deployment
+const isCloudDeployment = () => {
+  const hostname = window.location.hostname;
+  return !hostname.includes('localhost') && !hostname.includes('127.0.0.1');
+};
 
 const DataSourceSelector = ({ dataSource, onDataSourceChange, tallyConnected = true }) => {
   const [isUploading, setIsUploading] = useState(false);
@@ -104,9 +110,16 @@ const DataSourceSelector = ({ dataSource, onDataSourceChange, tallyConnected = t
 
   const handleSourceToggle = (source) => {
     onDataSourceChange(source);
-    if (source === 'live') {
+    
+    // Also update the connection type for bridge mode
+    if (source === 'bridge') {
+      localStorage.setItem('tally_connection_type', 'BRIDGE');
+      toast.success('✓ Switched to Bridge Mode - Connect via TallyConnector');
+    } else if (source === 'live') {
+      localStorage.setItem('tally_connection_type', 'DIRECT');
       toast.success('✓ Switched to Live Tally Data');
     } else {
+      localStorage.setItem('tally_connection_type', 'BACKUP');
       toast.success('✓ Switched to Backup Data');
       // Don't call loadBackupFiles here - useEffect will handle it
       // This prevents duplicate calls
@@ -257,18 +270,34 @@ const DataSourceSelector = ({ dataSource, onDataSourceChange, tallyConnected = t
             Data Source:
           </div>
 
-          {/* Live / Backup Toggle */}
+          {/* Live / Bridge / Backup Toggle */}
           <div className="flex items-center bg-gray-100 rounded-lg p-1">
+            {/* Show Live Tally only on localhost */}
+            {!isCloudDeployment() && (
+              <button
+                onClick={() => handleSourceToggle('live')}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-all ${
+                  dataSource === 'live'
+                    ? 'bg-blue-600 text-white shadow-sm'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+              >
+                <FiDatabase className="w-4 h-4" />
+                <span className="font-medium">Live Tally</span>
+              </button>
+            )}
+            
+            {/* Bridge mode - for cloud deployment connecting to local Tally */}
             <button
-              onClick={() => handleSourceToggle('live')}
+              onClick={() => handleSourceToggle('bridge')}
               className={`flex items-center space-x-2 px-4 py-2 rounded-md transition-all ${
-                dataSource === 'live'
-                  ? 'bg-blue-600 text-white shadow-sm'
+                dataSource === 'bridge'
+                  ? 'bg-purple-600 text-white shadow-sm'
                   : 'text-gray-600 hover:text-gray-900'
               }`}
             >
-              <FiDatabase className="w-4 h-4" />
-              <span className="font-medium">Live Tally</span>
+              <FiCloud className="w-4 h-4" />
+              <span className="font-medium">Bridge</span>
             </button>
             
             <button
@@ -314,15 +343,17 @@ const DataSourceSelector = ({ dataSource, onDataSourceChange, tallyConnected = t
         {/* Current Status */}
         <div className="flex items-center space-x-2">
           <div className={`flex items-center space-x-2 px-3 py-1 rounded-full ${
-            dataSource === 'live' 
+            dataSource === 'bridge'
+              ? 'bg-purple-100 text-purple-700'
+              : dataSource === 'live' 
               ? 'bg-green-100 text-green-700' 
               : 'bg-blue-100 text-blue-700'
           }`}>
             <div className={`w-2 h-2 rounded-full ${
-              dataSource === 'live' ? 'bg-green-500' : 'bg-blue-500'
+              dataSource === 'bridge' ? 'bg-purple-500' : dataSource === 'live' ? 'bg-green-500' : 'bg-blue-500'
             }`} />
             <span className="text-sm font-medium">
-              {dataSource === 'live' ? 'Live Mode' : 'Backup Mode'}
+              {dataSource === 'bridge' ? 'Bridge Mode' : dataSource === 'live' ? 'Live Mode' : 'Backup Mode'}
             </span>
           </div>
         </div>
@@ -403,7 +434,12 @@ const DataSourceSelector = ({ dataSource, onDataSourceChange, tallyConnected = t
       <div className="mt-3 text-sm text-gray-500 flex items-start space-x-2">
         <div className="text-gray-400 mt-0.5">ℹ️</div>
         <div>
-          {dataSource === 'live' ? (
+          {dataSource === 'bridge' ? (
+            <span>
+              Fetching data via WebSocket Bridge from your local PC. 
+              <strong className="text-purple-700"> Run TallyConnector on your PC with Tally running.</strong>
+            </span>
+          ) : dataSource === 'live' ? (
             <span>
               Fetching data directly from Tally ERP (Port 9000). 
               <strong className="text-gray-700"> Make sure Tally Gateway is enabled.</strong>
