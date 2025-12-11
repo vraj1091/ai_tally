@@ -50,11 +50,15 @@ class TallyBridgeWebSocket {
     }
     
     // EC2 or other production (accessed via IP or domain)
-    // Use same host - nginx proxies /ws/ to backend
+    // Use same host and port - nginx proxies /ws/ to backend
     if (!isLocalhost) {
       // In EC2/production, nginx handles WebSocket proxy on same port
-      // Use port from current location (default 80/443)
-      const wsUrlProd = `${protocol}//${hostname}/ws/tally-bridge/${userToken}`;
+      // Include port if it's not the default (80 for http, 443 for https)
+      const port = window.location.port;
+      const hostWithPort = port && port !== '80' && port !== '443' 
+        ? `${hostname}:${port}` 
+        : hostname;
+      const wsUrlProd = `${protocol}//${hostWithPort}/ws/tally-bridge/${userToken}`;
       console.log('🔌 Production WebSocket URL:', wsUrlProd);
       return wsUrlProd;
     }
