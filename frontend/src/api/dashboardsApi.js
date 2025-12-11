@@ -3,24 +3,67 @@ import apiClient from './client'
 /**
  * Dashboards API - Connects to /api/dashboards endpoints
  * These are specialized analytics dashboards for different business roles
+ * Supports: live, backup, and bridge data sources
  */
 
-const DASHBOARD_TIMEOUT = 60000 // 60 seconds
+const DASHBOARD_TIMEOUT = 120000 // 120 seconds for bridge mode
+
+/**
+ * Check if Bridge mode is active
+ */
+const isBridgeMode = () => {
+  const connectionType = localStorage.getItem('tally_connection_type')
+  return connectionType === 'BRIDGE'
+}
+
+/**
+ * Get bridge token
+ */
+const getBridgeToken = () => {
+  return localStorage.getItem('tally_bridge_token') || 'user_tally_bridge'
+}
+
+/**
+ * Determine the best data source based on connection settings
+ */
+const getDataSource = () => {
+  if (isBridgeMode()) {
+    return 'bridge'
+  }
+  return 'live'
+}
 
 /**
  * Generic dashboard fetcher with retry and fallback
+ * Supports bridge mode for cloud-to-local Tally connection
  */
 const fetchDashboard = async (endpoint, companyName, source = 'auto', refresh = false) => {
   try {
-    console.log(`📊 Fetching ${endpoint} dashboard for ${companyName} (source: ${source})...`)
+    // Auto-detect best source
+    const actualSource = source === 'auto' ? getDataSource() : source
+    const params = { source: actualSource, refresh }
+    
+    // Add bridge token if using bridge mode
+    if (actualSource === 'bridge') {
+      params.bridge_token = getBridgeToken()
+      console.log(`📊 Fetching ${endpoint} dashboard via BRIDGE for ${companyName}...`)
+    } else {
+      console.log(`📊 Fetching ${endpoint} dashboard for ${companyName} (source: ${actualSource})...`)
+    }
+    
     const response = await apiClient.get(`/dashboards/${endpoint}/${encodeURIComponent(companyName)}`, {
-      params: { source, refresh },
+      params,
       timeout: DASHBOARD_TIMEOUT
     })
+    
+    if (response.data && actualSource === 'bridge') {
+      response.data._fromBridge = true
+    }
+    
     return response.data
   } catch (error) {
-    // If live source failed, try backup as fallback
-    if (source === 'live' || source === 'auto') {
+    // If bridge/live source failed, try backup as fallback
+    if (source !== 'backup') {
       console.log(`⚠️ ${endpoint} failed with ${source}, trying backup...`)
       try {
         const backupResponse = await apiClient.get(`/dashboards/${endpoint}/${encodeURIComponent(companyName)}`, {
@@ -32,7 +75,7 @@ const fetchDashboard = async (endpoint, companyName, source = 'auto', refresh = 
         }
         return backupResponse.data
       } catch (backupError) {
-        console.error(`❌ Both sources failed for ${endpoint}:`, backupError.message)
+        console.error(`❌ All sources failed for ${endpoint}:`, backupError.message)
       }
     }
     console.error(`Error fetching ${endpoint} dashboard:`, error)
