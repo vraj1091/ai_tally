@@ -33,13 +33,19 @@ class BridgeTallyService:
         self.connected = bridge_manager.is_connected(bridge_token) if bridge_manager else False
         self._cached_data = {}
     
-    async def _send_tally_request(self, xml_request: str, timeout: int = 120) -> Optional[str]:
-        """Send XML request to Tally via bridge and return response"""
+    async def _send_tally_request(self, xml_request: str, timeout: int = 600) -> Optional[str]:
+        """Send XML request to Tally via bridge and return response
+        
+        Args:
+            xml_request: XML request to send to Tally
+            timeout: Timeout in seconds (default 600s = 10 minutes for large data up to 2GB)
+        """
         if not self.connected:
             logger.warning("Bridge not connected")
             return None
         
         try:
+            logger.info(f"Sending tally_request via bridge (timeout={timeout}s)...")
             response = await self.bridge_manager.send_to_bridge(self.bridge_token, {
                 'type': 'tally_request',
                 'method': 'POST',
@@ -49,7 +55,10 @@ class BridgeTallyService:
             })
             
             if response.get('success'):
-                return response.get('content', '')
+                content = response.get('content', '')
+                size_mb = len(content) / (1024 * 1024)
+                logger.info(f"Bridge response received: {len(content)} bytes ({size_mb:.2f} MB)")
+                return content
             else:
                 logger.error(f"Bridge request failed: {response.get('error')}")
                 return None

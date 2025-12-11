@@ -72,7 +72,7 @@ class TallyConnector:
                 TALLY_URL,
                 data=xml_request,
                 headers={'Content-Type': 'application/xml'},
-                timeout=30
+                timeout=600  # 10 minutes for very large data (up to 2GB)
             )
             return {
                 'success': True,
@@ -172,7 +172,16 @@ class TallyConnector:
         self.log(f"🔌 Connecting to {ws_url}...", "INFO")
         
         try:
-            async with websockets.connect(ws_url, ping_interval=30) as websocket:
+            # max_size=2GB to handle very large Tally backups
+            # ping_interval=30 to keep connection alive
+            # close_timeout=300 for slow responses
+            async with websockets.connect(
+                ws_url, 
+                ping_interval=30,
+                ping_timeout=120,
+                close_timeout=300,
+                max_size=2 * 1024 * 1024 * 1024  # 2GB max message size
+            ) as websocket:
                 self.ws = websocket
                 self.log("✅ Connected to backend!", "SUCCESS")
                 

@@ -101,19 +101,26 @@ class BridgeConnectionManager:
         message['id'] = request_id
         
         # Create future for response
-        future = asyncio.get_event_loop().create_future()
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = asyncio.get_event_loop()
+        future = loop.create_future()
         self.pending_requests[request_id] = future
         
         try:
             await ws.send_text(json.dumps(message))
             
-            # Wait for response with timeout
-            response = await asyncio.wait_for(future, timeout=message.get('timeout', 60))
+            # Wait for response with longer timeout (600 seconds = 10 min for up to 2GB data)
+            timeout = message.get('timeout', 600)
+            response = await asyncio.wait_for(future, timeout=timeout)
             return response
             
         except asyncio.TimeoutError:
+            logger.error(f"Bridge request timed out after {message.get('timeout', 180)}s")
             return {'success': False, 'error': 'Request timed out'}
         except Exception as e:
+            logger.error(f"Bridge send error: {e}")
             return {'success': False, 'error': str(e)}
         finally:
             if request_id in self.pending_requests:
