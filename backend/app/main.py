@@ -337,6 +337,7 @@ async def root():
         },
         "endpoints": {
             "health": "/health",
+            "debug_routes": "/api/debug/routes",
             "auth": "/api/auth" if AUTH_ROUTES_AVAILABLE else None,
             "chat": "/api/chat",
             "tally": "/api/tally",
@@ -345,8 +346,12 @@ async def root():
             "backup_companies": "/api/backup/companies",
             "documents": "/api/documents",
             "analytics": "/api/analytics",
-            "vector_store": "/vector-store",
-            "google_drive": "/google-drive"
+            "dashboards": "/api/dashboards",
+            "ai_insights": "/api/ai",
+            "vector_store": "/api/vector-store",
+            "google_drive": "/api/google-drive",
+            "websocket_bridge": "/ws/tally-bridge/{user_token}",
+            "websocket_test": "/ws/test"
         }
     }
 
