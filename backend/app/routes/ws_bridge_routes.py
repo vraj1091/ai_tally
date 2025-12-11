@@ -17,7 +17,12 @@ import uuid
 from app.models.database import get_db
 
 logger = logging.getLogger(__name__)
+
+# Main router for HTTP API endpoints (mounted at /api/bridge)
 router = APIRouter()
+
+# Separate router for WebSocket endpoints (mounted at root)
+ws_router = APIRouter()
 
 
 class BridgeConnectionManager:
@@ -124,7 +129,7 @@ class BridgeConnectionManager:
 bridge_manager = BridgeConnectionManager()
 
 
-@router.websocket("/ws/tally-bridge/{user_token}")
+@ws_router.websocket("/ws/tally-bridge/{user_token}")
 async def tally_bridge_websocket(websocket: WebSocket, user_token: str):
     """
     WebSocket endpoint for TallyDash Bridge connections
@@ -177,7 +182,7 @@ async def list_bridges():
     }
 
 
-@router.websocket("/ws/test")
+@ws_router.websocket("/ws/test")
 async def websocket_test(websocket: WebSocket):
     """
     Simple WebSocket test endpoint for debugging connectivity

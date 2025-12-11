@@ -516,16 +516,17 @@ app.include_router(
 
 # WebSocket bridge routes for real-time Tally access
 try:
+    # HTTP API routes at /api/bridge
     app.include_router(
         ws_bridge_routes.router,
         prefix="/api/bridge",
-        tags=["WebSocket Bridge"]
+        tags=["WebSocket Bridge API"]
     )
-    # Also mount WebSocket at root for direct access
+    # WebSocket routes at root (for /ws/tally-bridge/{token})
     app.include_router(
-        ws_bridge_routes.router,
+        ws_bridge_routes.ws_router,
         prefix="",
-        tags=["WebSocket Bridge Root"]
+        tags=["WebSocket Bridge WS"]
     )
     logger.info("✓ WebSocket Bridge routes registered")
 except Exception as e:
