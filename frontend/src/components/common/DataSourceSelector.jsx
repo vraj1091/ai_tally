@@ -88,7 +88,7 @@ const DataSourceSelector = ({ dataSource, onDataSourceChange, tallyConnected = t
   };
   
   const handleDeleteBackup = async () => {
-    if (!confirm('Delete all backup data? This will remove all cached backup files.')) {
+    if (!window.confirm('Delete all backup data? This will remove all cached backup files.')) {
       return;
     }
     
