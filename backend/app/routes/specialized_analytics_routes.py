@@ -13,84 +13,22 @@ from app.services.tally_service import TallyDataService
 from app.services.specialized_analytics import SpecializedAnalytics
 import logging
 import json
-import asyncio
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-# Import bridge manager for bridge mode
+# Import bridge services for bridge mode
 try:
-    from app.routes.ws_bridge_routes import bridge_manager, get_tally_data_via_bridge
+    from app.routes.ws_bridge_routes import bridge_manager
+    from app.services.bridge_tally_service import BridgeTallyService, BridgeSpecializedAnalytics
     BRIDGE_AVAILABLE = True
-except ImportError:
+    logger.info("✓ Bridge services available")
+except ImportError as e:
     BRIDGE_AVAILABLE = False
     bridge_manager = None
-    logger.warning("Bridge routes not available")
-
-
-# Helper to fetch Tally data via Bridge
-async def fetch_tally_via_bridge(bridge_token: str, data_type: str, company_name: str = None) -> Optional[dict]:
-    """
-    Fetch Tally data via the WebSocket bridge
-    
-    Args:
-        bridge_token: User's bridge token
-        data_type: Type of data to fetch (ledgers, vouchers, trial_balance, etc.)
-        company_name: Optional company name
-    
-    Returns:
-        Dict with Tally data or None if bridge not connected
-    """
-    if not BRIDGE_AVAILABLE or not bridge_manager:
-        logger.warning("Bridge not available")
-        return None
-    
-    if not bridge_manager.is_connected(bridge_token):
-        logger.warning(f"Bridge not connected: {bridge_token}")
-        return None
-    
-    # Build XML request based on data type
-    xml_requests = {
-        'companies': """<ENVELOPE><HEADER><VERSION>1</VERSION><TALLYREQUEST>Export</TALLYREQUEST><TYPE>Collection</TYPE><ID>All Companies</ID></HEADER><BODY><DESC><STATICVARIABLES><SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT></STATICVARIABLES><TDL><TDLMESSAGE><COLLECTION NAME="All Companies"><TYPE>Company</TYPE><FETCH>Name</FETCH></COLLECTION></TDLMESSAGE></TDL></DESC></BODY></ENVELOPE>""",
-        
-        'ledgers': f"""<ENVELOPE><HEADER><VERSION>1</VERSION><TALLYREQUEST>Export</TALLYREQUEST><TYPE>Collection</TYPE><ID>All Ledgers</ID></HEADER><BODY><DESC><STATICVARIABLES><SVCURRENTCOMPANY>{company_name or ''}</SVCURRENTCOMPANY><SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT></STATICVARIABLES><TDL><TDLMESSAGE><COLLECTION NAME="All Ledgers"><TYPE>Ledger</TYPE><FETCH>NAME, PARENT, OPENINGBALANCE, CLOSINGBALANCE</FETCH></COLLECTION></TDLMESSAGE></TDL></DESC></BODY></ENVELOPE>""",
-        
-        'trial_balance': f"""<ENVELOPE><HEADER><VERSION>1</VERSION><TALLYREQUEST>Export</TALLYREQUEST><TYPE>Data</TYPE><ID>Trial Balance</ID></HEADER><BODY><DESC><STATICVARIABLES><SVCURRENTCOMPANY>{company_name or ''}</SVCURRENTCOMPANY><SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT></STATICVARIABLES><TDL><TDLMESSAGE><REPORT NAME="Trial Balance"><OPTION>XML</OPTION></REPORT></TDLMESSAGE></TDL></DESC></BODY></ENVELOPE>""",
-        
-        'profit_loss': f"""<ENVELOPE><HEADER><VERSION>1</VERSION><TALLYREQUEST>Export</TALLYREQUEST><TYPE>Data</TYPE><ID>Profit and Loss</ID></HEADER><BODY><DESC><STATICVARIABLES><SVCURRENTCOMPANY>{company_name or ''}</SVCURRENTCOMPANY><SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT></STATICVARIABLES><TDL><TDLMESSAGE><REPORT NAME="Profit and Loss"><OPTION>XML</OPTION></REPORT></TDLMESSAGE></TDL></DESC></BODY></ENVELOPE>""",
-        
-        'balance_sheet': f"""<ENVELOPE><HEADER><VERSION>1</VERSION><TALLYREQUEST>Export</TALLYREQUEST><TYPE>Data</TYPE><ID>Balance Sheet</ID></HEADER><BODY><DESC><STATICVARIABLES><SVCURRENTCOMPANY>{company_name or ''}</SVCURRENTCOMPANY><SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT></STATICVARIABLES><TDL><TDLMESSAGE><REPORT NAME="Balance Sheet"><OPTION>XML</OPTION></REPORT></TDLMESSAGE></TDL></DESC></BODY></ENVELOPE>""",
-        
-        'vouchers': f"""<ENVELOPE><HEADER><VERSION>1</VERSION><TALLYREQUEST>Export</TALLYREQUEST><TYPE>Collection</TYPE><ID>All Vouchers</ID></HEADER><BODY><DESC><STATICVARIABLES><SVCURRENTCOMPANY>{company_name or ''}</SVCURRENTCOMPANY><SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT></STATICVARIABLES><TDL><TDLMESSAGE><COLLECTION NAME="All Vouchers"><TYPE>Voucher</TYPE><FETCH>DATE, VOUCHERTYPENAME, VOUCHERNUMBER, PARTYLEDGERNAME, AMOUNT</FETCH></COLLECTION></TDLMESSAGE></TDL></DESC></BODY></ENVELOPE>""",
-        
-        'groups': f"""<ENVELOPE><HEADER><VERSION>1</VERSION><TALLYREQUEST>Export</TALLYREQUEST><TYPE>Collection</TYPE><ID>All Groups</ID></HEADER><BODY><DESC><STATICVARIABLES><SVCURRENTCOMPANY>{company_name or ''}</SVCURRENTCOMPANY><SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT></STATICVARIABLES><TDL><TDLMESSAGE><COLLECTION NAME="All Groups"><TYPE>Group</TYPE><FETCH>NAME, PARENT</FETCH></COLLECTION></TDLMESSAGE></TDL></DESC></BODY></ENVELOPE>""",
-        
-        'stock_items': f"""<ENVELOPE><HEADER><VERSION>1</VERSION><TALLYREQUEST>Export</TALLYREQUEST><TYPE>Collection</TYPE><ID>All Stock Items</ID></HEADER><BODY><DESC><STATICVARIABLES><SVCURRENTCOMPANY>{company_name or ''}</SVCURRENTCOMPANY><SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT></STATICVARIABLES><TDL><TDLMESSAGE><COLLECTION NAME="All Stock Items"><TYPE>StockItem</TYPE><FETCH>NAME, PARENT, OPENINGBALANCE, CLOSINGBALANCE, OPENINGVALUE, CLOSINGVALUE</FETCH></COLLECTION></TDLMESSAGE></TDL></DESC></BODY></ENVELOPE>"""
-    }
-    
-    xml_request = xml_requests.get(data_type, xml_requests['ledgers'])
-    
-    try:
-        response = await bridge_manager.send_to_bridge(bridge_token, {
-            'type': 'tally_request',
-            'method': 'POST',
-            'payload': xml_request,
-            'headers': {'Content-Type': 'text/xml'},
-            'timeout': 120
-        })
-        
-        if response.get('success'):
-            return {
-                'success': True,
-                'data': response.get('content', ''),
-                'source': 'bridge'
-            }
-        else:
-            logger.error(f"Bridge request failed: {response.get('error')}")
-            return None
-    except Exception as e:
-        logger.error(f"Error fetching via bridge: {e}")
-        return None
+    BridgeTallyService = None
+    BridgeSpecializedAnalytics = None
+    logger.warning(f"Bridge services not available: {e}")
 
 
 # Helper function to get optional user (for anonymous dashboard access)
@@ -180,86 +118,111 @@ async def get_dashboard_with_fallback(
     current_user: Optional[User],
     bridge_token: Optional[str] = None
 ):
-    """Try live/bridge mode first, automatically fallback to backup if live fails"""
+    """
+    Unified dashboard data fetcher that supports:
+    - live: Direct connection to local Tally
+    - backup: Data from uploaded backup files
+    - bridge: Cloud-to-local via WebSocket bridge
+    """
     actual_source = source
     fallback_used = False
     
     try:
-        # BRIDGE MODE - Fetch data via WebSocket bridge
+        # ============ BRIDGE MODE ============
+        # Fetch data via WebSocket bridge (for EC2 deployment)
         if source == "bridge" and bridge_token:
-            logger.info(f"{dashboard_type} Dashboard - Using BRIDGE for {company_name}")
+            logger.info(f"📡 {dashboard_type} Dashboard - Using BRIDGE for {company_name}")
             
             if not BRIDGE_AVAILABLE or not bridge_manager:
-                raise HTTPException(status_code=503, detail="Bridge service not available")
-            
-            if not bridge_manager.is_connected(bridge_token):
-                raise HTTPException(status_code=503, detail="Bridge not connected. Run TallyConnector on your PC.")
-            
-            # Fetch raw data via bridge - we'll need ledgers and trial balance
-            bridge_data = {}
-            
-            # Fetch ledgers
-            ledgers_response = await fetch_tally_via_bridge(bridge_token, 'ledgers', company_name)
-            if ledgers_response and ledgers_response.get('success'):
-                bridge_data['ledgers_xml'] = ledgers_response.get('data', '')
-            
-            # Fetch trial balance
-            tb_response = await fetch_tally_via_bridge(bridge_token, 'trial_balance', company_name)
-            if tb_response and tb_response.get('success'):
-                bridge_data['trial_balance_xml'] = tb_response.get('data', '')
-            
-            # Fetch profit & loss
-            pl_response = await fetch_tally_via_bridge(bridge_token, 'profit_loss', company_name)
-            if pl_response and pl_response.get('success'):
-                bridge_data['profit_loss_xml'] = pl_response.get('data', '')
-            
-            # Fetch balance sheet
-            bs_response = await fetch_tally_via_bridge(bridge_token, 'balance_sheet', company_name)
-            if bs_response and bs_response.get('success'):
-                bridge_data['balance_sheet_xml'] = bs_response.get('data', '')
-            
-            # Parse bridge data and calculate analytics
-            from app.services.bridge_analytics import BridgeAnalytics
-            bridge_analytics = BridgeAnalytics(bridge_data)
-            method = getattr(bridge_analytics, analytics_method, None)
-            
-            if method:
-                data = method(company_name)
-            else:
-                # Fallback to basic parsing
-                data = bridge_analytics.get_basic_analytics(company_name)
-            
-            return {
-                "success": True, 
-                "data": data, 
-                "company": company_name, 
-                "source": "bridge",
-                "fallback_used": False
-            }
-        
-        # BACKUP MODE
-        if source == "backup":
-            logger.info(f"{dashboard_type} Dashboard - Using backup data for {company_name}")
-            tally_service = TallyDataService(url="http://localhost:9000", db=db, user=current_user)
-            tally_service.connected = False
-        else:
-            # LIVE MODE
-            tally_service = TallyDataService(db=db, user=current_user)
-            # Check if Tally is actually connected
-            if not tally_service.connected:
-                logger.warning(f"{dashboard_type} Dashboard - Tally not connected, trying backup...")
+                logger.warning("Bridge service not available, falling back to backup")
                 actual_source = "backup"
                 fallback_used = True
+            elif not bridge_manager.is_connected(bridge_token):
+                logger.warning("Bridge not connected, falling back to backup")
+                actual_source = "backup"
+                fallback_used = True
+            else:
+                # Use Bridge to fetch data
+                try:
+                    bridge_service = BridgeTallyService(bridge_manager, bridge_token)
+                    bridge_analytics = BridgeSpecializedAnalytics(bridge_service)
+                    
+                    # Get the analytics method
+                    method = getattr(bridge_analytics, analytics_method, None)
+                    if method:
+                        data = await method(company_name)
+                        
+                        # Check if we got valid data
+                        has_data = False
+                        if isinstance(data, dict):
+                            # Check common data fields
+                            revenue = data.get('revenue', data.get('total_revenue', 0))
+                            if not revenue:
+                                summary = data.get('executive_summary', {})
+                                revenue = summary.get('total_revenue', 0)
+                            has_data = revenue > 0
+                        
+                        if has_data:
+                            logger.info(f"✅ Bridge data received for {company_name}")
+                            return {
+                                "success": True,
+                                "data": data,
+                                "company": company_name,
+                                "source": "bridge",
+                                "fallback_used": False
+                            }
+                        else:
+                            logger.warning("Bridge returned empty data, falling back to backup")
+                            actual_source = "backup"
+                            fallback_used = True
+                    else:
+                        logger.warning(f"Method {analytics_method} not found in bridge analytics")
+                        actual_source = "backup"
+                        fallback_used = True
+                        
+                except Exception as e:
+                    logger.error(f"Bridge error: {e}, falling back to backup")
+                    actual_source = "backup"
+                    fallback_used = True
+        
+        # ============ BACKUP MODE ============
+        if actual_source == "backup":
+            logger.info(f"📁 {dashboard_type} Dashboard - Using BACKUP for {company_name}")
+            tally_service = TallyDataService(url="http://localhost:9000", db=db, user=current_user)
+            tally_service.connected = False  # Force backup mode
+            
+            analytics_service = SpecializedAnalytics(tally_service)
+            method = getattr(analytics_service, analytics_method)
+            data = method(company_name, use_cache=not refresh, source="backup")
+            
+            return {
+                "success": True,
+                "data": data,
+                "company": company_name,
+                "source": "backup",
+                "fallback_used": fallback_used
+            }
+        
+        # ============ LIVE MODE ============
+        logger.info(f"🔴 {dashboard_type} Dashboard - Using LIVE for {company_name}")
+        tally_service = TallyDataService(db=db, user=current_user)
+        
+        # Check if Tally is actually connected
+        if not tally_service.connected:
+            logger.warning(f"{dashboard_type} Dashboard - Tally not connected, trying backup...")
+            actual_source = "backup"
+            fallback_used = True
+            tally_service.connected = False
         
         analytics_service = SpecializedAnalytics(tally_service)
         method = getattr(analytics_service, analytics_method)
         data = method(company_name, use_cache=not refresh, source=actual_source)
         
-        # If live returned empty data, try backup
+        # If live returned empty data, auto-fallback to backup
         if source == "live" and not fallback_used:
             is_empty = (
                 not data or 
-                (isinstance(data, dict) and data.get('executive_summary', {}).get('total_revenue', 0) == 0)
+                (isinstance(data, dict) and data.get('revenue', data.get('total_revenue', 0)) == 0)
             )
             if is_empty:
                 logger.warning(f"{dashboard_type} Dashboard - Live data empty, trying backup...")
@@ -268,20 +231,21 @@ async def get_dashboard_with_fallback(
                 analytics_backup = SpecializedAnalytics(tally_service_backup)
                 backup_data = getattr(analytics_backup, analytics_method)(company_name, use_cache=True, source="backup")
                 if backup_data and isinstance(backup_data, dict):
-                    backup_revenue = backup_data.get('executive_summary', {}).get('total_revenue', 0)
+                    backup_revenue = backup_data.get('revenue', backup_data.get('total_revenue', 0))
                     if backup_revenue > 0:
                         data = backup_data
                         actual_source = "backup"
                         fallback_used = True
-                        logger.info(f"{dashboard_type} Dashboard - Using backup data (auto-fallback)")
+                        logger.info(f"✅ {dashboard_type} Dashboard - Using backup data (auto-fallback)")
         
         return {
-            "success": True, 
-            "data": data, 
-            "company": company_name, 
+            "success": True,
+            "data": data,
+            "company": company_name,
             "source": actual_source,
             "fallback_used": fallback_used
         }
+        
     except HTTPException:
         raise
     except Exception as e:
