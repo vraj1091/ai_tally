@@ -81,9 +81,9 @@ except ImportError as e:
 from fastapi import APIRouter
 ROUTES_LOADED = True
 
-# Helper to create dummy router
+# Helper to create dummy router (includes both router and ws_router for ws_bridge_routes compatibility)
 def create_dummy_router():
-    return type('obj', (object,), {'router': APIRouter()})
+    return type('obj', (object,), {'router': APIRouter(), 'ws_router': APIRouter()})
 
 # Track which routes loaded successfully
 loaded_routes = []
