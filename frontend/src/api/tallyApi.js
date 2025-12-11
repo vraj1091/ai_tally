@@ -280,11 +280,11 @@ export const tallyApi = {
 
   // ==================== BRIDGE API (Cloud to Local) ====================
   
-  // Get bridge status
+  // Get bridge status - route: /api/bridge/bridge/{token}/status
   getBridgeStatus: async (userToken = 'user_tally_bridge') => {
     try {
       console.log('🌉 Checking bridge status for:', userToken)
-      const response = await apiClient.get(`/bridge/${userToken}/status`)
+      const response = await apiClient.get(`/bridge/bridge/${userToken}/status`)
       console.log('🌉 Bridge status:', response.data)
       return response.data
     } catch (error) {
@@ -293,10 +293,10 @@ export const tallyApi = {
     }
   },
 
-  // List all connected bridges
+  // List all connected bridges - route: /api/bridge/bridges
   listBridges: async () => {
     try {
-      const response = await apiClient.get('/bridges')
+      const response = await apiClient.get('/bridge/bridges')
       return response.data
     } catch (error) {
       console.error('❌ List bridges error:', error)
@@ -304,11 +304,11 @@ export const tallyApi = {
     }
   },
 
-  // Get companies via bridge
+  // Get companies via bridge - route: /api/bridge/bridge/{token}/companies
   getCompaniesViaBridge: async (userToken = 'user_tally_bridge') => {
     try {
       console.log('🌉 Getting companies via bridge:', userToken)
-      const response = await apiClient.get(`/bridge/${userToken}/companies`)
+      const response = await apiClient.get(`/bridge/bridge/${userToken}/companies`)
       console.log('🌉 Companies via bridge:', response.data)
       return response.data
     } catch (error) {
@@ -317,11 +317,11 @@ export const tallyApi = {
     }
   },
 
-  // Send Tally request via bridge
+  // Send Tally request via bridge - route: /api/bridge/bridge/{token}/tally
   sendViaBridge: async (userToken = 'user_tally_bridge', xmlRequest) => {
     try {
       console.log('🌉 Sending request via bridge:', userToken)
-      const response = await apiClient.post(`/bridge/${userToken}/tally`, {
+      const response = await apiClient.post(`/bridge/bridge/${userToken}/tally`, {
         payload: xmlRequest,
         headers: { 'Content-Type': 'text/xml' },
         timeout: 60
