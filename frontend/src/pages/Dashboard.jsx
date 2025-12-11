@@ -25,8 +25,31 @@ export default function Dashboard() {
   const checkTallyConnection = async () => {
     setLoading(true)
     try {
-      const status = await tallyApi.getStatus()
-      const isConnected = status.is_connected || status.connected || false
+      // Check if Bridge mode is configured
+      const connectionType = localStorage.getItem('tally_connection_type')
+      const bridgeToken = localStorage.getItem('tally_bridge_token') || 'user_tally_bridge'
+      
+      let isConnected = false
+      
+      if (connectionType === 'BRIDGE') {
+        // Bridge mode - check bridge status
+        try {
+          const bridgeStatus = await tallyApi.getBridgeStatus(bridgeToken)
+          if (bridgeStatus && bridgeStatus.connected && bridgeStatus.tally_connected) {
+            isConnected = true
+            console.log('✅ Connected via Bridge - Tally available')
+          }
+        } catch (bridgeError) {
+          console.warn('Bridge status check failed:', bridgeError.message)
+        }
+      }
+      
+      // If not connected via bridge, try direct connection
+      if (!isConnected) {
+        const status = await tallyApi.getStatus()
+        isConnected = status.is_connected || status.connected || false
+      }
+      
       setConnected(isConnected)
       
       let allCompanies = []

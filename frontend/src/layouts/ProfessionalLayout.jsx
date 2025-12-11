@@ -17,24 +17,42 @@ const ProfessionalLayout = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Check Tally connection status - with error handling to prevent console spam
+  // Check Tally connection status - supports both Bridge and Direct modes
   useEffect(() => {
     const checkTallyStatus = async () => {
       try {
+        // Check if Bridge mode is configured
+        const connectionType = localStorage.getItem('tally_connection_type');
+        const bridgeToken = localStorage.getItem('tally_bridge_token') || 'user_tally_bridge';
+        
+        if (connectionType === 'BRIDGE') {
+          // Bridge mode - check bridge status
+          const bridgeStatus = await tallyApi.getBridgeStatus(bridgeToken);
+          if (bridgeStatus && bridgeStatus.connected) {
+            setTallyStatus({
+              connected: bridgeStatus.tally_connected || false,
+              lastSync: new Date().toLocaleTimeString(),
+              viaBridge: true
+            });
+            return;
+          }
+        }
+        
+        // Direct mode or Bridge not connected - check direct Tally status
         const status = await tallyApi.getStatus();
         if (status && status.connected !== undefined) {
           setTallyStatus({
             connected: status.connected || status.is_connected || false,
-            lastSync: status.last_sync ? new Date(status.last_sync).toLocaleTimeString() : null
+            lastSync: status.last_sync ? new Date(status.last_sync).toLocaleTimeString() : null,
+            viaBridge: false
           });
         }
       } catch (error) {
         // Silently handle errors - don't spam console
-        // Only log if it's not a 404 (which is expected when backend is not available)
         if (error.response?.status !== 404) {
           console.debug('Tally status check failed (non-critical):', error.message);
         }
-        setTallyStatus({ connected: false, lastSync: null });
+        setTallyStatus({ connected: false, lastSync: null, viaBridge: false });
       }
     };
 
