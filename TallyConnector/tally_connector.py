@@ -102,7 +102,8 @@ class TallyConnector:
                 
             elif msg_type == 'tally_request':
                 # Forward request to Tally
-                xml_request = data.get('xml', '')
+                # Backend sends 'payload', fallback to 'xml' for compatibility
+                xml_request = data.get('payload', data.get('xml', ''))
                 self.log(f"📤 Forwarding request to Tally...", "INFO")
                 
                 result = self.send_to_tally(xml_request)
@@ -110,21 +111,24 @@ class TallyConnector:
                 await self.ws.send(json.dumps({
                     'type': 'tally_response',
                     'id': msg_id,
-                    **result
+                    'success': result.get('success', False),
+                    'content': result.get('data', ''),
+                    'error': result.get('error', None)
                 }))
                 
                 if result['success']:
-                    self.log(f"✅ Tally response sent ({len(result['data'])} bytes)", "SUCCESS")
+                    self.log(f"✅ Tally response sent ({len(result.get('data', ''))} bytes)", "SUCCESS")
                 else:
-                    self.log(f"❌ Tally request failed: {result['error']}", "ERROR")
+                    self.log(f"❌ Tally request failed: {result.get('error', 'Unknown error')}", "ERROR")
                     
             elif msg_type == 'status':
-                # Send status
+                # Send status - use tally_connected to match frontend expectation
                 await self.ws.send(json.dumps({
                     'type': 'status_response',
                     'id': msg_id,
+                    'success': True,
                     'connected': True,
-                    'tally_available': self.tally_connected,
+                    'tally_connected': self.tally_connected,
                     'tally_url': TALLY_URL
                 }))
                 
