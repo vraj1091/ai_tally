@@ -118,12 +118,8 @@ const CEODashboard = ({ dataSource = 'live' }) => {
       const currentSource = dataSource || 'live';
       console.log(`Loading CEO data for company: ${selectedCompany}, source: ${currentSource}`);
       
-      // Add explicit timeout of 3 minutes for dashboard calculations (increased for large backup files)
-      const apiUrl = `/dashboards/ceo/${encodeURIComponent(selectedCompany)}?source=${currentSource}`;
-      console.log(`CEO Dashboard - Making API call to: ${apiUrl}`);
-      const response = await apiClient.get(apiUrl, {
-        timeout: 180000 // 3 minutes for complex calculations with large backup files
-      });
+      // Use fetchDashboardData helper for bridge support
+      const response = await fetchDashboardData('ceo', selectedCompany, currentSource, { timeout: 180000 });
       
       console.log('CEO Dashboard Response:', response.data);
       console.log('CEO Data:', response.data.data);
