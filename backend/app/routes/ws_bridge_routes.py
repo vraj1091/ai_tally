@@ -182,6 +182,23 @@ async def list_bridges():
     }
 
 
+@router.get("/debug")
+async def debug_bridge_routes():
+    """Debug endpoint to verify WebSocket routes are registered"""
+    return {
+        'status': 'ok',
+        'message': 'Bridge routes are working',
+        'websocket_endpoint': '/ws/tally-bridge/{user_token}',
+        'http_endpoints': [
+            '/api/bridge/bridges',
+            '/api/bridge/{token}/status',
+            '/api/bridge/{token}/tally',
+            '/api/bridge/{token}/companies'
+        ],
+        'active_connections': len(bridge_manager.connections)
+    }
+
+
 @ws_router.websocket("/ws/test")
 async def websocket_test(websocket: WebSocket):
     """

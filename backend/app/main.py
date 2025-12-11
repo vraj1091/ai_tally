@@ -522,15 +522,24 @@ try:
         prefix="/api/bridge",
         tags=["WebSocket Bridge API"]
     )
+    logger.info("✓ WebSocket Bridge HTTP routes registered at /api/bridge")
+    
     # WebSocket routes at root (for /ws/tally-bridge/{token})
-    app.include_router(
-        ws_bridge_routes.ws_router,
-        prefix="",
-        tags=["WebSocket Bridge WS"]
-    )
-    logger.info("✓ WebSocket Bridge routes registered")
+    # Check if ws_router exists (it won't if using dummy router from older code)
+    if hasattr(ws_bridge_routes, 'ws_router'):
+        app.include_router(
+            ws_bridge_routes.ws_router,
+            prefix="",
+            tags=["WebSocket Bridge WS"]
+        )
+        logger.info("✓ WebSocket Bridge WS routes registered at /ws/tally-bridge/{token}")
+    else:
+        logger.warning("⚠ ws_router not found in ws_bridge_routes - WebSocket connections won't work!")
+        
 except Exception as e:
-    logger.warning(f"⚠ WebSocket Bridge routes not available: {e}")
+    logger.error(f"⚠ WebSocket Bridge routes FAILED: {type(e).__name__}: {e}")
+    import traceback
+    traceback.print_exc()
 
 # Import and register AI insights routes
 try:
