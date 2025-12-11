@@ -48,5 +48,6 @@ ENV PYTHONUNBUFFERED=1 \
     PORT=8000 \
     LOG_LEVEL=INFO
 
-CMD ["gunicorn", "app.main:app", "--workers", "2", "--worker-class", "uvicorn.workers.UvicornWorker", "--bind", "0.0.0.0:8000", "--timeout", "120"]
+# Use uvicorn directly with large WebSocket message support (2GB)
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--ws-max-size", "2147483648", "--timeout-keep-alive", "120"]
 
