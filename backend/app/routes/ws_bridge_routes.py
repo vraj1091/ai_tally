@@ -206,9 +206,9 @@ async def websocket_test(websocket: WebSocket):
         logger.error(f"WebSocket test error: {e}")
 
 
-@router.get("/bridge/{user_token}/status")
+@router.get("/{user_token}/status")
 async def get_bridge_status(user_token: str):
-    """Get status of a specific bridge"""
+    """Get status of a specific bridge (route: /api/bridge/{token}/status)"""
     if not bridge_manager.is_connected(user_token):
         return {
             'success': True,
@@ -229,10 +229,10 @@ async def get_bridge_status(user_token: str):
     }
 
 
-@router.post("/bridge/{user_token}/tally")
+@router.post("/{user_token}/tally")
 async def proxy_tally_request(user_token: str, request: dict):
     """
-    Proxy a Tally request through the bridge
+    Proxy a Tally request through the bridge (route: /api/bridge/{token}/tally)
     
     Frontend calls this endpoint, it forwards to user's bridge,
     bridge queries local Tally and returns response.
@@ -257,9 +257,9 @@ async def proxy_tally_request(user_token: str, request: dict):
     return response
 
 
-@router.get("/bridge/{user_token}/companies")
+@router.get("/{user_token}/companies")
 async def get_companies_via_bridge(user_token: str):
-    """Get companies from Tally via bridge"""
+    """Get companies from Tally via bridge (route: /api/bridge/{token}/companies)"""
     if not bridge_manager.is_connected(user_token):
         raise HTTPException(
             status_code=503,
