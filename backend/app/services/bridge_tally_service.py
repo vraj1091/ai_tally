@@ -301,7 +301,7 @@ class BridgeTallyService:
                 </COLLECTION>
             </TDLMESSAGE></TDL></DESC></BODY></ENVELOPE>"""
         
-        response = await self._send_tally_request(xml_request, timeout=120)  # Shorter timeout
+        response = await self._send_tally_request(xml_request, timeout=30)  # Very short timeout - vouchers are optional
         vouchers = []
         
         if response:
@@ -501,15 +501,23 @@ class BridgeTallyService:
         """
         logger.info(f"Bridge: Fetching all company data for {company_name}")
         
-        # Fetch all data components
-        # Note: Ledgers are critical, vouchers are limited to prevent huge data transfers
+        # Fetch ledgers first - this is the critical data for all dashboards
         ledgers = await self.get_ledgers(company_name)
+        logger.info(f"Bridge: Got {len(ledgers)} ledgers for {company_name}")
         
-        # Only fetch recent vouchers (last 90 days, max 500) to keep response size small
-        # The 165MB voucher response was crashing the connection!
-        vouchers = await self.get_vouchers(company_name, limit=500, days=90)
-        
+        # Fetch groups (small, fast)
         groups = await self.get_groups(company_name)
+        logger.info(f"Bridge: Got {len(groups)} groups for {company_name}")
+        
+        # Vouchers are OPTIONAL - fetch with short timeout, don't block on failure
+        # This prevents the whole dashboard from failing if vouchers are slow
+        vouchers = []
+        try:
+            vouchers = await self.get_vouchers(company_name, limit=200, days=30)  # Reduced to 30 days
+            logger.info(f"Bridge: Got {len(vouchers)} vouchers for {company_name}")
+        except Exception as e:
+            logger.warning(f"Bridge: Voucher fetch failed (non-critical): {e}")
+            # Continue without vouchers - ledgers are enough for most dashboards
         
         logger.info(f"Bridge: Got {len(ledgers)} ledgers, {len(vouchers)} vouchers, {len(groups)} groups")
         
