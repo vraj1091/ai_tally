@@ -531,7 +531,7 @@ class BridgeTallyService:
             'source': 'bridge'
         }
     
-    async def get_all_company_data(self, company_name: str) -> Dict:
+    async def get_all_company_data(self, company_name: str, include_vouchers: bool = False) -> Dict:
         """
         Get comprehensive company data - main method for dashboard analytics
         Returns data in the SAME format as TallyDataService.get_all_company_data()
@@ -543,8 +543,13 @@ class BridgeTallyService:
             "summary": {...},
             "stock_items": [...]
         }
+        
+        Args:
+            company_name: Name of the company to fetch data for
+            include_vouchers: If True, fetch all vouchers (slow, 165MB+). 
+                              Default False for fast dashboard loading.
         """
-        logger.info(f"Bridge: Fetching all company data for {company_name}")
+        logger.info(f"Bridge: Fetching all company data for {company_name} (vouchers={include_vouchers})")
         
         # Fetch ledgers first - this is the critical data for all dashboards
         ledgers = await self.get_ledgers(company_name)
@@ -554,15 +559,19 @@ class BridgeTallyService:
         groups = await self.get_groups(company_name)
         logger.info(f"Bridge: Got {len(groups)} groups for {company_name}")
         
-        # Fetch ALL vouchers - user wants full data
-        # This can take several minutes for large datasets
+        # Vouchers are optional - skip by default for faster dashboard loading
+        # Most dashboards work fine with just ledger data
         vouchers = []
-        try:
-            vouchers = await self.get_all_vouchers(company_name)
-            logger.info(f"Bridge: Got {len(vouchers)} vouchers for {company_name}")
-        except Exception as e:
-            logger.warning(f"Bridge: Voucher fetch failed: {e}")
-            # Continue without vouchers - ledgers are enough for most dashboards
+        if include_vouchers:
+            try:
+                logger.info(f"Bridge: Fetching vouchers (this may take several minutes)...")
+                vouchers = await self.get_all_vouchers(company_name)
+                logger.info(f"Bridge: Got {len(vouchers)} vouchers for {company_name}")
+            except Exception as e:
+                logger.warning(f"Bridge: Voucher fetch failed: {e}")
+                # Continue without vouchers - ledgers are enough for most dashboards
+        else:
+            logger.info(f"Bridge: Skipping vouchers for faster loading (ledgers are sufficient for analytics)")
         
         logger.info(f"Bridge: Got {len(ledgers)} ledgers, {len(vouchers)} vouchers, {len(groups)} groups")
         
