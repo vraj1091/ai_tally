@@ -17,8 +17,8 @@ services:
       - TALLY_REMOTE_ENABLED=${TALLY_REMOTE_ENABLED:-True}
       # Ollama runs on host, accessible via host.docker.internal
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
-      # Use lighter model for CPU (llama3.2:3b or phi3:mini)
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2:3b}
+      # Use phi4:14b (requires ~20GB RAM, user has 32GB)
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-phi4:14b}
       - DB_URL=${DB_URL:-sqlite:////app/data/database.db}
       - API_HOST=0.0.0.0
       - API_PORT=8000
