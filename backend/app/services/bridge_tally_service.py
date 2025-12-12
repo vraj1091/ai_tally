@@ -269,13 +269,30 @@ class BridgeTallyService:
         
         return groups
     
-    async def get_vouchers(self, company_name: str, limit: int = 100) -> List[Dict]:
-        """Get recent vouchers for a company"""
+    async def get_vouchers(self, company_name: str, limit: int = 100, days: int = 90) -> List[Dict]:
+        """
+        Get recent vouchers for a company (last N days only to avoid huge data)
+        Default: last 90 days to keep data size manageable
+        """
+        from datetime import datetime, timedelta
+        
+        # Calculate date range - last N days only
+        to_date = datetime.now()
+        from_date = to_date - timedelta(days=days)
+        
+        # Format dates for Tally (YYYYMMDD)
+        from_str = from_date.strftime('%Y%m%d')
+        to_str = to_date.strftime('%Y%m%d')
+        
+        logger.info(f"Fetching vouchers from {from_str} to {to_str} (last {days} days)")
+        
         xml_request = f"""<ENVELOPE>
             <HEADER><VERSION>1</VERSION><TALLYREQUEST>Export</TALLYREQUEST><TYPE>Collection</TYPE><ID>Recent Vouchers</ID></HEADER>
             <BODY><DESC><STATICVARIABLES>
                 <SVCURRENTCOMPANY>{company_name}</SVCURRENTCOMPANY>
                 <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+                <SVFROMDATE>{from_str}</SVFROMDATE>
+                <SVTODATE>{to_str}</SVTODATE>
             </STATICVARIABLES>
             <TDL><TDLMESSAGE>
                 <COLLECTION NAME="Recent Vouchers">
@@ -284,10 +301,12 @@ class BridgeTallyService:
                 </COLLECTION>
             </TDLMESSAGE></TDL></DESC></BODY></ENVELOPE>"""
         
-        response = await self._send_tally_request(xml_request)
+        response = await self._send_tally_request(xml_request, timeout=120)  # Shorter timeout
         vouchers = []
         
         if response:
+            logger.info(f"Voucher response size: {len(response)} bytes")
+            
             # Parse vouchers from XML
             dates = re.findall(r'<DATE>([^<]+)</DATE>', response)
             types = re.findall(r'<VOUCHERTYPENAME>([^<]+)</VOUCHERTYPENAME>', response)
@@ -299,6 +318,8 @@ class BridgeTallyService:
                     'type': types[i] if i < len(types) else '',
                     'amount': self._parse_amount(amounts[i]) if i < len(amounts) else 0
                 })
+            
+            logger.info(f"Parsed {len(vouchers)} vouchers (from {len(dates)} total)")
         
         return vouchers
     
@@ -481,8 +502,13 @@ class BridgeTallyService:
         logger.info(f"Bridge: Fetching all company data for {company_name}")
         
         # Fetch all data components
+        # Note: Ledgers are critical, vouchers are limited to prevent huge data transfers
         ledgers = await self.get_ledgers(company_name)
-        vouchers = await self.get_vouchers(company_name, limit=1000)
+        
+        # Only fetch recent vouchers (last 90 days, max 500) to keep response size small
+        # The 165MB voucher response was crashing the connection!
+        vouchers = await self.get_vouchers(company_name, limit=500, days=90)
+        
         groups = await self.get_groups(company_name)
         
         logger.info(f"Bridge: Got {len(ledgers)} ledgers, {len(vouchers)} vouchers, {len(groups)} groups")
