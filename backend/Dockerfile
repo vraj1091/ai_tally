@@ -15,8 +15,8 @@ COPY requirements.txt .
 # Upgrade pip and install packages (CPU-only mode)
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 
-# Install CPU-only PyTorch first (from CPU wheel index)
-RUN pip install --no-cache-dir torch==2.1.0+cpu --extra-index-url https://download.pytorch.org/whl/cpu
+# Install CPU-only PyTorch (use available CPU version)
+RUN pip install --no-cache-dir torch==2.6.0+cpu --extra-index-url https://download.pytorch.org/whl/cpu
 
 # Install remaining requirements
 RUN pip install --no-cache-dir -r requirements.txt

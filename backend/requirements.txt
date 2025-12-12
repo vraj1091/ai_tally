@@ -29,8 +29,7 @@ pytz==2023.3
 
 # ===== AI/ML - CPU ONLY (No GPU Required) =====
 # PyTorch CPU-only version (much smaller, no CUDA)
---extra-index-url https://download.pytorch.org/whl/cpu
-torch==2.1.0+cpu
+# Note: torch is installed separately in Dockerfile to use CPU wheel
 
 # Embeddings & Vector Store
 sentence-transformers==2.2.2
