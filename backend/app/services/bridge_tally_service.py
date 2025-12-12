@@ -348,46 +348,93 @@ class BridgeTallyService:
         vouchers = []
         
         if response:
-            logger.info(f"All vouchers response size: {len(response)} bytes ({len(response)/1024/1024:.2f} MB)")
+            size_mb = len(response) / 1024 / 1024
+            logger.info(f"All vouchers response size: {len(response)} bytes ({size_mb:.2f} MB)")
             
-            # Sanitize XML first
-            response = self._sanitize_xml(response)
-            
-            # Try multiple XML formats that Tally uses
-            # Format 1: <DATE>value</DATE>
-            dates = re.findall(r'<DATE>([^<]+)</DATE>', response)
-            
-            # Format 2: DATE attribute in VOUCHER tag: <VOUCHER DATE="20231215" ...>
-            if not dates:
-                dates = re.findall(r'<VOUCHER[^>]*\bDATE="([^"]+)"', response)
-            
-            # Format 3: <VOUCHER><DATE>value</DATE>
-            if not dates:
-                dates = re.findall(r'<VOUCHER[^>]*>.*?<DATE>([^<]+)</DATE>', response, re.DOTALL)[:limit]
-            
-            # Parse voucher types
-            types = re.findall(r'<VOUCHERTYPENAME>([^<]+)</VOUCHERTYPENAME>', response)
-            if not types:
-                types = re.findall(r'VOUCHERTYPENAME="([^"]+)"', response)
-            
-            # Parse amounts
-            amounts = re.findall(r'<AMOUNT>([^<]+)</AMOUNT>', response)
-            if not amounts:
-                amounts = re.findall(r'AMOUNT="([^"]+)"', response)
-            
-            logger.info(f"Found {len(dates)} voucher dates, {len(types)} types, {len(amounts)} amounts")
-            
-            # If still no dates, try to count VOUCHER tags
-            if not dates:
-                voucher_count = len(re.findall(r'<VOUCHER\b', response))
-                logger.warning(f"No DATE tags found, but found {voucher_count} VOUCHER tags")
-                # Log a sample of the XML to debug
-                sample = response[:2000] if len(response) > 2000 else response
-                logger.info(f"XML sample: {sample[:500]}...")
+            # For very large responses (>50MB), use fast parsing to avoid memory issues
+            if size_mb > 50:
+                logger.warning(f"Large voucher data ({size_mb:.1f}MB) - using fast streaming parse")
+                # Count vouchers quickly without full regex
+                voucher_count = response.count('<VOUCHER')
+                logger.info(f"Found approximately {voucher_count} vouchers in large dataset")
+                
+                # Extract just a sample for analytics (first 5000 vouchers worth)
+                # Find first N voucher blocks
+                sample_size = min(5000, voucher_count)
+                
+                # Fast extraction using simple string operations
+                dates = []
+                types = []
+                amounts = []
+                
+                # Parse in chunks to avoid memory explosion
+                pos = 0
+                parsed = 0
+                while parsed < sample_size and pos < len(response):
+                    # Find next VOUCHER tag
+                    voucher_start = response.find('<VOUCHER', pos)
+                    if voucher_start == -1:
+                        break
+                    voucher_end = response.find('</VOUCHER>', voucher_start)
+                    if voucher_end == -1:
+                        voucher_end = response.find('/>', voucher_start) + 2
+                    if voucher_end <= voucher_start:
+                        break
+                    
+                    voucher_xml = response[voucher_start:voucher_end + 10]
+                    
+                    # Extract date
+                    date_match = re.search(r'<DATE>([^<]+)</DATE>', voucher_xml)
+                    if not date_match:
+                        date_match = re.search(r'DATE="([^"]+)"', voucher_xml)
+                    if date_match:
+                        dates.append(date_match.group(1))
+                    
+                    # Extract type
+                    type_match = re.search(r'<VOUCHERTYPENAME>([^<]+)</VOUCHERTYPENAME>', voucher_xml)
+                    if not type_match:
+                        type_match = re.search(r'VOUCHERTYPENAME="([^"]+)"', voucher_xml)
+                    if type_match:
+                        types.append(type_match.group(1))
+                    
+                    # Extract amount
+                    amt_match = re.search(r'<AMOUNT>([^<]+)</AMOUNT>', voucher_xml)
+                    if not amt_match:
+                        amt_match = re.search(r'AMOUNT="([^"]+)"', voucher_xml)
+                    if amt_match:
+                        amounts.append(amt_match.group(1))
+                    
+                    pos = voucher_end + 10
+                    parsed += 1
+                    
+                    # Log progress every 1000 vouchers
+                    if parsed % 1000 == 0:
+                        logger.info(f"Parsed {parsed}/{sample_size} vouchers...")
+                
+                logger.info(f"Fast parse complete: {len(dates)} dates, {len(types)} types, {len(amounts)} amounts")
+            else:
+                # Normal parsing for smaller responses
+                # Sanitize XML first
+                response = self._sanitize_xml(response)
+                
+                # Try multiple XML formats that Tally uses
+                dates = re.findall(r'<DATE>([^<]+)</DATE>', response)
+                if not dates:
+                    dates = re.findall(r'<VOUCHER[^>]*\bDATE="([^"]+)"', response)
+                
+                types = re.findall(r'<VOUCHERTYPENAME>([^<]+)</VOUCHERTYPENAME>', response)
+                if not types:
+                    types = re.findall(r'VOUCHERTYPENAME="([^"]+)"', response)
+                
+                amounts = re.findall(r'<AMOUNT>([^<]+)</AMOUNT>', response)
+                if not amounts:
+                    amounts = re.findall(r'AMOUNT="([^"]+)"', response)
+                
+                logger.info(f"Found {len(dates)} voucher dates, {len(types)} types, {len(amounts)} amounts")
             
             # Build voucher list
             max_count = max(len(dates), len(types), len(amounts))
-            logger.info(f"Parsing up to {min(max_count, limit)} vouchers...")
+            logger.info(f"Building voucher list from {max_count} entries (limit={limit})...")
             
             for i in range(min(max_count, limit)):
                 vouchers.append({
@@ -396,7 +443,7 @@ class BridgeTallyService:
                     'amount': self._parse_amount(amounts[i]) if i < len(amounts) else 0
                 })
             
-            logger.info(f"Parsed {len(vouchers)} vouchers")
+            logger.info(f"✅ Parsed {len(vouchers)} vouchers successfully")
         
         return vouchers
     
