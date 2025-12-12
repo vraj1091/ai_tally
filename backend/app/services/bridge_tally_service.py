@@ -323,6 +323,51 @@ class BridgeTallyService:
         
         return vouchers
     
+    async def get_all_vouchers(self, company_name: str, limit: int = 10000) -> List[Dict]:
+        """
+        Get ALL vouchers for a company (no date filter)
+        Uses longer timeout since this can return 100+ MB of data
+        """
+        logger.info(f"Fetching ALL vouchers for {company_name} (this may take several minutes)...")
+        
+        xml_request = f"""<ENVELOPE>
+            <HEADER><VERSION>1</VERSION><TALLYREQUEST>Export</TALLYREQUEST><TYPE>Collection</TYPE><ID>All Vouchers</ID></HEADER>
+            <BODY><DESC><STATICVARIABLES>
+                <SVCURRENTCOMPANY>{company_name}</SVCURRENTCOMPANY>
+                <SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+            </STATICVARIABLES>
+            <TDL><TDLMESSAGE>
+                <COLLECTION NAME="All Vouchers">
+                    <TYPE>Voucher</TYPE>
+                    <FETCH>DATE, VOUCHERTYPENAME, VOUCHERNUMBER, PARTYLEDGERNAME, AMOUNT</FETCH>
+                </COLLECTION>
+            </TDLMESSAGE></TDL></DESC></BODY></ENVELOPE>"""
+        
+        # Very long timeout for full data (10 minutes)
+        response = await self._send_tally_request(xml_request, timeout=600)
+        vouchers = []
+        
+        if response:
+            logger.info(f"All vouchers response size: {len(response)} bytes ({len(response)/1024/1024:.2f} MB)")
+            
+            # Parse vouchers from XML
+            dates = re.findall(r'<DATE>([^<]+)</DATE>', response)
+            types = re.findall(r'<VOUCHERTYPENAME>([^<]+)</VOUCHERTYPENAME>', response)
+            amounts = re.findall(r'<AMOUNT>([^<]+)</AMOUNT>', response)
+            
+            logger.info(f"Found {len(dates)} voucher dates, parsing up to {limit}...")
+            
+            for i in range(min(len(dates), limit)):
+                vouchers.append({
+                    'date': dates[i] if i < len(dates) else '',
+                    'type': types[i] if i < len(types) else '',
+                    'amount': self._parse_amount(amounts[i]) if i < len(amounts) else 0
+                })
+            
+            logger.info(f"Parsed {len(vouchers)} vouchers")
+        
+        return vouchers
+    
     def _categorize_ledger(self, name: str, parent: str) -> str:
         """Categorize ledger based on name and parent group"""
         name_lower = name.lower()
@@ -509,14 +554,14 @@ class BridgeTallyService:
         groups = await self.get_groups(company_name)
         logger.info(f"Bridge: Got {len(groups)} groups for {company_name}")
         
-        # Vouchers are OPTIONAL - fetch with short timeout, don't block on failure
-        # This prevents the whole dashboard from failing if vouchers are slow
+        # Fetch ALL vouchers - user wants full data
+        # This can take several minutes for large datasets
         vouchers = []
         try:
-            vouchers = await self.get_vouchers(company_name, limit=200, days=30)  # Reduced to 30 days
+            vouchers = await self.get_all_vouchers(company_name)
             logger.info(f"Bridge: Got {len(vouchers)} vouchers for {company_name}")
         except Exception as e:
-            logger.warning(f"Bridge: Voucher fetch failed (non-critical): {e}")
+            logger.warning(f"Bridge: Voucher fetch failed: {e}")
             # Continue without vouchers - ledgers are enough for most dashboards
         
         logger.info(f"Bridge: Got {len(ledgers)} ledgers, {len(vouchers)} vouchers, {len(groups)} groups")
