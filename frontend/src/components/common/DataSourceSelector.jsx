@@ -111,6 +111,9 @@ const DataSourceSelector = ({ dataSource, onDataSourceChange, tallyConnected = t
   const handleSourceToggle = (source) => {
     onDataSourceChange(source);
     
+    // CRITICAL: Set tally_data_source for dashboardsApi to use
+    localStorage.setItem('tally_data_source', source);
+    
     // Also update the connection type for bridge mode
     if (source === 'bridge') {
       localStorage.setItem('tally_connection_type', 'BRIDGE');
