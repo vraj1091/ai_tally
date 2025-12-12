@@ -302,6 +302,57 @@ class BridgeTallyService:
         
         return vouchers
     
+    def _categorize_ledger(self, name: str, parent: str) -> str:
+        """Categorize ledger based on name and parent group"""
+        name_lower = name.lower()
+        parent_lower = parent.lower()
+        combined = f"{name_lower} {parent_lower}"
+        
+        # Revenue patterns (check both name and parent)
+        revenue_patterns = ['sales', 'income', 'revenue', 'receipts', 'service income', 
+                           'commission received', 'interest received', 'discount received']
+        if any(p in combined for p in revenue_patterns):
+            return 'revenue'
+        
+        # Expense patterns
+        expense_patterns = ['expense', 'purchase', 'salary', 'wages', 'rent', 'electricity',
+                           'telephone', 'traveling', 'conveyance', 'printing', 'stationery',
+                           'advertisement', 'depreciation', 'insurance', 'repairs', 'maintenance',
+                           'commission paid', 'interest paid', 'discount allowed', 'freight',
+                           'carriage', 'postage', 'courier', 'legal', 'audit', 'professional']
+        if any(p in combined for p in expense_patterns):
+            return 'expense'
+        
+        # Debtor patterns (Accounts Receivable)
+        debtor_patterns = ['sundry debtor', 'debtor', 'receivable', 'customer']
+        if any(p in combined for p in debtor_patterns):
+            return 'debtor'
+        
+        # Creditor patterns (Accounts Payable)
+        creditor_patterns = ['sundry creditor', 'creditor', 'payable', 'supplier', 'vendor']
+        if any(p in combined for p in creditor_patterns):
+            return 'creditor'
+        
+        # Cash/Bank patterns
+        cash_patterns = ['cash', 'bank', 'petty cash']
+        if any(p in combined for p in cash_patterns):
+            return 'cash_bank'
+        
+        # Asset patterns
+        asset_patterns = ['asset', 'furniture', 'computer', 'vehicle', 'machinery', 'equipment',
+                         'building', 'land', 'stock', 'inventory', 'investment', 'fixed asset',
+                         'current asset', 'loan given', 'advance', 'prepaid', 'deposit given']
+        if any(p in combined for p in asset_patterns):
+            return 'asset'
+        
+        # Liability patterns
+        liability_patterns = ['liabilit', 'capital', 'reserve', 'loan taken', 'secured loan',
+                             'unsecured loan', 'provision', 'deposit received', 'outstanding']
+        if any(p in combined for p in liability_patterns):
+            return 'liability'
+        
+        return 'other'
+    
     async def get_financial_summary(self, company_name: str) -> Dict:
         """
         Get financial summary by analyzing ledgers
@@ -310,7 +361,7 @@ class BridgeTallyService:
         ledgers = await self.get_ledgers(company_name)
         logger.info(f"Financial summary for {company_name}: processing {len(ledgers)} ledgers")
         
-        # Categorize ledgers by parent group
+        # Initialize counters
         revenue = 0
         expenses = 0
         assets = 0
@@ -323,50 +374,72 @@ class BridgeTallyService:
         expense_items = []
         debtor_items = []
         creditor_items = []
+        asset_items = []
+        liability_items = []
         
-        revenue_groups = ['sales accounts', 'direct income', 'indirect income', 'sales', 'income', 'revenue']
-        expense_groups = ['direct expenses', 'indirect expenses', 'expenses', 'purchase accounts', 'purchases']
-        asset_groups = ['current assets', 'fixed assets', 'investments', 'bank accounts', 'cash-in-hand', 'loans & advances']
-        liability_groups = ['current liabilities', 'loans', 'capital account', 'reserves & surplus', 'reserves']
-        debtor_groups = ['sundry debtors', 'debtors']
-        creditor_groups = ['sundry creditors', 'creditors']
-        cash_groups = ['cash-in-hand', 'bank accounts', 'bank', 'cash']
+        # Track categories for debugging
+        category_counts = {'revenue': 0, 'expense': 0, 'debtor': 0, 'creditor': 0, 
+                          'cash_bank': 0, 'asset': 0, 'liability': 0, 'other': 0}
         
         for ledger in ledgers:
-            parent = (ledger.get('parent') or '').lower()
+            parent = ledger.get('parent') or ''
             closing = ledger.get('closing_balance', 0)
             name = ledger.get('name', '')
             
-            if any(g in parent for g in revenue_groups):
-                revenue += abs(closing)
-                revenue_items.append({'name': name, 'amount': abs(closing)})
-            elif any(g in parent for g in expense_groups):
-                expenses += abs(closing)
-                expense_items.append({'name': name, 'amount': abs(closing)})
+            if not name or closing == 0:
+                continue
             
-            if any(g in parent for g in debtor_groups):
-                receivables += abs(closing)
-                debtor_items.append({'name': name, 'amount': abs(closing)})
-            elif any(g in parent for g in creditor_groups):
-                payables += abs(closing)
-                creditor_items.append({'name': name, 'amount': abs(closing)})
+            category = self._categorize_ledger(name, parent)
+            category_counts[category] = category_counts.get(category, 0) + 1
             
-            if any(g in parent for g in cash_groups):
-                cash_bank += closing
+            abs_closing = abs(closing)
             
-            if any(g in parent for g in asset_groups):
-                assets += abs(closing)
-            elif any(g in parent for g in liability_groups):
-                liabilities += abs(closing)
+            if category == 'revenue':
+                revenue += abs_closing
+                revenue_items.append({'name': name, 'amount': abs_closing})
+            elif category == 'expense':
+                expenses += abs_closing
+                expense_items.append({'name': name, 'amount': abs_closing})
+            elif category == 'debtor':
+                receivables += abs_closing
+                debtor_items.append({'name': name, 'amount': abs_closing})
+                assets += abs_closing  # Debtors are current assets
+                asset_items.append({'name': name, 'amount': abs_closing, 'type': 'Current'})
+            elif category == 'creditor':
+                payables += abs_closing
+                creditor_items.append({'name': name, 'amount': abs_closing})
+                liabilities += abs_closing  # Creditors are current liabilities
+                liability_items.append({'name': name, 'amount': abs_closing, 'type': 'Current'})
+            elif category == 'cash_bank':
+                cash_bank += closing  # Cash can be positive or negative
+                assets += abs_closing
+                asset_items.append({'name': name, 'amount': abs_closing, 'type': 'Current'})
+            elif category == 'asset':
+                assets += abs_closing
+                asset_items.append({'name': name, 'amount': abs_closing, 'type': 'Fixed'})
+            elif category == 'liability':
+                liabilities += abs_closing
+                liability_items.append({'name': name, 'amount': abs_closing, 'type': 'Long-term'})
+        
+        # Log category distribution
+        logger.info(f"Ledger categorization: {category_counts}")
         
         # Sort by amount
         revenue_items.sort(key=lambda x: x['amount'], reverse=True)
         expense_items.sort(key=lambda x: x['amount'], reverse=True)
         debtor_items.sort(key=lambda x: x['amount'], reverse=True)
         creditor_items.sort(key=lambda x: x['amount'], reverse=True)
+        asset_items.sort(key=lambda x: x['amount'], reverse=True)
+        liability_items.sort(key=lambda x: x['amount'], reverse=True)
         
         net_profit = revenue - expenses
         profit_margin = (net_profit / revenue * 100) if revenue > 0 else 0
+        equity = assets - liabilities
+        
+        # Calculate ratios
+        current_ratio = receivables / payables if payables > 0 else 0
+        
+        logger.info(f"Summary: revenue={revenue:.2f}, expenses={expenses:.2f}, assets={assets:.2f}, liabilities={liabilities:.2f}")
         
         return {
             'total_revenue': revenue,
@@ -375,15 +448,20 @@ class BridgeTallyService:
             'profit_margin': profit_margin,
             'total_assets': assets,
             'total_liabilities': liabilities,
+            'total_equity': equity,
             'outstanding_receivable': receivables,
             'outstanding_payable': payables,
             'cash_balance': cash_bank,
             'bank_balance': 0,
+            'current_ratio': current_ratio,
             'top_revenue_sources': revenue_items[:10],
             'top_expense_categories': expense_items[:10],
             'top_debtors': debtor_items[:10],
             'top_creditors': creditor_items[:10],
+            'top_assets': asset_items[:10],
+            'top_liabilities': liability_items[:10],
             'ledger_count': len(ledgers),
+            'category_distribution': category_counts,
             'source': 'bridge'
         }
     
@@ -420,17 +498,32 @@ class BridgeSpecializedAnalytics:
         """CEO Dashboard - Executive Overview"""
         summary = await self.bridge_service.get_financial_summary(company_name)
         
+        revenue = summary['total_revenue']
+        expense = summary['total_expense']
+        profit = summary['net_profit']
+        
+        # Get counts from category distribution
+        category_dist = summary.get('category_distribution', {})
+        customer_count = category_dist.get('debtor', 0) or len(summary['top_debtors'])
+        vendor_count = category_dist.get('creditor', 0) or len(summary['top_creditors'])
+        
+        # Estimate transaction count from vouchers or ledger activity
+        transaction_count = summary['ledger_count'] * 10  # Rough estimate
+        
         return {
-            'revenue': summary['total_revenue'],
-            'expense': summary['total_expense'],
-            'profit': summary['net_profit'],
+            'revenue': revenue,
+            'expense': expense,
+            'profit': profit,
             'profit_margin': summary['profit_margin'],
             'revenue_growth': 0,
-            'expense_ratio': (summary['total_expense'] / summary['total_revenue'] * 100) if summary['total_revenue'] > 0 else 0,
+            'expense_ratio': (expense / revenue * 100) if revenue > 0 else 0,
             'key_metrics': {
                 'total_ledgers': summary['ledger_count'],
-                'active_customers': len(summary['top_debtors']),
-                'active_vendors': len(summary['top_creditors']),
+                'active_customers': customer_count,
+                'active_vendors': vendor_count,
+                'active_products': 0,  # Would need stock data
+                'transaction_volume': transaction_count,
+                'avg_transaction_value': revenue / transaction_count if transaction_count > 0 else 0,
                 'outstanding_receivable': summary['outstanding_receivable'],
                 'outstanding_payable': summary['outstanding_payable'],
                 'cash_balance': summary['cash_balance'],
@@ -440,16 +533,20 @@ class BridgeSpecializedAnalytics:
             'top_expense_categories': summary['top_expense_categories'][:5],
             'top_5_revenue_sources': summary['top_revenue_sources'][:5],
             'top_5_expense_categories': summary['top_expense_categories'][:5],
+            'top_customers': summary['top_debtors'][:5],
+            'top_vendors': summary['top_creditors'][:5],
             'monthly_trend': [],
             'revenue_vs_expense': [
-                {'category': 'Revenue', 'value': summary['total_revenue']},
-                {'category': 'Expense', 'value': summary['total_expense']},
-                {'category': 'Profit', 'value': summary['net_profit']}
+                {'category': 'Revenue', 'value': revenue},
+                {'category': 'Expense', 'value': expense},
+                {'category': 'Profit', 'value': profit}
             ],
             'executive_summary': {
-                'total_revenue': summary['total_revenue'],
-                'net_profit': summary['net_profit'],
-                'profit_margin': summary['profit_margin']
+                'total_revenue': revenue,
+                'net_profit': profit,
+                'profit_margin': summary['profit_margin'],
+                'total_assets': summary['total_assets'],
+                'customer_count': customer_count
             },
             'source': 'bridge'
         }
@@ -458,27 +555,55 @@ class BridgeSpecializedAnalytics:
         """CFO Dashboard - Financial Health"""
         summary = await self.bridge_service.get_financial_summary(company_name)
         
+        assets = summary['total_assets']
+        liabilities = summary['total_liabilities']
+        equity = summary.get('total_equity', assets - liabilities)
+        receivables = summary['outstanding_receivable']
+        payables = summary['outstanding_payable']
+        revenue = summary['total_revenue']
+        profit = summary['net_profit']
+        
+        # Calculate financial ratios
+        current_ratio = receivables / payables if payables > 0 else 0
+        quick_ratio = (receivables + summary['cash_balance']) / payables if payables > 0 else 0
+        debt_to_equity = liabilities / equity if equity > 0 else 0
+        roa = (profit / assets * 100) if assets > 0 else 0
+        roe = (profit / equity * 100) if equity > 0 else 0
+        
         return {
+            'total_assets': assets,
+            'total_liabilities': liabilities,
+            'total_equity': equity,
             'financial_health': {
-                'total_revenue': summary['total_revenue'],
+                'total_revenue': revenue,
                 'total_expenses': summary['total_expense'],
-                'net_profit': summary['net_profit'],
+                'net_profit': profit,
                 'profit_margin': summary['profit_margin']
             },
             'balance_sheet_summary': {
-                'total_assets': summary['total_assets'],
-                'total_liabilities': summary['total_liabilities'],
-                'net_worth': summary['total_assets'] - summary['total_liabilities']
+                'total_assets': assets,
+                'total_liabilities': liabilities,
+                'net_worth': equity,
+                'asset_breakdown': summary.get('top_assets', [])[:5],
+                'liability_breakdown': summary.get('top_liabilities', [])[:5]
             },
             'cash_position': {
                 'cash_balance': summary['cash_balance'],
-                'receivables': summary['outstanding_receivable'],
-                'payables': summary['outstanding_payable']
+                'receivables': receivables,
+                'payables': payables
             },
-            'working_capital': summary['outstanding_receivable'] - summary['outstanding_payable'],
+            'financial_ratios': {
+                'current_ratio': round(current_ratio, 2),
+                'quick_ratio': round(quick_ratio, 2),
+                'debt_to_equity': round(debt_to_equity, 2),
+                'roa': round(roa, 2),
+                'roe': round(roe, 2)
+            },
+            'working_capital': receivables - payables,
             'executive_summary': {
-                'total_revenue': summary['total_revenue'],
-                'net_profit': summary['net_profit']
+                'total_revenue': revenue,
+                'net_profit': profit,
+                'total_assets': assets
             },
             'source': 'bridge'
         }
