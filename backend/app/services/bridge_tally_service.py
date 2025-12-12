@@ -79,6 +79,35 @@ class BridgeTallyService:
         except:
             return 0.0
     
+    def _sanitize_xml(self, xml_content: str) -> str:
+        """
+        Sanitize XML content by removing invalid characters
+        Tally exports can contain control characters and invalid XML entities
+        """
+        if not xml_content:
+            return xml_content
+        
+        # Remove control characters (except tab, newline, carriage return)
+        # XML 1.0 only allows: #x9 | #xA | #xD | [#x20-#xD7FF] | [#xE000-#xFFFD]
+        def valid_xml_char(char):
+            codepoint = ord(char)
+            return (
+                codepoint == 0x9 or
+                codepoint == 0xA or
+                codepoint == 0xD or
+                (0x20 <= codepoint <= 0xD7FF) or
+                (0xE000 <= codepoint <= 0xFFFD) or
+                (0x10000 <= codepoint <= 0x10FFFF)
+            )
+        
+        # Filter invalid characters
+        cleaned = ''.join(char for char in xml_content if valid_xml_char(char))
+        
+        # Also fix common invalid entities like &#1; &#2; etc
+        cleaned = re.sub(r'&#([0-8]|1[0-9]|2[0-9]|3[01]);', '', cleaned)
+        
+        return cleaned
+    
     async def get_companies(self) -> List[Dict]:
         """Get list of companies from Tally"""
         xml_request = """<ENVELOPE>
@@ -121,8 +150,12 @@ class BridgeTallyService:
         if response:
             logger.info(f"Parsing ledgers from {len(response)} bytes...")
             
+            # Sanitize XML to remove invalid characters
+            sanitized = self._sanitize_xml(response)
+            logger.info(f"Sanitized XML: {len(sanitized)} bytes")
+            
             try:
-                root = ET.fromstring(response)
+                root = ET.fromstring(sanitized)
                 
                 # Try multiple XPath patterns for different Tally XML formats
                 ledger_elements = (
@@ -176,7 +209,7 @@ class BridgeTallyService:
                 
                 # Pattern 1: LEDGER with NAME attribute (Tally standard export)
                 pattern1 = r'<LEDGER\s+NAME="([^"]+)"[^>]*>.*?<PARENT>([^<]*)</PARENT>.*?(?:<CLOSINGBALANCE>([^<]*)</CLOSINGBALANCE>)?.*?</LEDGER>'
-                matches1 = re.findall(pattern1, response, re.DOTALL | re.IGNORECASE)
+                matches1 = re.findall(pattern1, sanitized, re.DOTALL | re.IGNORECASE)
                 
                 for match in matches1:
                     name, parent, closing = match[0], match[1] if len(match) > 1 else '', match[2] if len(match) > 2 else '0'
@@ -189,9 +222,9 @@ class BridgeTallyService:
                 
                 # Pattern 2: Simple NAME/PARENT/CLOSINGBALANCE structure
                 if not ledgers:
-                    names = re.findall(r'<NAME>([^<]+)</NAME>', response)
-                    parents = re.findall(r'<PARENT>([^<]*)</PARENT>', response)
-                    closings = re.findall(r'<CLOSINGBALANCE>([^<]*)</CLOSINGBALANCE>', response)
+                    names = re.findall(r'<NAME>([^<]+)</NAME>', sanitized)
+                    parents = re.findall(r'<PARENT>([^<]*)</PARENT>', sanitized)
+                    closings = re.findall(r'<CLOSINGBALANCE>([^<]*)</CLOSINGBALANCE>', sanitized)
                     
                     # Match them up
                     for i, name in enumerate(names):
