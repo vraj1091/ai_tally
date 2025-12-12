@@ -1,12 +1,18 @@
 """
 Embeddings Service
 Manages text embeddings for semantic search
+CPU-ONLY MODE - No GPU required
 """
 
 from typing import List, Optional
 import logging
+import os
 
 logger = logging.getLogger(__name__)
+
+# Force CPU mode for PyTorch/Sentence-Transformers
+os.environ["CUDA_VISIBLE_DEVICES"] = ""
+os.environ["TORCH_DEVICE"] = "cpu"
 
 # Lazy import for sentence_transformers
 SentenceTransformer = None
@@ -16,34 +22,44 @@ def _load_sentence_transformer():
     global SentenceTransformer
     if SentenceTransformer is None:
         try:
+            # Force CPU before importing torch
+            import torch
+            torch.set_default_device('cpu')
+            logger.info(f"PyTorch device set to CPU (CUDA available: {torch.cuda.is_available()})")
+            
             from sentence_transformers import SentenceTransformer as ST
             SentenceTransformer = ST
         except ImportError:
             logger.warning("sentence-transformers not available - embeddings disabled")
             SentenceTransformer = None
+        except Exception as e:
+            logger.warning(f"Error loading sentence-transformers: {e}")
+            SentenceTransformer = None
     return SentenceTransformer
 
 class EmbeddingsService:
-    """Service for generating text embeddings"""
+    """Service for generating text embeddings (CPU-only)"""
     
     def __init__(self, model_name: str = "sentence-transformers/all-MiniLM-L6-v2"):
         self.model_name = model_name
         self.model = None
         self.available = False
+        self.device = "cpu"
         self._load_model()
     
     def _load_model(self):
-        """Load the embedding model"""
+        """Load the embedding model on CPU"""
         try:
             ST = _load_sentence_transformer()
             if ST is None:
                 logger.warning("Embeddings service unavailable - sentence-transformers not installed")
                 return
             
-            logger.info(f"Loading embeddings model: {self.model_name}")
-            self.model = ST(self.model_name)
+            logger.info(f"Loading embeddings model on CPU: {self.model_name}")
+            # Force CPU device explicitly
+            self.model = ST(self.model_name, device="cpu")
             self.available = True
-            logger.info(f"✓ Embeddings model loaded successfully")
+            logger.info(f"✓ Embeddings model loaded successfully on CPU")
         except Exception as e:
             logger.error(f"Error loading embeddings model: {e}")
             self.available = False

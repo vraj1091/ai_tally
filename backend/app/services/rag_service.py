@@ -1,12 +1,18 @@
 """
 Combined RAG Service
 Integrates Tally data + Documents with Phi4:14b
+CPU-ONLY MODE - No GPU required
 """
 
 import logging
+import os
 from typing import List, Dict, Optional
 
 logger = logging.getLogger(__name__)
+
+# Force CPU mode for all AI components
+os.environ["CUDA_VISIBLE_DEVICES"] = ""
+os.environ["TORCH_DEVICE"] = "cpu"
 
 # Lazy imports to prevent failures
 _langchain_available = None
@@ -17,13 +23,21 @@ RetrievalQA = None
 Document = None
 
 def _init_langchain():
-    """Initialize langchain components lazily"""
+    """Initialize langchain components lazily (CPU-only)"""
     global _langchain_available, HuggingFaceEmbeddings, Chroma, Ollama, RetrievalQA, Document
     
     if _langchain_available is not None:
         return _langchain_available
     
     try:
+        # Force CPU before importing torch-dependent libraries
+        try:
+            import torch
+            torch.set_default_device('cpu')
+            logger.info(f"PyTorch set to CPU mode (CUDA available: {torch.cuda.is_available()})")
+        except Exception as e:
+            logger.warning(f"Could not set torch device: {e}")
+        
         from langchain.embeddings import HuggingFaceEmbeddings as HFE
         from langchain.vectorstores import Chroma as ChromaVS
         from langchain.llms import Ollama as OllamaLLM
@@ -36,7 +50,7 @@ def _init_langchain():
         RetrievalQA = RQA
         Document = Doc
         _langchain_available = True
-        logger.info("✓ LangChain loaded successfully")
+        logger.info("✓ LangChain loaded successfully (CPU mode)")
     except ImportError:
         try:
             from langchain_community.embeddings import HuggingFaceEmbeddings as HFE
@@ -51,7 +65,7 @@ def _init_langchain():
             RetrievalQA = RQA
             Document = Doc
             _langchain_available = True
-            logger.info("✓ LangChain Community loaded successfully")
+            logger.info("✓ LangChain Community loaded successfully (CPU mode)")
         except Exception as e:
             logger.warning(f"LangChain not available: {e}")
             _langchain_available = False
@@ -110,15 +124,18 @@ class CombinedRAGService:
                 chunk_overlap=getattr(self.config, 'CHUNK_OVERLAP', 200)
             )
             
-            # Try to initialize langchain
+            # Try to initialize langchain (CPU-only)
             if _init_langchain() and HuggingFaceEmbeddings:
                 try:
+                    # Force CPU device for embeddings
                     self.embeddings = HuggingFaceEmbeddings(
-                        model_name=getattr(self.config, 'EMBEDDINGS_MODEL', 'sentence-transformers/all-MiniLM-L6-v2')
+                        model_name=getattr(self.config, 'EMBEDDINGS_MODEL', 'sentence-transformers/all-MiniLM-L6-v2'),
+                        model_kwargs={'device': 'cpu'},
+                        encode_kwargs={'device': 'cpu'}
                     )
                     self._initialize_llm()
                     self.available = True
-                    logger.info("✓ RAG Service initialized with embeddings")
+                    logger.info("✓ RAG Service initialized with embeddings (CPU mode)")
                 except Exception as e:
                     logger.warning(f"Could not initialize embeddings: {e}")
                     self.available = False

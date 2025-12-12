@@ -25,9 +25,11 @@ class Config:
     # TallyConnector DLL Path
     TALLY_CONNECTOR_PATH = os.getenv("TALLY_CONNECTOR_PATH", "./TallyConnector")
     
-    # ===== OLLAMA CONFIGURATION =====
-    OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
-    OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "phi4:14b")
+    # ===== OLLAMA CONFIGURATION (CPU Mode) =====
+    # Use host.docker.internal on Docker, or localhost on bare metal
+    OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
+    # Default to lighter model for CPU (phi3:mini or llama3.2:3b are good for CPU)
+    OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.2:3b")
     OLLAMA_TEMPERATURE = 0.3
     OLLAMA_TOP_P = 0.9
     OLLAMA_TOP_K = 40
@@ -83,9 +85,9 @@ class Config:
     
     # Add EC2 and common origins
     ec2_origins = [
-        "http://13.235.113.207:5173",
-        "http://13.235.113.207:3000",
-        "http://13.235.113.207",
+        "http://13.234.114.139:5173",
+        "http://13.234.114.139:3000",
+        "http://13.234.114.139",
         "http://localhost:5173",
         "http://localhost:3000",
         "http://127.0.0.1:5173",

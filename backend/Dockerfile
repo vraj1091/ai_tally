@@ -12,8 +12,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Copy requirements
 COPY requirements.txt .
 
-# Upgrade pip and install packages
+# Upgrade pip and install packages (CPU-only mode)
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel
+
+# Install CPU-only PyTorch first (from CPU wheel index)
+RUN pip install --no-cache-dir torch==2.1.0+cpu --extra-index-url https://download.pytorch.org/whl/cpu
+
+# Install remaining requirements
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code first
@@ -46,7 +51,9 @@ EXPOSE 8000
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PORT=8000 \
-    LOG_LEVEL=INFO
+    LOG_LEVEL=INFO \
+    CUDA_VISIBLE_DEVICES="" \
+    TORCH_DEVICE="cpu"
 
 # Use uvicorn directly with large WebSocket message support (2GB)
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--ws-max-size", "2147483648", "--timeout-keep-alive", "120"]

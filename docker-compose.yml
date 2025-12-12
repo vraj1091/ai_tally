@@ -8,12 +8,17 @@ services:
     container_name: ai-tally-backend
     ports:
       - "8000:8000"
+    # Enable host.docker.internal on Linux (for Ollama access)
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     environment:
       - TALLY_HOST=${TALLY_HOST:-localhost}
       - TALLY_PORT=${TALLY_PORT:-9000}
       - TALLY_REMOTE_ENABLED=${TALLY_REMOTE_ENABLED:-True}
-      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://localhost:11434}
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-phi4:14b}
+      # Ollama runs on host, accessible via host.docker.internal
+      - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
+      # Use lighter model for CPU (llama3.2:3b or phi3:mini)
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-llama3.2:3b}
       - DB_URL=${DB_URL:-sqlite:////app/data/database.db}
       - API_HOST=0.0.0.0
       - API_PORT=8000
@@ -22,6 +27,9 @@ services:
       - SECRET_KEY=${SECRET_KEY:-change-this-secret-key}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-change-this-jwt-secret}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
+      # Force CPU mode for AI
+      - CUDA_VISIBLE_DEVICES=
+      - TORCH_DEVICE=cpu
     volumes:
       - backend_data:/app/data
       - backend_logs:/app/logs
