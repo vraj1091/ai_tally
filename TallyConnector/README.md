@@ -51,7 +51,7 @@ python tally_connector.py
 Edit `tally_connector.py` to change:
 
 ```python
-BACKEND_URL = "ws://13.234.114.139:8000"  # Your EC2 backend
+BACKEND_URL = "ws://107.21.87.222:8000"  # Your EC2 backend
 TALLY_URL = "http://localhost:9000"       # Local Tally Gateway
 ```
 
@@ -76,7 +76,7 @@ TALLY_URL = "http://localhost:9000"       # Local Tally Gateway
 
 ### "WebSocket error"
 - Check if EC2 security group allows port 8000
-- Verify backend is running: `http://13.234.114.139/health`
+- Verify backend is running: `http://107.21.87.222/health`
 
 ## Security Note
 

@@ -23,7 +23,7 @@ services:
       - API_HOST=0.0.0.0
       - API_PORT=8000
       - DEBUG=${DEBUG:-False}
-      - CORS_ORIGINS=${CORS_ORIGINS:-http://13.234.114.139:5173,http://13.234.114.139,http://13.234.114.139:80,ws://13.234.114.139:8000,wss://13.234.114.139:8000,http://localhost:5173,http://localhost:3000}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://107.21.87.222:5173,http://107.21.87.222,http://107.21.87.222:80,ws://107.21.87.222:8000,wss://107.21.87.222:8000,http://localhost:5173,http://localhost:3000}
       - SECRET_KEY=${SECRET_KEY:-change-this-secret-key}
       - JWT_SECRET_KEY=${JWT_SECRET_KEY:-change-this-jwt-secret}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
@@ -45,8 +45,8 @@ services:
       context: ./frontend
       dockerfile: Dockerfile
       args:
-        - VITE_API_URL=${VITE_API_URL:-http://13.234.114.139:8000/api}
-        - VITE_WS_URL=${VITE_WS_URL:-ws://13.234.114.139:8000}
+        - VITE_API_URL=${VITE_API_URL:-http://107.21.87.222:8000/api}
+        - VITE_WS_URL=${VITE_WS_URL:-ws://107.21.87.222:8000}
     container_name: ai-tally-frontend
     ports:
       - "5173:80"

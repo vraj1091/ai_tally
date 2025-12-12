@@ -85,9 +85,9 @@ class Config:
     
     # Add EC2 and common origins
     ec2_origins = [
-        "http://13.234.114.139:5173",
-        "http://13.234.114.139:3000",
-        "http://13.234.114.139",
+        "http://107.21.87.222:5173",
+        "http://107.21.87.222:3000",
+        "http://107.21.87.222",
         "http://localhost:5173",
         "http://localhost:3000",
         "http://127.0.0.1:5173",

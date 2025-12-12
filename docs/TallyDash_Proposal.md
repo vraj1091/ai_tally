@@ -213,7 +213,7 @@ Our proprietary **TallyConnector** technology enables:
 
 📧 Email: contact@tallydash.pro
 🌐 Website: www.tallydash.pro
-📱 Demo: http://13.234.114.139
+📱 Demo: http://107.21.87.222
 
 ---
 
