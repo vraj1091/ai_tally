@@ -59,6 +59,7 @@ ENV PYTHONUNBUFFERED=1 \
     CUDA_VISIBLE_DEVICES="" \
     TORCH_DEVICE="cpu"
 
-# Use uvicorn directly with large WebSocket message support (2GB)
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2", "--ws-max-size", "2147483648", "--timeout-keep-alive", "120"]
+# Use uvicorn with 1 worker for WebSocket state consistency
+# Multiple workers don't share WebSocket connections - bridge on worker1 invisible to worker2
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--ws-max-size", "2147483648", "--timeout-keep-alive", "120"]
 
