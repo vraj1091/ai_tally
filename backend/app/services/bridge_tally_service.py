@@ -468,20 +468,107 @@ class BridgeTallyService:
     async def get_all_company_data(self, company_name: str) -> Dict:
         """
         Get comprehensive company data - main method for dashboard analytics
-        Returns data in the same format as TallyDataService
+        Returns data in the SAME format as TallyDataService.get_all_company_data()
+        
+        Format required by SpecializedAnalytics:
+        {
+            "ledgers": [...],
+            "vouchers": [...],
+            "summary": {...},
+            "stock_items": [...]
+        }
         """
-        summary = await self.get_financial_summary(company_name)
+        logger.info(f"Bridge: Fetching all company data for {company_name}")
+        
+        # Fetch all data components
         ledgers = await self.get_ledgers(company_name)
+        vouchers = await self.get_vouchers(company_name, limit=1000)
         groups = await self.get_groups(company_name)
         
-        # Build comprehensive data structure
+        logger.info(f"Bridge: Got {len(ledgers)} ledgers, {len(vouchers)} vouchers, {len(groups)} groups")
+        
+        # Build summary from ledgers (same structure as TallyDataService)
+        summary = self._build_summary_from_ledgers(ledgers, vouchers)
+        
+        # Return in EXACT same format as TallyDataService
         return {
-            'company': {'name': company_name},
-            'summary': summary,
-            'ledgers': ledgers,
-            'groups': groups,
-            'source': 'bridge',
-            'timestamp': datetime.now().isoformat()
+            "ledgers": ledgers,
+            "vouchers": vouchers,
+            "summary": summary,
+            "stock_items": [],  # Stock data not fetched via simple bridge
+            "groups": groups,
+            "source": "bridge"
+        }
+    
+    def _build_summary_from_ledgers(self, ledgers: List[Dict], vouchers: List[Dict]) -> Dict:
+        """Build financial summary from ledgers - same format as TallyDataService summary"""
+        
+        # Initialize accumulators
+        total_revenue = 0
+        total_expense = 0
+        total_assets = 0
+        total_liabilities = 0
+        sundry_debtors = 0
+        sundry_creditors = 0
+        cash_balance = 0
+        bank_balance = 0
+        
+        for ledger in ledgers:
+            name = (ledger.get('name') or '').lower()
+            parent = (ledger.get('parent') or '').lower()
+            closing = ledger.get('closing_balance', 0) or 0
+            
+            # Revenue
+            if any(k in parent for k in ['sales', 'income', 'revenue']):
+                total_revenue += abs(closing)
+            # Expenses
+            elif any(k in parent for k in ['expense', 'purchase']):
+                total_expense += abs(closing)
+            # Debtors
+            elif 'sundry debtor' in parent or 'debtor' in parent:
+                sundry_debtors += abs(closing)
+                total_assets += abs(closing)
+            # Creditors
+            elif 'sundry creditor' in parent or 'creditor' in parent:
+                sundry_creditors += abs(closing)
+                total_liabilities += abs(closing)
+            # Cash
+            elif 'cash' in name or 'cash-in-hand' in parent:
+                cash_balance += closing
+                total_assets += abs(closing)
+            # Bank
+            elif 'bank' in name or 'bank account' in parent:
+                bank_balance += closing
+                total_assets += abs(closing)
+            # Fixed Assets
+            elif any(k in parent for k in ['fixed asset', 'furniture', 'vehicle', 'machinery']):
+                total_assets += abs(closing)
+            # Current Assets
+            elif 'current asset' in parent or 'stock' in parent or 'inventory' in parent:
+                total_assets += abs(closing)
+            # Liabilities
+            elif any(k in parent for k in ['current liabilit', 'loan', 'capital', 'reserve']):
+                total_liabilities += abs(closing)
+        
+        net_profit = total_revenue - total_expense
+        
+        # Return in SAME format as TallyDataService summary
+        return {
+            "total_revenue": total_revenue,
+            "total_expense": total_expense,
+            "net_profit": net_profit,
+            "profit_margin": (net_profit / total_revenue * 100) if total_revenue > 0 else 0,
+            "total_assets": total_assets,
+            "total_liabilities": total_liabilities,
+            "sundry_debtors": sundry_debtors,
+            "sundry_creditors": sundry_creditors,
+            "outstanding_receivable": sundry_debtors,
+            "outstanding_payable": sundry_creditors,
+            "cash_balance": cash_balance,
+            "bank_balance": bank_balance,
+            "sales": total_revenue,
+            "purchases": total_expense * 0.7,  # Estimate
+            "source": "bridge"
         }
 
 

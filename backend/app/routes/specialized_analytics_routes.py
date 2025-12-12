@@ -129,7 +129,7 @@ async def get_dashboard_with_fallback(
     
     try:
         # ============ BRIDGE MODE ============
-        # Fetch data via WebSocket bridge (for EC2 deployment)
+        # Fetch data via WebSocket bridge and use SAME SpecializedAnalytics as backup mode
         if source == "bridge" and bridge_token:
             logger.info(f"📡 {dashboard_type} Dashboard - Using BRIDGE for {company_name}")
             
@@ -142,39 +142,41 @@ async def get_dashboard_with_fallback(
                 actual_source = "backup"
                 fallback_used = True
             else:
-                # Use Bridge to fetch data
+                # Use Bridge to fetch raw data, then use SAME SpecializedAnalytics as backup
                 try:
                     bridge_service = BridgeTallyService(bridge_manager, bridge_token)
-                    bridge_analytics = BridgeSpecializedAnalytics(bridge_service)
                     
-                    # Get the analytics method
-                    method = getattr(bridge_analytics, analytics_method, None)
-                    if method:
-                        data = await method(company_name)
+                    # Fetch raw data via bridge (same format as backup)
+                    bridge_data = await bridge_service.get_all_company_data(company_name)
+                    
+                    if bridge_data and bridge_data.get('ledgers'):
+                        logger.info(f"✅ Bridge fetched {len(bridge_data.get('ledgers', []))} ledgers for {company_name}")
                         
-                        # Check if we got valid data - be more lenient
-                        has_data = False
-                        if isinstance(data, dict):
-                            # Check multiple indicators of valid data
-                            revenue = data.get('revenue', data.get('total_revenue', 0))
-                            if not revenue:
-                                summary = data.get('executive_summary', {})
-                                revenue = summary.get('total_revenue', 0)
-                            
-                            # Also check key_metrics for ledger count
-                            key_metrics = data.get('key_metrics', {})
-                            ledger_count = key_metrics.get('total_ledgers', 0)
-                            
-                            # Check if source is bridge (means we got a response)
-                            is_bridge = data.get('source') == 'bridge'
-                            
-                            # Accept data if we have revenue OR ledgers OR it's from bridge with any data
-                            has_data = revenue > 0 or ledger_count > 0 or (is_bridge and len(data) > 1)
-                            
-                            logger.info(f"Bridge check: revenue={revenue}, ledgers={ledger_count}, is_bridge={is_bridge}, has_data={has_data}")
+                        # Create a TallyDataService wrapper with bridge data
+                        tally_service = TallyDataService(url="http://localhost:9000", db=db, user=current_user)
+                        tally_service.connected = False  # Don't try to connect to Tally
                         
-                        if has_data:
-                            logger.info(f"✅ Bridge data received for {company_name}")
+                        # Inject bridge data into the cache so SpecializedAnalytics can use it
+                        tally_service._bridge_data_cache = {company_name: bridge_data}
+                        
+                        # Override get_all_company_data to return bridge data
+                        original_get_all = tally_service.get_all_company_data
+                        def get_all_with_bridge(comp_name, **kwargs):
+                            if comp_name == company_name and hasattr(tally_service, '_bridge_data_cache'):
+                                cached = tally_service._bridge_data_cache.get(comp_name)
+                                if cached:
+                                    logger.info(f"Using bridge-cached data for {comp_name}")
+                                    return cached
+                            return original_get_all(comp_name, **kwargs)
+                        tally_service.get_all_company_data = get_all_with_bridge
+                        
+                        # Use the SAME SpecializedAnalytics as backup mode
+                        analytics_service = SpecializedAnalytics(tally_service)
+                        method = getattr(analytics_service, analytics_method)
+                        data = method(company_name, use_cache=True, source="backup")  # Use backup path which reads from cache
+                        
+                        if data:
+                            logger.info(f"✅ Bridge analytics completed for {company_name}")
                             return {
                                 "success": True,
                                 "data": data,
@@ -183,16 +185,18 @@ async def get_dashboard_with_fallback(
                                 "fallback_used": False
                             }
                         else:
-                            logger.warning("Bridge returned empty data, falling back to backup")
+                            logger.warning("Bridge analytics returned empty, falling back to backup")
                             actual_source = "backup"
                             fallback_used = True
                     else:
-                        logger.warning(f"Method {analytics_method} not found in bridge analytics")
+                        logger.warning("Bridge returned no ledgers, falling back to backup")
                         actual_source = "backup"
                         fallback_used = True
                         
                 except Exception as e:
                     logger.error(f"Bridge error: {e}, falling back to backup")
+                    import traceback
+                    traceback.print_exc()
                     actual_source = "backup"
                     fallback_used = True
         
