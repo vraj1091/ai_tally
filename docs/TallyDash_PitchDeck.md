@@ -310,7 +310,7 @@ Reseller & integration opportunities available
 ### 📧 Contact Us
 
 **Email**: contact@tallydash.pro
-**Demo**: http://13.234.136.42
+**Demo**: http://13.234.114.139
 **Phone**: [Your Phone Number]
 
 ---

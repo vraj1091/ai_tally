@@ -19,7 +19,7 @@ from datetime import datetime
 
 # Configuration
 # Use port 80 (nginx) instead of 8000 - nginx proxies /ws/ to backend
-BACKEND_URL = "ws://13.234.136.42"  # Your EC2 backend (via nginx on port 80)
+BACKEND_URL = "ws://13.234.114.139"  # Your EC2 backend (via nginx on port 80)
 TALLY_URL = "http://localhost:9000"  # Local Tally Gateway
 USER_TOKEN = "user_tally_bridge"     # Unique identifier for this bridge
 
