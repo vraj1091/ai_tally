@@ -350,14 +350,46 @@ class BridgeTallyService:
         if response:
             logger.info(f"All vouchers response size: {len(response)} bytes ({len(response)/1024/1024:.2f} MB)")
             
-            # Parse vouchers from XML
+            # Sanitize XML first
+            response = self._sanitize_xml(response)
+            
+            # Try multiple XML formats that Tally uses
+            # Format 1: <DATE>value</DATE>
             dates = re.findall(r'<DATE>([^<]+)</DATE>', response)
+            
+            # Format 2: DATE attribute in VOUCHER tag: <VOUCHER DATE="20231215" ...>
+            if not dates:
+                dates = re.findall(r'<VOUCHER[^>]*\bDATE="([^"]+)"', response)
+            
+            # Format 3: <VOUCHER><DATE>value</DATE>
+            if not dates:
+                dates = re.findall(r'<VOUCHER[^>]*>.*?<DATE>([^<]+)</DATE>', response, re.DOTALL)[:limit]
+            
+            # Parse voucher types
             types = re.findall(r'<VOUCHERTYPENAME>([^<]+)</VOUCHERTYPENAME>', response)
+            if not types:
+                types = re.findall(r'VOUCHERTYPENAME="([^"]+)"', response)
+            
+            # Parse amounts
             amounts = re.findall(r'<AMOUNT>([^<]+)</AMOUNT>', response)
+            if not amounts:
+                amounts = re.findall(r'AMOUNT="([^"]+)"', response)
             
-            logger.info(f"Found {len(dates)} voucher dates, parsing up to {limit}...")
+            logger.info(f"Found {len(dates)} voucher dates, {len(types)} types, {len(amounts)} amounts")
             
-            for i in range(min(len(dates), limit)):
+            # If still no dates, try to count VOUCHER tags
+            if not dates:
+                voucher_count = len(re.findall(r'<VOUCHER\b', response))
+                logger.warning(f"No DATE tags found, but found {voucher_count} VOUCHER tags")
+                # Log a sample of the XML to debug
+                sample = response[:2000] if len(response) > 2000 else response
+                logger.info(f"XML sample: {sample[:500]}...")
+            
+            # Build voucher list
+            max_count = max(len(dates), len(types), len(amounts))
+            logger.info(f"Parsing up to {min(max_count, limit)} vouchers...")
+            
+            for i in range(min(max_count, limit)):
                 vouchers.append({
                     'date': dates[i] if i < len(dates) else '',
                     'type': types[i] if i < len(types) else '',
@@ -531,7 +563,7 @@ class BridgeTallyService:
             'source': 'bridge'
         }
     
-    async def get_all_company_data(self, company_name: str, include_vouchers: bool = False) -> Dict:
+    async def get_all_company_data(self, company_name: str, include_vouchers: bool = True) -> Dict:
         """
         Get comprehensive company data - main method for dashboard analytics
         Returns data in the SAME format as TallyDataService.get_all_company_data()
@@ -559,19 +591,18 @@ class BridgeTallyService:
         groups = await self.get_groups(company_name)
         logger.info(f"Bridge: Got {len(groups)} groups for {company_name}")
         
-        # Vouchers are optional - skip by default for faster dashboard loading
-        # Most dashboards work fine with just ledger data
+        # Fetch vouchers if requested (default True for full data)
         vouchers = []
         if include_vouchers:
             try:
-                logger.info(f"Bridge: Fetching vouchers (this may take several minutes)...")
+                logger.info(f"Bridge: Fetching ALL vouchers (this may take 1-2 minutes for large datasets)...")
                 vouchers = await self.get_all_vouchers(company_name)
                 logger.info(f"Bridge: Got {len(vouchers)} vouchers for {company_name}")
             except Exception as e:
                 logger.warning(f"Bridge: Voucher fetch failed: {e}")
                 # Continue without vouchers - ledgers are enough for most dashboards
         else:
-            logger.info(f"Bridge: Skipping vouchers for faster loading (ledgers are sufficient for analytics)")
+            logger.info(f"Bridge: Skipping vouchers (include_vouchers=False)")
         
         logger.info(f"Bridge: Got {len(ledgers)} ledgers, {len(vouchers)} vouchers, {len(groups)} groups")
         
