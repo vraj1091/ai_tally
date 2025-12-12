@@ -16,6 +16,10 @@ import sys
 import requests
 import websockets
 from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor
+
+# Thread pool for blocking Tally requests (keeps WebSocket responsive)
+executor = ThreadPoolExecutor(max_workers=4)
 
 # Configuration
 # Use port 80 (nginx) instead of 8000 - nginx proxies /ws/ to backend
@@ -107,7 +111,9 @@ class TallyConnector:
                 xml_request = data.get('payload', data.get('xml', ''))
                 self.log(f"📤 Forwarding request to Tally...", "INFO")
                 
-                result = self.send_to_tally(xml_request)
+                # Run in thread pool to avoid blocking WebSocket (keeps ping/pong alive)
+                loop = asyncio.get_event_loop()
+                result = await loop.run_in_executor(executor, self.send_to_tally, xml_request)
                 
                 await self.ws.send(json.dumps({
                     'type': 'tally_response',
@@ -143,7 +149,9 @@ class TallyConnector:
                     <TDL><TDLMESSAGE><COLLECTION NAME="Companies"><TYPE>Company</TYPE><FETCH>Name,StartingFrom,BooksFrom</FETCH></COLLECTION></TDLMESSAGE></TDL>
                     </DESC></BODY></ENVELOPE>"""
                 
-                result = self.send_to_tally(companies_xml)
+                # Run in thread pool to avoid blocking WebSocket
+                loop = asyncio.get_event_loop()
+                result = await loop.run_in_executor(executor, self.send_to_tally, companies_xml)
                 
                 companies = []
                 if result['success']:
@@ -173,13 +181,14 @@ class TallyConnector:
         
         try:
             # max_size=2GB to handle very large Tally backups
-            # ping_interval=30 to keep connection alive
-            # close_timeout=300 for slow responses
+            # ping_interval=60 to keep connection alive during long operations
+            # ping_timeout=300 to allow for slow responses
+            # close_timeout=600 for very large data transfers
             async with websockets.connect(
                 ws_url, 
-                ping_interval=30,
-                ping_timeout=120,
-                close_timeout=300,
+                ping_interval=60,
+                ping_timeout=300,
+                close_timeout=600,
                 max_size=2 * 1024 * 1024 * 1024  # 2GB max message size
             ) as websocket:
                 self.ws = websocket
