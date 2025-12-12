@@ -119,33 +119,90 @@ class BridgeTallyService:
         ledgers = []
         
         if response:
+            logger.info(f"Parsing ledgers from {len(response)} bytes...")
+            
             try:
                 root = ET.fromstring(response)
-                for ledger in root.findall('.//LEDGER'):
-                    name_el = ledger.find('NAME')
-                    parent_el = ledger.find('PARENT')
-                    opening_el = ledger.find('OPENINGBALANCE')
-                    closing_el = ledger.find('CLOSINGBALANCE')
-                    
-                    ledgers.append({
-                        'name': name_el.text if name_el is not None else '',
-                        'parent': parent_el.text if parent_el is not None else '',
-                        'opening_balance': self._parse_amount(opening_el.text if opening_el is not None else '0'),
-                        'closing_balance': self._parse_amount(closing_el.text if closing_el is not None else '0')
-                    })
-            except ET.ParseError:
-                # Fallback to regex parsing
-                names = re.findall(r'<NAME>([^<]+)</NAME>', response)
-                parents = re.findall(r'<PARENT>([^<]*)</PARENT>', response)
-                closings = re.findall(r'<CLOSINGBALANCE>([^<]*)</CLOSINGBALANCE>', response)
                 
-                for i, name in enumerate(names):
+                # Try multiple XPath patterns for different Tally XML formats
+                ledger_elements = (
+                    root.findall('.//LEDGER') or 
+                    root.findall('.//LEDGER.LIST') or
+                    root.findall('.//{http://www.tally.co.in}LEDGER')
+                )
+                
+                for ledger in ledger_elements:
+                    # Tally can use NAME attribute or NAME child element
+                    name = ledger.get('NAME') or ledger.get('name') or ''
+                    if not name:
+                        name_el = ledger.find('NAME') or ledger.find('LANGUAGENAME.LIST/NAME.LIST/NAME')
+                        name = name_el.text if name_el is not None else ''
+                    
+                    # Get parent group
+                    parent_el = ledger.find('PARENT')
+                    parent = parent_el.text if parent_el is not None else ''
+                    
+                    # Get balances - try multiple field names
+                    closing = 0
+                    opening = 0
+                    for bal_field in ['CLOSINGBALANCE', 'LEDCLOSINGBAL', 'AMOUNT']:
+                        bal_el = ledger.find(bal_field)
+                        if bal_el is not None and bal_el.text:
+                            closing = self._parse_amount(bal_el.text)
+                            break
+                    
+                    for bal_field in ['OPENINGBALANCE', 'LEDOPENINGBAL']:
+                        bal_el = ledger.find(bal_field)
+                        if bal_el is not None and bal_el.text:
+                            opening = self._parse_amount(bal_el.text)
+                            break
+                    
+                    if name:  # Only add if we got a name
+                        ledgers.append({
+                            'name': name,
+                            'parent': parent,
+                            'opening_balance': opening,
+                            'closing_balance': closing
+                        })
+                
+                logger.info(f"XML parsing found {len(ledgers)} ledgers")
+                
+            except ET.ParseError as e:
+                logger.warning(f"XML parsing failed: {e}, using regex fallback...")
+            
+            # If XML parsing found nothing, use regex fallback
+            if not ledgers:
+                logger.info("Using regex parsing for ledgers...")
+                
+                # Pattern 1: LEDGER with NAME attribute (Tally standard export)
+                pattern1 = r'<LEDGER\s+NAME="([^"]+)"[^>]*>.*?<PARENT>([^<]*)</PARENT>.*?(?:<CLOSINGBALANCE>([^<]*)</CLOSINGBALANCE>)?.*?</LEDGER>'
+                matches1 = re.findall(pattern1, response, re.DOTALL | re.IGNORECASE)
+                
+                for match in matches1:
+                    name, parent, closing = match[0], match[1] if len(match) > 1 else '', match[2] if len(match) > 2 else '0'
                     ledgers.append({
                         'name': name,
-                        'parent': parents[i] if i < len(parents) else '',
+                        'parent': parent,
                         'opening_balance': 0,
-                        'closing_balance': self._parse_amount(closings[i]) if i < len(closings) else 0
+                        'closing_balance': self._parse_amount(closing)
                     })
+                
+                # Pattern 2: Simple NAME/PARENT/CLOSINGBALANCE structure
+                if not ledgers:
+                    names = re.findall(r'<NAME>([^<]+)</NAME>', response)
+                    parents = re.findall(r'<PARENT>([^<]*)</PARENT>', response)
+                    closings = re.findall(r'<CLOSINGBALANCE>([^<]*)</CLOSINGBALANCE>', response)
+                    
+                    # Match them up
+                    for i, name in enumerate(names):
+                        ledgers.append({
+                            'name': name,
+                            'parent': parents[i] if i < len(parents) else '',
+                            'opening_balance': 0,
+                            'closing_balance': self._parse_amount(closings[i]) if i < len(closings) else 0
+                        })
+                
+                logger.info(f"Regex parsing found {len(ledgers)} ledgers")
         
         return ledgers
     
@@ -218,6 +275,7 @@ class BridgeTallyService:
         This is the key method that provides data for all dashboards
         """
         ledgers = await self.get_ledgers(company_name)
+        logger.info(f"Financial summary for {company_name}: processing {len(ledgers)} ledgers")
         
         # Categorize ledgers by parent group
         revenue = 0

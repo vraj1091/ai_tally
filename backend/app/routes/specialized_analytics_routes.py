@@ -152,15 +152,26 @@ async def get_dashboard_with_fallback(
                     if method:
                         data = await method(company_name)
                         
-                        # Check if we got valid data
+                        # Check if we got valid data - be more lenient
                         has_data = False
                         if isinstance(data, dict):
-                            # Check common data fields
+                            # Check multiple indicators of valid data
                             revenue = data.get('revenue', data.get('total_revenue', 0))
                             if not revenue:
                                 summary = data.get('executive_summary', {})
                                 revenue = summary.get('total_revenue', 0)
-                            has_data = revenue > 0
+                            
+                            # Also check key_metrics for ledger count
+                            key_metrics = data.get('key_metrics', {})
+                            ledger_count = key_metrics.get('total_ledgers', 0)
+                            
+                            # Check if source is bridge (means we got a response)
+                            is_bridge = data.get('source') == 'bridge'
+                            
+                            # Accept data if we have revenue OR ledgers OR it's from bridge with any data
+                            has_data = revenue > 0 or ledger_count > 0 or (is_bridge and len(data) > 1)
+                            
+                            logger.info(f"Bridge check: revenue={revenue}, ledgers={ledger_count}, is_bridge={is_bridge}, has_data={has_data}")
                         
                         if has_data:
                             logger.info(f"✅ Bridge data received for {company_name}")
