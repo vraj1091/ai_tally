@@ -117,8 +117,9 @@ class BridgeConnectionManager:
             return response
             
         except asyncio.TimeoutError:
-            logger.error(f"Bridge request timed out after {message.get('timeout', 180)}s")
-            return {'success': False, 'error': 'Request timed out'}
+            actual_timeout = message.get('timeout', 600)
+            logger.warning(f"Bridge request timed out after {actual_timeout}s (type={message.get('type', 'unknown')})")
+            return {'success': False, 'error': f'Request timed out after {actual_timeout}s'}
         except Exception as e:
             logger.error(f"Bridge send error: {e}")
             return {'success': False, 'error': str(e)}
@@ -245,11 +246,34 @@ async def get_bridge_status(user_token: str):
             'message': 'Bridge not connected. Run TallyDash Bridge on your PC.'
         }
     
-    # Request status from bridge
+    # If there are pending requests, return cached status (bridge is busy)
+    # This prevents status checks from timing out while long requests are in progress
+    if len(bridge_manager.pending_requests) > 0:
+        info = bridge_manager.bridge_info.get(user_token, {})
+        return {
+            'success': True,
+            'connected': True,
+            'busy': True,
+            'pending_requests': len(bridge_manager.pending_requests),
+            'tally_connected': info.get('tally_connected', True),
+            'message': 'Bridge is processing a request...'
+        }
+    
+    # Request status from bridge (increased timeout to 30s)
     response = await bridge_manager.send_to_bridge(user_token, {
         'type': 'status',
-        'timeout': 10
+        'timeout': 30
     })
+    
+    # Check if status request failed but connection is still open
+    if not response.get('success', True) and bridge_manager.is_connected(user_token):
+        info = bridge_manager.bridge_info.get(user_token, {})
+        return {
+            'success': True,
+            'connected': True,
+            'tally_connected': info.get('tally_connected', True),
+            'message': 'Bridge connected (status check pending)'
+        }
     
     return {
         'success': True,
