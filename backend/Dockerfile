@@ -2,10 +2,14 @@ FROM python:3.10-slim
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies including build tools for psutil
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
+    g++ \
+    python3-dev \
+    libc-dev \
     libpq-dev \
+    libffi-dev \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
