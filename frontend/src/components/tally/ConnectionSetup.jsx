@@ -102,7 +102,7 @@ export default function ConnectionSetup() {
             toast.success('🎉 Tally is accessible via bridge!')
             setTimeout(() => navigate('/dashboard'), 1000)
           } else {
-            toast.warning('Bridge connected but Tally not detected. Make sure Tally is running.')
+            toast('⚠️ Bridge connected but Tally not detected. Make sure Tally is running.', { icon: '⚠️' })
           }
         } else {
           toast.error('❌ Bridge not connected. Run TallyConnector on your PC first.')
