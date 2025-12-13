@@ -180,21 +180,87 @@ async def chat(query: ChatQuery, db: Session = Depends(get_db)):
         tally_sources = []
         data_source = "none"
         
-        # ===== STEP 1: Try LIVE Tally Data First =====
+        # ===== STEP 0: Try BRIDGE Data First (for remote Tally) =====
         try:
-            from app.services.custom_tally_connector import CustomTallyConnector
+            from app.services.bridge_tally_service import BridgeTallyService
+            from app.routes.ws_bridge_routes import bridge_connections
             import json
             
-            connector = CustomTallyConnector()
-            live_connected, live_message = connector.test_connection()
-            
-            if live_connected:
-                logger.info("✅ Live Tally connected - fetching data for chat")
+            # Check if bridge is connected
+            bridge_token = "user_tally_bridge"
+            if bridge_token in bridge_connections:
+                bridge_info = bridge_connections[bridge_token]
+                if bridge_info.get("tally_connected"):
+                    logger.info("✅ Bridge connected - fetching data for chat")
+                    
+                    bridge_service = BridgeTallyService(bridge_token)
+                    companies = await bridge_service.get_companies()
+                    
+                    if companies:
+                        company_name = companies[0] if isinstance(companies[0], str) else companies[0].get('name', '')
+                        if company_name:
+                            # Get all company data via bridge
+                            company_data = await bridge_service.get_all_company_data(company_name, include_vouchers=False)
+                            
+                            if company_data and company_data.get('ledgers'):
+                                ledgers = company_data['ledgers']
+                                summary = company_data.get('summary', {})
+                                
+                                tally_context += f"\n\n=== LIVE TALLY DATA (via Bridge) ===\n"
+                                tally_context += f"Company: {company_name}\n"
+                                tally_context += f"Data Source: BRIDGE (Real-time from your local Tally)\n"
+                                tally_context += f"Total Ledgers: {len(ledgers)}\n"
+                                
+                                # Add financial summary
+                                tally_context += f"\n--- Financial Summary ---\n"
+                                tally_context += f"Total Revenue: ₹{abs(summary.get('total_revenue', 0)):,.2f}\n"
+                                tally_context += f"Total Expenses: ₹{abs(summary.get('total_expense', 0)):,.2f}\n"
+                                tally_context += f"Net Profit: ₹{summary.get('net_profit', 0):,.2f}\n"
+                                tally_context += f"Total Assets: ₹{abs(summary.get('total_assets', 0)):,.2f}\n"
+                                tally_context += f"Total Liabilities: ₹{abs(summary.get('total_liabilities', 0)):,.2f}\n"
+                                tally_context += f"Total Debtors: ₹{abs(summary.get('sundry_debtors', 0)):,.2f}\n"
+                                tally_context += f"Total Creditors: ₹{abs(summary.get('sundry_creditors', 0)):,.2f}\n"
+                                
+                                # Add top ledgers
+                                debtors = [l for l in ledgers if l.get('parent', '').lower() == 'sundry debtors']
+                                creditors = [l for l in ledgers if l.get('parent', '').lower() == 'sundry creditors']
+                                
+                                if debtors:
+                                    tally_context += f"\n--- Top 10 Customers/Debtors ---\n"
+                                    sorted_debtors = sorted(debtors, key=lambda x: abs(x.get('closing_balance', 0) or 0), reverse=True)[:10]
+                                    for l in sorted_debtors:
+                                        balance = l.get('closing_balance', 0) or 0
+                                        tally_context += f"- {l.get('name')}: ₹{abs(balance):,.2f}\n"
+                                
+                                if creditors:
+                                    tally_context += f"\n--- Top 10 Suppliers/Creditors ---\n"
+                                    sorted_creditors = sorted(creditors, key=lambda x: abs(x.get('closing_balance', 0) or 0), reverse=True)[:10]
+                                    for l in sorted_creditors:
+                                        balance = l.get('closing_balance', 0) or 0
+                                        tally_context += f"- {l.get('name')}: ₹{abs(balance):,.2f}\n"
+                                
+                                data_source = "bridge"
+                                tally_sources.append({"company": company_name, "source": "bridge", "ledgers": len(ledgers)})
+                                logger.info(f"✅ Got {len(ledgers)} ledgers via Bridge for chat")
+        except Exception as e:
+            logger.warning(f"Could not fetch Bridge Tally data: {e}")
+        
+        # ===== STEP 1: Try LIVE Tally Data First (if Bridge didn't work) =====
+        if not tally_context:
+            try:
+                from app.services.custom_tally_connector import CustomTallyConnector
+                import json
                 
-                # Get companies from live Tally
-                companies = connector.get_companies()
+                connector = CustomTallyConnector()
+                live_connected, live_message = connector.test_connection()
                 
-                if companies:
+                if live_connected:
+                    logger.info("✅ Live Tally connected - fetching data for chat")
+                    
+                    # Get companies from live Tally
+                    companies = connector.get_companies()
+                    
+                    if companies:
                     for company_data in companies[:3]:  # Limit to first 3 companies
                         try:
                             # Extract company name from dict or string
