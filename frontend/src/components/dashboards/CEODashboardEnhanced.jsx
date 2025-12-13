@@ -48,6 +48,9 @@ const CEODashboardEnhanced = ({ dataSource = 'live' }) => {
       let response;
       if (dataSource === 'backup') {
         response = await tallyApi.getBackupCompanies();
+      } else if (dataSource === 'bridge') {
+        // Use bridge API for bridge mode
+        response = await tallyApi.getCompaniesViaBridge();
       } else {
         response = await tallyApi.getCompanies();
       }

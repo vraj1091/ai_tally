@@ -29,6 +29,8 @@ const ProductPerformanceDashboard = ({ dataSource = 'live' }) => {
       let response;
       if (dataSource === 'backup') {
         response = await tallyApi.getBackupCompanies();
+      } else if (dataSource === 'bridge') {
+        response = await tallyApi.getCompaniesViaBridge();
       } else {
         response = await tallyApi.getCompanies();
       }
