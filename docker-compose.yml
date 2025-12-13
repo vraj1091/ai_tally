@@ -19,7 +19,10 @@ services:
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
       # Use phi4:14b (requires ~20GB RAM, user has 32GB)
       - OLLAMA_MODEL=${OLLAMA_MODEL:-phi4:14b}
-      - DB_URL=${DB_URL:-sqlite:////app/data/database.db}
+      # Use PostgreSQL for production (recommended) or SQLite for development
+      # PostgreSQL: postgresql://tally_user:YourPassword@host.docker.internal:5432/ai_tally
+      # SQLite: sqlite:////app/data/database.db
+      - DB_URL=${DB_URL:-postgresql://tally_user:YourStrongPassword123@host.docker.internal:5432/ai_tally}
       - API_HOST=0.0.0.0
       - API_PORT=8000
       - DEBUG=${DEBUG:-False}
