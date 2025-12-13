@@ -4,9 +4,10 @@ FastAPI Backend with Tally + RAG + Phi4:14b Integration
 Enhanced with User Authentication & Database Management
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware
 from contextlib import asynccontextmanager
 import logging
 import os
@@ -187,6 +188,28 @@ except Exception as e:
     print(f"\n\n✗ FAILED to import authentication routes: {e}\n\n")
 
 
+# ==================== SECURITY MIDDLEWARE ====================
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    """Add security headers to all responses"""
+    
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        
+        # Security headers
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-XSS-Protection"] = "1; mode=block"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=()"
+        
+        # Cache control for API responses
+        if request.url.path.startswith("/api/"):
+            response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+            response.headers["Pragma"] = "no-cache"
+        
+        return response
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan events"""
@@ -299,12 +322,16 @@ logger.info(f"CORS Origins configured: {cors_origins}")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow ALL origins for development/testing
+    allow_origins=cors_origins,  # Use configured origins only (SECURITY)
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+    allow_headers=["Authorization", "Content-Type", "X-Requested-With", "Accept", "Origin"],
+    expose_headers=["Content-Disposition", "Content-Length"],
 )
+
+# Add security headers middleware
+app.add_middleware(SecurityHeadersMiddleware)
+logger.info("✓ Security headers middleware added")
 
 # Configure max body size for large file uploads (2 GB)
 # Note: This is informational; actual limit is handled by route-level validation

@@ -4,11 +4,17 @@ Supports both local and remote Tally connections
 """
 
 import os
+import secrets
 from dotenv import load_dotenv
 from pathlib import Path
 
 # Load environment variables
 load_dotenv()
+
+# Generate a secure secret key if not provided
+def generate_secret_key():
+    """Generate a secure random secret key"""
+    return secrets.token_urlsafe(32)
 
 class Config:
     """Application configuration"""
@@ -103,6 +109,19 @@ class Config:
     # ===== CACHE CONFIGURATION =====
     CACHE_TTL = int(os.getenv("CACHE_TTL", "300"))
     CACHE_ENABLED = os.getenv("CACHE_ENABLED", "True") == "True"
+    
+    # ===== SECURITY CONFIGURATION =====
+    # IMPORTANT: Set a strong SECRET_KEY in production via environment variable
+    SECRET_KEY = os.getenv("SECRET_KEY", generate_secret_key())
+    ALGORITHM = "HS256"
+    ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "1440"))  # 24 hours
+    REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_EXPIRE_DAYS", "7"))
+    
+    # Security headers
+    SECURE_HEADERS = os.getenv("SECURE_HEADERS", "True") == "True"
+    
+    # Rate limiting (requests per minute)
+    RATE_LIMIT_PER_MINUTE = int(os.getenv("RATE_LIMIT_PER_MINUTE", "60"))
     
     # ===== ENSURE DIRECTORIES EXIST =====
     @classmethod

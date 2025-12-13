@@ -15,13 +15,14 @@ import os
 
 from app.models.database import get_db
 from app.models.database import User
+from app.config import Config
 
 router = APIRouter()
 
-# Security configuration
-SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-change-this-in-production")
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", 30))
+# Security configuration - use centralized config
+SECRET_KEY = Config.SECRET_KEY
+ALGORITHM = Config.ALGORITHM
+ACCESS_TOKEN_EXPIRE_MINUTES = Config.ACCESS_TOKEN_EXPIRE_MINUTES
 
 # Password hashing
 import warnings

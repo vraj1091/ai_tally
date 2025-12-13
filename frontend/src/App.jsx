@@ -31,7 +31,7 @@ import AnalyticsPage from './pages/AnalyticsPage';
 
 import './App.css';
 
-// Protected Route Component - Now allows demo/anonymous access
+// Protected Route Component - Requires authentication
 const ProtectedRoute = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuthStore();
   
@@ -52,8 +52,23 @@ const ProtectedRoute = ({ children }) => {
     );
   }
 
-  // DEMO MODE: Allow anonymous access - just show the layout
-  // Users can still log in for additional features
+  // Show loading during initial auth check
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="mt-4 text-gray-600">Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // SECURITY: Redirect to login if not authenticated
+  if (!isAuthenticated && !hasStoredAuth) {
+    return <Navigate to="/login" replace />;
+  }
+
   return <ProfessionalLayout>{children}</ProfessionalLayout>;
 };
 
