@@ -3446,7 +3446,7 @@ class SpecializedAnalytics:
                               key=lambda x: abs(float(x.get('balance', 0) or x.get('closing_balance', 0) or x.get('current_balance', 0) or x.get('opening_balance', 0) or 0)), 
                               reverse=True)[:10]:
                     name = l.get('name', 'Unknown')
-                    amount = self._get_ledger_balance(l)
+                    amount = abs(self._get_ledger_balance(l))  # Creditors have Cr (negative) balances
                     if amount > 0:
                         top_creditors.append({"name": name, "amount": amount, "balance": amount, "closing_balance": amount, "current_balance": amount})
             
@@ -6699,13 +6699,15 @@ class SpecializedAnalytics:
             if is_creditor:
                 seen_names.add(name)
                 balance = self._get_ledger_balance(ledger)
-                if balance > 0:
+                abs_balance = abs(balance) if balance else 0
+                # Creditors have CREDIT (Cr) balances = negative, so use abs()
+                if abs_balance > 0:
                     creditors.append({
                         "name": name,
-                        "amount": balance,
-                        "balance": balance,
-                        "closing_balance": balance,
-                        "current_balance": balance
+                        "amount": abs_balance,
+                        "balance": abs_balance,
+                        "closing_balance": abs_balance,
+                        "current_balance": abs_balance
                     })
                 else:
                     creditor_names.append(name)

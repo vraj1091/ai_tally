@@ -202,9 +202,19 @@ def random_amount(category="normal"):
 
 
 def random_date(start_year=2023, end_year=2024):
-    start = datetime(start_year, 4, 1)
-    end = datetime(end_year, 3, 31)
+    """Generate random date in financial year format (April to March)"""
+    # If same year passed, use that full year
+    if start_year == end_year:
+        start = datetime(start_year, 1, 1)
+        end = datetime(start_year, 12, 31)
+    else:
+        start = datetime(start_year, 4, 1)
+        end = datetime(end_year, 3, 31)
+    
     delta = end - start
+    if delta.days <= 0:
+        return datetime(start_year, 6, 15).strftime("%Y%m%d")  # Fallback to mid-year
+    
     random_days = random.randint(0, delta.days)
     return (start + timedelta(days=random_days)).strftime("%Y%m%d")
 
