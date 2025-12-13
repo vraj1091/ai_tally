@@ -667,65 +667,132 @@ class BridgeTallyService:
         }
     
     def _build_summary_from_ledgers(self, ledgers: List[Dict], vouchers: List[Dict]) -> Dict:
-        """Build financial summary from ledgers - same format as TallyDataService summary"""
+        """Build financial summary from ledgers - EXACT same format as TallyDataService._calculate_summary_from_backup_data"""
+        
+        total_ledgers = len(ledgers)
+        total_vouchers = len(vouchers)
         
         # Initialize accumulators
-        total_revenue = 0
-        total_expense = 0
-        total_assets = 0
-        total_liabilities = 0
-        sundry_debtors = 0
-        sundry_creditors = 0
-        cash_balance = 0
-        bank_balance = 0
+        total_revenue = 0.0
+        total_expense = 0.0
+        total_assets = 0.0
+        total_liabilities = 0.0
+        total_debit = 0.0
+        total_credit = 0.0
+        sundry_debtors = 0.0
+        sundry_creditors = 0.0
+        cash_balance = 0.0
+        bank_balance = 0.0
+        
+        # Keywords for classification (same as backup mode)
+        revenue_keywords = ['sales accounts', 'sales', 'direct incomes', 'indirect incomes', 
+                           'income', 'revenue', 'other income', 'service income', 
+                           'commission received', 'discount received', 'incomes']
+        expense_keywords = ['purchase accounts', 'purchases', 'direct expenses', 'indirect expenses',
+                           'expense', 'expenses', 'cost', 'salary', 'rent', 'wages',
+                           'administrative expenses', 'selling expenses', 'manufacturing expenses']
+        asset_keywords = ['current assets', 'fixed assets', 'investments', 'bank accounts', 
+                         'bank', 'cash-in-hand', 'cash', 'sundry debtors', 'debtors',
+                         'stock-in-hand', 'deposits', 'loans and advances', 'assets']
+        liability_keywords = ['current liabilities', 'liabilities', 'loans (liability)', 
+                             'sundry creditors', 'creditors', 'duties and taxes', 
+                             'provisions', 'secured loans', 'unsecured loans', 
+                             'bank od', 'overdraft', 'payable', 'loan']
         
         for ledger in ledgers:
             name = (ledger.get('name') or '').lower()
             parent = (ledger.get('parent') or '').lower()
-            closing = ledger.get('closing_balance', 0) or 0
             
-            # Revenue
-            if any(k in parent for k in ['sales', 'income', 'revenue']):
-                total_revenue += abs(closing)
-            # Expenses
-            elif any(k in parent for k in ['expense', 'purchase']):
-                total_expense += abs(closing)
-            # Debtors
-            elif 'sundry debtor' in parent or 'debtor' in parent:
-                sundry_debtors += abs(closing)
-                total_assets += abs(closing)
-            # Creditors
-            elif 'sundry creditor' in parent or 'creditor' in parent:
-                sundry_creditors += abs(closing)
-                total_liabilities += abs(closing)
-            # Cash
-            elif 'cash' in name or 'cash-in-hand' in parent:
-                cash_balance += closing
-                total_assets += abs(closing)
-            # Bank
-            elif 'bank' in name or 'bank account' in parent:
-                bank_balance += closing
-                total_assets += abs(closing)
-            # Fixed Assets
-            elif any(k in parent for k in ['fixed asset', 'furniture', 'vehicle', 'machinery']):
-                total_assets += abs(closing)
-            # Current Assets
-            elif 'current asset' in parent or 'stock' in parent or 'inventory' in parent:
-                total_assets += abs(closing)
-            # Liabilities
-            elif any(k in parent for k in ['current liabilit', 'loan', 'capital', 'reserve']):
-                total_liabilities += abs(closing)
+            # Get balance with proper sign handling
+            closing = ledger.get('closing_balance', 0)
+            if closing is None:
+                closing = ledger.get('balance', 0) or 0
+            if isinstance(closing, str):
+                is_credit = 'Cr' in closing or 'cr' in closing
+                cleaned = closing.replace('₹', '').replace(',', '').replace('Dr', '').replace('Cr', '').replace('dr', '').replace('cr', '').strip()
+                try:
+                    closing = float(cleaned) if cleaned else 0
+                    if is_credit:
+                        closing = -abs(closing)
+                except:
+                    closing = 0
+            
+            abs_closing = abs(closing) if closing else 0
+            
+            # Track debit/credit totals
+            if closing > 0:
+                total_debit += closing
+            elif closing < 0:
+                total_credit += abs(closing)
+            
+            # Revenue classification
+            if any(kw in parent or kw in name for kw in revenue_keywords):
+                total_revenue += abs_closing
+            
+            # Expense classification
+            elif any(kw in parent or kw in name for kw in expense_keywords):
+                total_expense += abs_closing
+            
+            # Asset classification
+            if any(kw in parent or kw in name for kw in asset_keywords):
+                total_assets += abs_closing
+                # Specific asset types
+                if 'sundry debtor' in parent or 'debtor' in parent:
+                    sundry_debtors += abs_closing
+                elif 'cash' in name or 'cash-in-hand' in parent:
+                    cash_balance += abs_closing
+                elif 'bank' in name or 'bank account' in parent:
+                    bank_balance += abs_closing
+            
+            # Liability classification
+            if any(kw in parent or kw in name for kw in liability_keywords):
+                total_liabilities += abs_closing
+                if 'sundry creditor' in parent or 'creditor' in parent:
+                    sundry_creditors += abs_closing
         
+        # Calculate derived values
         net_profit = total_revenue - total_expense
+        profit_margin = (net_profit / total_revenue * 100) if total_revenue > 0 else 0
+        total_equity = total_assets - total_liabilities
+        net_balance = total_debit - total_credit
         
-        # Return in SAME format as TallyDataService summary
+        # Health score calculation (same as backup mode)
+        health_score = 0
+        if total_revenue > 0:
+            if profit_margin > 20:
+                health_score = 90
+            elif profit_margin > 10:
+                health_score = 75
+            elif profit_margin > 0:
+                health_score = 60
+            else:
+                health_score = 40
+        else:
+            health_score = 30
+        
+        health_status = "Excellent" if health_score >= 80 else "Good" if health_score >= 60 else "Fair" if health_score >= 40 else "Poor"
+        
+        logger.info(f"Bridge summary: revenue={total_revenue}, expense={total_expense}, profit={net_profit}, assets={total_assets}, liabilities={total_liabilities}")
+        
+        # Return in EXACT same format as TallyDataService._calculate_summary_from_backup_data
         return {
+            "total_ledgers": total_ledgers,
+            "total_vouchers": total_vouchers,
+            "total_stock_items": 0,  # Stock not fetched via bridge
+            "total_inventory_value": 0.0,
+            "total_debit": total_debit,
+            "total_credit": total_credit,
+            "net_balance": net_balance,
             "total_revenue": total_revenue,
             "total_expense": total_expense,
             "net_profit": net_profit,
-            "profit_margin": (net_profit / total_revenue * 100) if total_revenue > 0 else 0,
+            "profit_margin": profit_margin,
             "total_assets": total_assets,
             "total_liabilities": total_liabilities,
+            "total_equity": total_equity,
+            "health_score": health_score,
+            "health_status": health_status,
+            # Additional fields for compatibility
             "sundry_debtors": sundry_debtors,
             "sundry_creditors": sundry_creditors,
             "outstanding_receivable": sundry_debtors,
@@ -733,7 +800,7 @@ class BridgeTallyService:
             "cash_balance": cash_balance,
             "bank_balance": bank_balance,
             "sales": total_revenue,
-            "purchases": total_expense * 0.7,  # Estimate
+            "purchases": total_expense * 0.7,  # Estimate purchases as 70% of expenses
             "source": "bridge"
         }
 
