@@ -610,7 +610,7 @@ class BridgeTallyService:
             'source': 'bridge'
         }
     
-    async def get_all_company_data(self, company_name: str, include_vouchers: bool = True) -> Dict:
+    async def get_all_company_data(self, company_name: str, include_vouchers: bool = False) -> Dict:
         """
         Get comprehensive company data - main method for dashboard analytics
         Returns data in the SAME format as TallyDataService.get_all_company_data()
