@@ -913,3 +913,123 @@ def get_tally_documents(
     except Exception as e:
         logger.error(f"Error generating documents: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ==================== SYNC / CACHE MANAGEMENT ====================
+
+@router.post("/sync/{company_name}")
+async def sync_company_data(
+    company_name: str,
+    current_user: Optional[User] = Depends(get_optional_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Sync company data from Tally to database cache.
+    Clears old cache and stores fresh data.
+    Called when Tally connects or user requests refresh.
+    """
+    from app.services.cache_manager import CacheManager
+    
+    try:
+        logger.info(f"🔄 SYNC REQUEST for company: {company_name}")
+        
+        # Initialize services
+        tally_service = TallyDataService(db=db, user=current_user)
+        cache_manager = CacheManager(db)
+        
+        # Check Tally connection
+        is_connected, status_msg = tally_service.check_connection_status()
+        
+        if not is_connected:
+            return {
+                "success": False,
+                "message": "Tally not connected. Cannot sync data.",
+                "company": company_name
+            }
+        
+        # Fetch fresh data from Tally
+        logger.info(f"📥 Fetching fresh data from Tally for {company_name}...")
+        
+        ledgers = tally_service.get_ledgers(company_name, use_cache=False)
+        vouchers = tally_service.get_vouchers(company_name, use_cache=False)
+        groups = tally_service.get_groups(company_name) if hasattr(tally_service, 'get_groups') else []
+        
+        # Get analytics summary
+        analytics = tally_service.get_company_analytics(company_name, use_cache=False)
+        
+        # Refresh cache (clear old + store new)
+        result = cache_manager.refresh_company_data(
+            company_name=company_name,
+            ledgers=ledgers,
+            vouchers=vouchers,
+            groups=groups,
+            analytics=analytics
+        )
+        
+        logger.info(f"✅ Sync complete for {company_name}")
+        
+        return {
+            "success": True,
+            "message": f"Successfully synced data for {company_name}",
+            "company": company_name,
+            "synced": result['stored'],
+            "cleared": result['cleared'],
+            "timestamp": result['timestamp']
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Sync error for {company_name}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.delete("/cache/{company_name}")
+async def clear_company_cache(
+    company_name: str,
+    current_user: Optional[User] = Depends(get_optional_user),
+    db: Session = Depends(get_db)
+):
+    """
+    Clear all cached data for a specific company.
+    """
+    from app.services.cache_manager import CacheManager
+    
+    try:
+        logger.info(f"🗑️ CLEAR CACHE REQUEST for company: {company_name}")
+        
+        cache_manager = CacheManager(db)
+        deleted = cache_manager.clear_company_cache(company_name)
+        
+        return {
+            "success": True,
+            "message": f"Cleared cache for {company_name}",
+            "company": company_name,
+            "deleted": deleted
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Error clearing cache for {company_name}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/cache/{company_name}/status")
+async def get_cache_status(
+    company_name: str,
+    db: Session = Depends(get_db)
+):
+    """
+    Get cache status for a company - how much data is cached.
+    """
+    from app.services.cache_manager import CacheManager
+    
+    try:
+        cache_manager = CacheManager(db)
+        status = cache_manager.get_cache_status(company_name)
+        
+        return {
+            "success": True,
+            **status
+        }
+        
+    except Exception as e:
+        logger.error(f"❌ Error getting cache status: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
