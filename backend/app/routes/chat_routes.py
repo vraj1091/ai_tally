@@ -188,8 +188,12 @@ async def chat(query: ChatQuery, db: Session = Depends(get_db)):
             
             # Check if bridge is connected
             bridge_token = "user_tally_bridge"
+            logger.info(f"Chat: Checking bridge. Available bridges: {list(bridge_connections.keys())}")
+            
             if bridge_token in bridge_connections:
                 bridge_info = bridge_connections[bridge_token]
+                logger.info(f"Chat: Bridge info - tally_connected={bridge_info.get('tally_connected')}")
+                
                 if bridge_info.get("tally_connected"):
                     logger.info("✅ Bridge connected - fetching data for chat")
                     
@@ -243,7 +247,9 @@ async def chat(query: ChatQuery, db: Session = Depends(get_db)):
                                 tally_sources.append({"company": company_name, "source": "bridge", "ledgers": len(ledgers)})
                                 logger.info(f"✅ Got {len(ledgers)} ledgers via Bridge for chat")
         except Exception as e:
+            import traceback
             logger.warning(f"Could not fetch Bridge Tally data: {e}")
+            logger.warning(f"Bridge error traceback: {traceback.format_exc()}")
         
         # ===== STEP 1: Try LIVE Tally Data First (if Bridge didn't work) =====
         if not tally_context:
