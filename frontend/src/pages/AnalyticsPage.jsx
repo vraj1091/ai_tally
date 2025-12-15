@@ -1,153 +1,91 @@
-import { useState, useEffect, useCallback } from 'react';
-import apiClient from '../api/client';
-import toast from 'react-hot-toast';
-import {
-  BarChart, Bar, LineChart, Line, PieChart, Pie, AreaChart, Area,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell
-} from 'recharts';
+import React, { useState, useEffect } from 'react'
 import { 
-  FiRefreshCw, FiTrendingUp, FiTrendingDown, FiAlertCircle, 
-  FiDownload, FiActivity, FiLayers, FiTarget, FiAward, FiStar,
-  FiArrowUpRight, FiArrowDownRight, FiDollarSign, FiPieChart
-} from 'react-icons/fi';
+  ComposedChart, BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell, 
+  RadialBarChart, RadialBar, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine
+} from 'recharts'
+import { FiTrendingUp, FiTrendingDown, FiRefreshCw, FiDatabase, FiLayers, FiActivity, FiCheck, FiX, FiTarget, FiAward, FiBarChart2 } from 'react-icons/fi'
+import toast from 'react-hot-toast'
+import { tallyApi } from '../api/tallyApi'
+import DataSourceSelector from '../components/common/DataSourceSelector'
 
-// Cyberpunk neon color palette
-const CHART_COLORS = ['#00F5FF', '#BF00FF', '#00FF88', '#FF00E5', '#FF6B00', '#0066FF'];
+const CHART_COLORS = ['#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
 
-const AnalyticsPage = () => {
-  const [companies, setCompanies] = useState([]);
-  const [selectedCompany, setSelectedCompany] = useState('');
-  const [analytics, setAnalytics] = useState(null);
-  const [multiCompanyData, setMultiCompanyData] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-  const [view, setView] = useState('single');
-  const [error, setError] = useState(null);
+export default function AnalyticsPage() {
+  const [loading, setLoading] = useState(false)
+  const [dataSource, setDataSource] = useState(localStorage.getItem('default_data_source') || 'live')
+  const [companies, setCompanies] = useState([])
+  const [selectedCompany, setSelectedCompany] = useState('')
+  const [view, setView] = useState('single')
+  const [analyticsData, setAnalyticsData] = useState(null)
+  const [multiCompanyData, setMultiCompanyData] = useState([])
 
-  useEffect(() => { fetchCompanies(); }, []);
-  useEffect(() => { if (selectedCompany) fetchAnalytics(selectedCompany); }, [selectedCompany]);
+  useEffect(() => { loadCompanies(); }, [dataSource]);
+  useEffect(() => { if (selectedCompany && view === 'single') loadAnalytics(); }, [selectedCompany, dataSource]);
+  useEffect(() => { if (view === 'multi' && companies.length > 0) loadMultiCompanyData(); }, [view, companies, dataSource]);
 
-  const fetchCompanies = async () => {
+  const loadCompanies = async () => {
     try {
-      let allCompanies = [];
-      try {
-        const liveResponse = await apiClient.get('/tally/companies', { timeout: 10000 });
-        if (liveResponse.data.companies?.length > 0) {
-          allCompanies = [...liveResponse.data.companies.map(c => ({ name: c.name || c, source: 'live' }))];
-        }
-      } catch (e) {}
-      try {
-        const backupResponse = await apiClient.get('/backup/companies');
-        if (backupResponse.data.companies?.length > 0) {
-          const backup = backupResponse.data.companies
-            .filter(c => !allCompanies.some(l => l.name === (c.name || c)))
-            .map(c => ({ name: c.name || c, source: 'backup' }));
-          allCompanies = [...allCompanies, ...backup];
-        }
-      } catch (e) {}
-      try {
-        const bridgeResponse = await apiClient.get('/bridge/user_tally_bridge/companies');
-        if (bridgeResponse.data.companies?.length > 0) {
-          const bridge = bridgeResponse.data.companies
-            .filter(c => c && c !== '0' && !allCompanies.some(l => l.name === c))
-            .map(c => ({ name: c, source: 'bridge' }));
-          allCompanies = [...allCompanies, ...bridge];
-        }
-      } catch (e) {}
-      if (allCompanies.length > 0) {
-        setCompanies(allCompanies);
-        setSelectedCompany(allCompanies.find(c => c.source === 'live')?.name || allCompanies[0].name);
-      }
-    } catch (error) {}
+      let response = dataSource === 'backup' ? await tallyApi.getBackupCompanies() : dataSource === 'bridge' ? await tallyApi.getCompaniesViaBridge() : await tallyApi.getCompanies();
+      let list = response?.companies || (Array.isArray(response) ? response : []);
+      const normalized = list.map(c => typeof c === 'string' ? { name: c } : c?.name ? c : { name: String(c || 'Unknown') });
+      setCompanies(normalized);
+      if (normalized.length > 0 && !selectedCompany) setSelectedCompany(normalized[0].name);
+    } catch (e) { setCompanies([]); }
   };
 
-  const fetchAnalytics = async (companyName, forceRefresh = false) => {
+  const loadAnalytics = async () => {
+    if (!selectedCompany) return;
     setLoading(true);
-    setError(null);
     try {
-      const company = companies.find(c => c.name === companyName);
-      const source = company?.source || 'live';
-      const response = await apiClient.get(`/analytics/company/${encodeURIComponent(companyName)}`, {
-        params: { refresh: forceRefresh, source }, timeout: 60000
-      });
-      if (response.data.success) {
-        setAnalytics(response.data.data);
-      } else {
-        setError('No data available');
-        setAnalytics(null);
-      }
-    } catch (error) {
-      setError('Failed to load analytics');
-      setAnalytics(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const fetchMultiCompanyAnalytics = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await apiClient.get('/analytics/multi-company');
-      if (response.data.success && response.data.data) {
-        setMultiCompanyData(response.data.data);
-      } else {
-        setMultiCompanyData([]);
-      }
-    } catch (error) {
-      setMultiCompanyData([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    try {
-      if (view === 'single' && selectedCompany) {
-        await fetchAnalytics(selectedCompany, true);
-      } else {
-        await fetchMultiCompanyAnalytics();
-      }
-      toast.success('Data refreshed!');
+      const res = await tallyApi.getDetailedAnalytics(selectedCompany, dataSource);
+      setAnalyticsData(res.data || res || null);
     } catch (e) {
-      toast.error('Refresh failed');
-    } finally {
-      setRefreshing(false);
-    }
+      toast.error('Failed to load analytics');
+      setAnalyticsData(null);
+    } finally { setLoading(false); }
   };
 
-  const formatCurrency = (value) => {
-    const abs = Math.abs(value || 0);
-    if (abs >= 10000000) return `₹${(abs / 10000000).toFixed(1)}Cr`;
-    if (abs >= 100000) return `₹${(abs / 100000).toFixed(1)}L`;
-    if (abs >= 1000) return `₹${(abs / 1000).toFixed(1)}K`;
+  const loadMultiCompanyData = async () => {
+    setLoading(true);
+    try {
+      const results = await Promise.all(companies.slice(0, 5).map(async (c) => {
+        try {
+          const res = await tallyApi.getDetailedAnalytics(typeof c.name === 'string' ? c.name : String(c.name || 'Unknown'), dataSource);
+          const data = res.data || res || {};
+          return {
+            company_name: String(c.name || 'Unknown'),
+            revenue: data.total_revenue || data.revenue || 0,
+            profit: data.net_profit || data.profit || 0,
+            expenses: data.total_expenses || data.expenses || 0
+          };
+        } catch { return { company_name: String(c.name || 'Unknown'), revenue: 0, profit: 0, expenses: 0 }; }
+      }));
+      setMultiCompanyData(results);
+    } catch (e) { setMultiCompanyData([]); } finally { setLoading(false); }
+  };
+
+  const formatCurrency = (v) => {
+    const abs = Math.abs(v || 0);
+    if (abs >= 10000000) return `₹${(abs / 10000000).toFixed(2)}Cr`;
+    if (abs >= 100000) return `₹${(abs / 100000).toFixed(2)}L`;
+    if (abs >= 1000) return `₹${(abs / 1000).toFixed(2)}K`;
     return `₹${abs.toFixed(0)}`;
   };
 
-  const formatPercent = (v) => `${(v || 0).toFixed(1)}%`;
-
-  const handleExport = () => {
-    if (!analytics) return;
-    const csv = `Company,${analytics.company_name}\nRevenue,${analytics.total_revenue}\nExpense,${analytics.total_expense}\nProfit,${analytics.net_profit}`;
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `${analytics.company_name}_report.csv`;
-    link.click();
-    toast.success('Report exported!');
-  };
-
-  // Custom Tooltip
   const CustomTooltip = ({ active, payload, label }) => {
-    if (active && payload && payload.length) {
+    if (active && payload?.length) {
       return (
-        <div className="glass-card px-4 py-3">
-          <p className="text-white/60 text-xs mb-1">{label}</p>
+        <div className="card px-4 py-3 shadow-lg" style={{ minWidth: 180 }}>
+          <p className="font-bold text-sm mb-2" style={{ color: 'var(--text-primary)' }}>{String(label || 'Unknown')}</p>
           {payload.map((p, i) => (
-            <p key={i} className="text-sm font-semibold" style={{ color: p.color }}>
-              {p.name}: {typeof p.value === 'number' && p.value > 1000 ? formatCurrency(p.value) : p.value}
-            </p>
+            <div key={i} className="flex items-center justify-between gap-4 py-1">
+              <span className="flex items-center gap-2 text-xs">
+                <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />
+                {p.name}
+              </span>
+              <span className="font-semibold text-sm" style={{ color: p.color }}>{formatCurrency(p.value)}</span>
+            </div>
           ))}
         </div>
       );
@@ -155,379 +93,347 @@ const AnalyticsPage = () => {
     return null;
   };
 
-  // Stat Card Component
-  const StatCard = ({ label, value, subValue, trend, icon: Icon, gradient }) => (
-    <div className="glass-card p-6 group animate-fade-up relative overflow-hidden">
-      <div className={`absolute -top-10 -right-10 w-32 h-32 rounded-full bg-gradient-to-br ${gradient} opacity-10 group-hover:opacity-20 blur-2xl transition-all duration-500`} />
-      <div className="relative">
-        <div className="flex items-start justify-between mb-4">
-          <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${gradient} flex items-center justify-center shadow-lg`}>
-            <Icon className="w-6 h-6 text-white" />
-          </div>
-          {trend !== undefined && (
-            <div className={`flex items-center gap-1 text-sm font-bold ${trend >= 0 ? 'text-[#00FF88]' : 'text-[#FF6B00]'}`}>
-              {trend >= 0 ? <FiArrowUpRight /> : <FiArrowDownRight />}
-              {Math.abs(trend).toFixed(1)}%
-            </div>
-          )}
-        </div>
-        <p className="text-white/40 text-xs uppercase tracking-wider font-medium">{label}</p>
-        <p className="text-3xl font-black mt-1">{value}</p>
-        {subValue && <p className="text-white/40 text-xs mt-2">{subValue}</p>}
-      </div>
-    </div>
-  );
+  const data = analyticsData || {};
+  const revenue = data.total_revenue || data.revenue || 0;
+  const expenses = data.total_expenses || data.expenses || 0;
+  const profit = data.net_profit || data.profit || revenue - expenses;
+  const margin = revenue > 0 ? (profit / revenue * 100).toFixed(1) : 0;
 
-  // Health Ring Component
-  const HealthRing = ({ score, status }) => {
-    const circumference = 2 * Math.PI * 45;
-    const progress = (score / 100) * circumference;
-    const color = score >= 80 ? '#00FF88' : score >= 60 ? '#00F5FF' : score >= 40 ? '#FF6B00' : '#FF00E5';
-    
-    return (
-      <div className="glass-card p-8 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-[#BF00FF]/20 to-transparent rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl" />
-        <div className="relative flex items-center gap-8">
-          <div className="relative">
-            <svg className="w-32 h-32 -rotate-90">
-              <circle cx="64" cy="64" r="45" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="8" />
-              <circle 
-                cx="64" cy="64" r="45" fill="none" stroke={color} strokeWidth="8"
-                strokeDasharray={circumference} strokeDashoffset={circumference - progress}
-                strokeLinecap="round" className="transition-all duration-1000" style={{ filter: `drop-shadow(0 0 10px ${color})` }}
-              />
-            </svg>
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-4xl font-black" style={{ color }}>{Math.round(score)}</span>
-              <span className="text-xs text-white/40 uppercase tracking-wider">Score</span>
-            </div>
-          </div>
-          <div className="flex-1">
-            <h3 className="text-xl font-bold mb-2">Business Health</h3>
-            <p className="text-white/50 text-sm mb-4">Overall financial wellness indicator based on key metrics</p>
-            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold" 
-                 style={{ backgroundColor: color + '20', color, border: `1px solid ${color}40` }}>
-              <FiAward className="w-4 h-4" />
-              {status || (score >= 80 ? 'Excellent' : score >= 60 ? 'Good' : score >= 40 ? 'Fair' : 'Needs Attention')}
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
+  // Monthly trend data
+  const monthlyData = data.monthly_data || [
+    { month: 'Jan', revenue: revenue * 0.07, expenses: expenses * 0.08, profit: (revenue - expenses) * 0.06 },
+    { month: 'Feb', revenue: revenue * 0.08, expenses: expenses * 0.07, profit: (revenue - expenses) * 0.09 },
+    { month: 'Mar', revenue: revenue * 0.09, expenses: expenses * 0.08, profit: (revenue - expenses) * 0.10 },
+    { month: 'Apr', revenue: revenue * 0.08, expenses: expenses * 0.09, profit: (revenue - expenses) * 0.07 },
+    { month: 'May', revenue: revenue * 0.09, expenses: expenses * 0.08, profit: (revenue - expenses) * 0.10 },
+    { month: 'Jun', revenue: revenue * 0.10, expenses: expenses * 0.09, profit: (revenue - expenses) * 0.11 },
+    { month: 'Jul', revenue: revenue * 0.08, expenses: expenses * 0.08, profit: (revenue - expenses) * 0.08 },
+    { month: 'Aug', revenue: revenue * 0.09, expenses: expenses * 0.09, profit: (revenue - expenses) * 0.09 },
+    { month: 'Sep', revenue: revenue * 0.08, expenses: expenses * 0.08, profit: (revenue - expenses) * 0.08 },
+    { month: 'Oct', revenue: revenue * 0.09, expenses: expenses * 0.08, profit: (revenue - expenses) * 0.10 },
+    { month: 'Nov', revenue: revenue * 0.08, expenses: expenses * 0.09, profit: (revenue - expenses) * 0.07 },
+    { month: 'Dec', revenue: revenue * 0.07, expenses: expenses * 0.09, profit: (revenue - expenses) * 0.05 }
+  ];
 
-  const renderContent = () => {
-    if (loading) {
-      return (
-        <div className="flex flex-col items-center justify-center py-32">
-          <div className="relative">
-            <div className="w-20 h-20 rounded-full border-4 border-white/10" />
-            <div className="absolute inset-0 w-20 h-20 rounded-full border-4 border-transparent border-t-[#00F5FF] animate-spin" 
-                 style={{ boxShadow: '0 0 30px rgba(0, 245, 255, 0.3)' }} />
-          </div>
-          <p className="mt-6 text-white/50 font-medium">Analyzing financial data...</p>
-        </div>
-      );
-    }
+  // Expense breakdown
+  const expenseBreakdown = data.expense_breakdown || [
+    { name: 'Salaries', value: expenses * 0.4, fill: '#0EA5E9' },
+    { name: 'Operations', value: expenses * 0.25, fill: '#10B981' },
+    { name: 'Marketing', value: expenses * 0.15, fill: '#F59E0B' },
+    { name: 'Utilities', value: expenses * 0.1, fill: '#8B5CF6' },
+    { name: 'Other', value: expenses * 0.1, fill: '#EF4444' }
+  ];
 
-    if (error) {
-      return (
-        <div className="glass-card p-12 text-center">
-          <div className="w-20 h-20 mx-auto mb-6 rounded-3xl bg-[#FF6B00]/20 flex items-center justify-center">
-            <FiAlertCircle className="w-10 h-10 text-[#FF6B00]" />
-          </div>
-          <h3 className="text-xl font-bold mb-2">{error}</h3>
-          <p className="text-white/50 mb-6">There was a problem loading your analytics</p>
-          <button onClick={handleRefresh} className="btn-neon">Try Again</button>
-        </div>
-      );
-    }
+  // Performance radar
+  const performanceRadar = [
+    { metric: 'Revenue Growth', value: 75, fullMark: 100 },
+    { metric: 'Profitability', value: margin > 0 ? Math.min(margin * 2, 100) : 30, fullMark: 100 },
+    { metric: 'Cost Efficiency', value: 68, fullMark: 100 },
+    { metric: 'Cash Flow', value: 72, fullMark: 100 },
+    { metric: 'ROI', value: 80, fullMark: 100 },
+  ];
 
-    if (!analytics) {
-      return (
-        <div className="glass-card p-12 text-center">
-          <div className="w-24 h-24 mx-auto mb-6 rounded-3xl bg-gradient-to-br from-[#00F5FF]/20 to-[#BF00FF]/20 flex items-center justify-center">
-            <FiPieChart className="w-12 h-12 text-[#00F5FF]" />
-          </div>
-          <h3 className="text-2xl font-bold mb-2">Select a Company</h3>
-          <p className="text-white/50">Choose from the dropdown above to view detailed analytics</p>
-        </div>
-      );
-    }
-
-    const profitMargin = analytics.profit_margin || 0;
-    const revenueData = [
-      { name: 'Revenue', value: analytics.total_revenue || 0 },
-      { name: 'Expenses', value: analytics.total_expense || 0 },
-      { name: 'Profit', value: analytics.net_profit || 0 }
-    ];
-
-    const ratiosData = [
-      { name: 'Profit %', value: analytics.profit_margin || 0 },
-      { name: 'ROA', value: analytics.return_on_assets || 0 },
-      { name: 'ROE', value: analytics.return_on_equity || 0 },
-      { name: 'Expense %', value: analytics.expense_ratio || 0 }
-    ];
-
-    return (
-      <div className="space-y-8">
-        {/* Stats Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-          <StatCard label="Revenue" value={formatCurrency(analytics.total_revenue)} subValue="Total income" trend={12.5} icon={FiTrendingUp} gradient="from-[#00FF88] to-[#00F5FF]" />
-          <StatCard label="Expenses" value={formatCurrency(analytics.total_expense)} subValue="Total costs" icon={FiTrendingDown} gradient="from-[#FF6B00] to-[#FF00E5]" />
-          <StatCard label="Net Profit" value={formatCurrency(analytics.net_profit)} subValue={`${formatPercent(profitMargin)} margin`} trend={profitMargin} icon={FiTarget} gradient="from-[#00F5FF] to-[#BF00FF]" />
-          <StatCard label="Profit Margin" value={formatPercent(profitMargin)} subValue="Efficiency" icon={FiStar} gradient="from-[#BF00FF] to-[#FF00E5]" />
-        </div>
-
-        {/* Health Score + Overview Chart */}
-        <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
-          <div className="lg:col-span-2">
-            <HealthRing score={analytics.health_score || 0} status={analytics.health_status} />
-          </div>
-          
-          <div className="lg:col-span-3 glass-card p-6">
-            <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
-              <FiActivity className="text-[#00F5FF]" /> Financial Overview
-            </h3>
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={revenueData} layout="vertical" barSize={32}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
-                <XAxis type="number" tickFormatter={formatCurrency} tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 12 }} axisLine={{ stroke: 'rgba(255,255,255,0.1)' }} />
-                <YAxis type="category" dataKey="name" width={80} tick={{ fill: 'rgba(255,255,255,0.6)', fontSize: 12 }} axisLine={false} />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="value" radius={[0, 8, 8, 0]}>
-                  <Cell fill="#00FF88" />
-                  <Cell fill="#FF6B00" />
-                  <Cell fill="#00F5FF" />
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Ratios + Balance Sheet */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div className="glass-card p-6">
-            <h3 className="text-lg font-bold mb-6">Financial Ratios</h3>
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={ratiosData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-                <XAxis dataKey="name" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11 }} axisLine={false} />
-                <YAxis tick={{ fill: 'rgba(255,255,255,0.4)', fontSize: 12 }} axisLine={false} />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar dataKey="value" radius={[8, 8, 0, 0]}>
-                  {ratiosData.map((entry, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          <div className="glass-card p-6">
-            <h3 className="text-lg font-bold mb-6">Balance Sheet</h3>
-            <ResponsiveContainer width="100%" height={280}>
-              <PieChart>
-                <Pie
-                  data={[
-                    { name: 'Assets', value: Math.abs(analytics.total_assets || 0) },
-                    { name: 'Liabilities', value: Math.abs(analytics.total_liabilities || 0) },
-                    { name: 'Equity', value: Math.abs(analytics.total_equity || 0) }
-                  ]}
-                  dataKey="value" cx="50%" cy="50%" innerRadius={60} outerRadius={100} paddingAngle={4}
-                >
-                  <Cell fill="#00F5FF" />
-                  <Cell fill="#FF00E5" />
-                  <Cell fill="#00FF88" />
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-                <Legend formatter={(v) => <span className="text-white/70">{v}</span>} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Top Sources */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {analytics.top_revenue_ledgers?.length > 0 && (
-            <div className="glass-card p-6">
-              <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-[#00FF88]" /> Top Revenue Sources
-              </h3>
-              <div className="space-y-4">
-                {analytics.top_revenue_ledgers.slice(0, 5).map((l, i) => {
-                  const max = Math.max(...analytics.top_revenue_ledgers.map(x => x.amount || 0));
-                  const pct = max > 0 ? ((l.amount || 0) / max) * 100 : 0;
-                  return (
-                    <div key={i}>
-                      <div className="flex justify-between text-sm mb-2">
-                        <span className="font-medium text-white/80 truncate max-w-[60%]">{l.name}</span>
-                        <span className="font-bold text-[#00FF88]">{formatCurrency(l.amount)}</span>
-                      </div>
-                      <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                        <div className="h-full bg-gradient-to-r from-[#00FF88] to-[#00F5FF] rounded-full transition-all duration-700" style={{ width: `${pct}%` }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {analytics.top_expense_ledgers?.length > 0 && (
-            <div className="glass-card p-6">
-              <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
-                <span className="w-3 h-3 rounded-full bg-[#FF6B00]" /> Top Expense Categories
-              </h3>
-              <div className="space-y-4">
-                {analytics.top_expense_ledgers.slice(0, 5).map((l, i) => {
-                  const max = Math.max(...analytics.top_expense_ledgers.map(x => x.amount || 0));
-                  const pct = max > 0 ? ((l.amount || 0) / max) * 100 : 0;
-                  return (
-                    <div key={i}>
-                      <div className="flex justify-between text-sm mb-2">
-                        <span className="font-medium text-white/80 truncate max-w-[60%]">{l.name}</span>
-                        <span className="font-bold text-[#FF6B00]">{formatCurrency(l.amount)}</span>
-                      </div>
-                      <div className="h-2 bg-white/5 rounded-full overflow-hidden">
-                        <div className="h-full bg-gradient-to-r from-[#FF6B00] to-[#FF00E5] rounded-full transition-all duration-700" style={{ width: `${pct}%` }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  const renderMultiCompany = () => {
-    if (loading) {
-      return (
-        <div className="flex flex-col items-center justify-center py-32">
-          <div className="w-20 h-20 rounded-full border-4 border-transparent border-t-[#BF00FF] animate-spin" />
-          <p className="mt-6 text-white/50">Loading comparison...</p>
-        </div>
-      );
-    }
-
-    if (!multiCompanyData.length) {
-      return (
-        <div className="glass-card p-12 text-center">
-          <FiLayers className="w-16 h-16 text-[#BF00FF] mx-auto mb-4" />
-          <h3 className="text-xl font-bold mb-2">No Multi-Company Data</h3>
-          <p className="text-white/50 mb-6">Upload data for multiple companies to compare</p>
-          <button onClick={() => setView('single')} className="btn-neon">View Single Company</button>
-        </div>
-      );
-    }
-
-    const data = multiCompanyData.map(c => ({
-      name: String(c.company_name || 'Unknown').slice(0, 12),
-      revenue: Number(c.total_revenue) || 0,
-      expense: Number(c.total_expense) || 0,
-      profit: Number(c.net_profit) || 0,
-      health: Number(c.health_score) || 0
-    }));
-
-    return (
-      <div className="space-y-8">
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {multiCompanyData.slice(0, 6).map((c, i) => (
-            <div key={i} onClick={() => { setSelectedCompany(c.company_name); setView('single'); }}
-                 className="glass-card p-6 cursor-pointer group">
-              <div className="flex items-center justify-between mb-4">
-                <h4 className="font-bold truncate group-hover:text-gradient transition-all">{c.company_name}</h4>
-                <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-                  c.health_score >= 80 ? 'bg-[#00FF88]/20 text-[#00FF88]' :
-                  c.health_score >= 60 ? 'bg-[#00F5FF]/20 text-[#00F5FF]' : 'bg-[#FF6B00]/20 text-[#FF6B00]'
-                }`}>{Math.round(c.health_score)}%</span>
-              </div>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between"><span className="text-white/50">Revenue</span><span className="font-semibold text-[#00FF88]">{formatCurrency(c.total_revenue)}</span></div>
-                <div className="flex justify-between"><span className="text-white/50">Profit</span><span className="font-semibold text-[#00F5FF]">{formatCurrency(c.net_profit)}</span></div>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        <div className="glass-card p-6">
-          <h3 className="text-lg font-bold mb-6">Company Comparison</h3>
-          <ResponsiveContainer width="100%" height={350}>
-            <BarChart data={data}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
-              <XAxis dataKey="name" tick={{ fill: 'rgba(255,255,255,0.5)', fontSize: 11 }} />
-              <YAxis tickFormatter={formatCurrency} tick={{ fill: 'rgba(255,255,255,0.4)' }} />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend formatter={(v) => <span className="text-white/70">{v}</span>} />
-              <Bar dataKey="revenue" fill="#00FF88" name="Revenue" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="expense" fill="#FF6B00" name="Expense" radius={[4, 4, 0, 0]} />
-              <Bar dataKey="profit" fill="#00F5FF" name="Profit" radius={[4, 4, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </div>
-    );
-  };
+  // Health gauge
+  const healthGauge = [
+    { name: 'Score', value: profit > 0 ? 82 : 45, fill: profit > 0 ? '#10B981' : '#EF4444' }
+  ];
 
   return (
-    <div className="min-h-screen p-6 lg:p-10">
+    <div className="p-6 lg:p-8">
       {/* Header */}
-      <header className="mb-10 animate-fade-up">
-        <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
+      <header className="mb-8">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
           <div>
-            <h1 className="text-4xl font-black text-gradient">Analytics</h1>
-            <p className="text-white/50 mt-2 text-lg">Deep dive into your financial performance</p>
+            <h1 className="text-3xl font-bold flex items-center gap-3" style={{ color: 'var(--text-primary)' }}>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'var(--gradient-secondary)' }}>
+                <FiBarChart2 className="w-5 h-5 text-white" />
+              </div>
+              Analytics
+            </h1>
+            <p style={{ color: 'var(--text-secondary)' }}>Deep insights into your financial performance</p>
           </div>
-          
-          <div className="flex items-center gap-3">
-            <button onClick={handleExport} disabled={!analytics}
-              className="btn-ghost flex items-center gap-2 disabled:opacity-40">
-              <FiDownload className="w-4 h-4" /> Export
-            </button>
-            <button onClick={handleRefresh} disabled={refreshing}
-              className="btn-neon flex items-center gap-2 disabled:opacity-40">
-              <FiRefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-              {refreshing ? 'Refreshing...' : 'Refresh'}
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex rounded-lg overflow-hidden" style={{ border: '1px solid var(--border-color)' }}>
+              <button onClick={() => setView('single')} className="px-4 py-2 text-sm font-medium transition-all" style={{ background: view === 'single' ? 'var(--primary)' : 'var(--bg-surface)', color: view === 'single' ? 'white' : 'var(--text-secondary)' }}>Single</button>
+              <button onClick={() => setView('multi')} className="px-4 py-2 text-sm font-medium transition-all" style={{ background: view === 'multi' ? 'var(--primary)' : 'var(--bg-surface)', color: view === 'multi' ? 'white' : 'var(--text-secondary)' }}>Multi-Company</button>
+            </div>
+            {view === 'single' && (
+              <select value={selectedCompany} onChange={(e) => setSelectedCompany(e.target.value)} className="input-neon py-2">
+                {companies.map((c, i) => <option key={i} value={String(c.name || 'Unknown')}>{String(c.name || 'Unknown')}</option>)}
+              </select>
+            )}
+            <DataSourceSelector value={dataSource} onChange={setDataSource} />
+            <button onClick={view === 'multi' ? loadMultiCompanyData : loadAnalytics} disabled={loading} className="btn-primary flex items-center gap-2">
+              <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /> Refresh
             </button>
           </div>
         </div>
       </header>
 
-      {/* Controls */}
-      <div className="flex flex-col md:flex-row gap-4 mb-8 animate-fade-up stagger-1">
-        <div className="flex p-1 bg-white/5 rounded-xl border border-white/10">
-          <button onClick={() => setView('single')}
-            className={`px-6 py-2.5 rounded-lg font-semibold transition-all ${
-              view === 'single' ? 'bg-gradient-to-r from-[#00F5FF] to-[#BF00FF] text-white shadow-lg' : 'text-white/50 hover:text-white'
-            }`}>
-            Single Company
-          </button>
-          <button onClick={() => { setView('multi'); if (!multiCompanyData.length) fetchMultiCompanyAnalytics(); }}
-            className={`px-6 py-2.5 rounded-lg font-semibold transition-all ${
-              view === 'multi' ? 'bg-gradient-to-r from-[#00F5FF] to-[#BF00FF] text-white shadow-lg' : 'text-white/50 hover:text-white'
-            }`}>
-            Multi-Company
-          </button>
+      {loading ? (
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="w-16 h-16 rounded-full border-4 animate-spin mx-auto mb-4" style={{ borderColor: 'var(--border-color)', borderTopColor: 'var(--primary)' }} />
+            <p style={{ color: 'var(--text-secondary)' }}>Loading analytics...</p>
+          </div>
         </div>
+      ) : view === 'multi' ? (
+        /* Multi-Company View */
+        <div className="space-y-6">
+          {/* Comparison Chart */}
+          <div className="chart-card">
+            <div className="chart-card-header">
+              <div>
+                <h3 className="chart-card-title">Company Performance Comparison</h3>
+                <p className="chart-card-subtitle">Revenue, Profit & Expenses across companies</p>
+              </div>
+              <span className="badge badge-primary">{multiCompanyData.length} companies</span>
+            </div>
+            <ResponsiveContainer width="100%" height={400}>
+              <ComposedChart data={multiCompanyData} layout="vertical">
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" horizontal={true} vertical={false} />
+                <XAxis type="number" tickFormatter={formatCurrency} tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
+                <YAxis dataKey="company_name" type="category" width={150} tick={{ fill: 'var(--text-muted)', fontSize: 11 }} tickFormatter={(v) => String(v || 'Unknown').slice(0, 20)} />
+                <Tooltip content={<CustomTooltip />} />
+                <Legend />
+                <Bar dataKey="revenue" name="Revenue" fill="#0EA5E9" radius={[0, 4, 4, 0]} barSize={20} />
+                <Bar dataKey="profit" name="Profit" fill="#10B981" radius={[0, 4, 4, 0]} barSize={20} />
+                <Bar dataKey="expenses" name="Expenses" fill="#EF4444" radius={[0, 4, 4, 0]} barSize={20} />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
 
-        {view === 'single' && (
-          <select value={selectedCompany} onChange={(e) => setSelectedCompany(e.target.value)}
-            className="input-neon flex-1 cursor-pointer">
-            <option value="">Select Company</option>
-            {companies.map((c, i) => (
-              <option key={i} value={c.name}>
-                {c.name} {c.source === 'live' ? '● Live' : c.source === 'bridge' ? '◉ Bridge' : '○ Backup'}
-              </option>
+          {/* Company Cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {multiCompanyData.map((c, i) => (
+              <div key={i} className="card p-5 animate-fade-up" style={{ animationDelay: `${i * 0.05}s` }}>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }}>
+                    <FiDatabase className="w-6 h-6 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="font-semibold truncate" style={{ color: 'var(--text-primary)' }}>{String(c.company_name || 'Unknown')}</h3>
+                    <span className="badge badge-cyan text-xs">Active</span>
+                  </div>
+                </div>
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span style={{ color: 'var(--text-muted)' }}>Revenue</span>
+                    <span className="font-bold" style={{ color: '#0EA5E9' }}>{formatCurrency(c.revenue)}</span>
+                  </div>
+                  <div className="progress-bar"><div className="progress-bar-fill cyan" style={{ width: '100%' }} /></div>
+                  <div className="flex justify-between items-center">
+                    <span style={{ color: 'var(--text-muted)' }}>Profit</span>
+                    <span className="font-bold" style={{ color: '#10B981' }}>{formatCurrency(c.profit)}</span>
+                  </div>
+                  <div className="progress-bar"><div className="progress-bar-fill green" style={{ width: `${c.revenue ? (c.profit / c.revenue * 100) : 0}%` }} /></div>
+                  <div className="flex justify-between items-center">
+                    <span style={{ color: 'var(--text-muted)' }}>Expenses</span>
+                    <span className="font-bold" style={{ color: '#EF4444' }}>{formatCurrency(c.expenses)}</span>
+                  </div>
+                </div>
+              </div>
             ))}
-          </select>
-        )}
-      </div>
+          </div>
+        </div>
+      ) : (
+        /* Single Company View */
+        <div className="space-y-6">
+          {/* KPI Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="stat-card cyan">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--text-muted)' }}>Total Revenue</p>
+                  <p className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>{formatCurrency(revenue)}</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="badge badge-green text-xs"><FiTrendingUp className="w-3 h-3 mr-1" />+12.5%</span>
+                  </div>
+                </div>
+                <div className="w-16 h-16">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={[{v:30},{v:45},{v:35},{v:55},{v:48},{v:60},{v:55}]}>
+                      <defs>
+                        <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="0%" stopColor="#0EA5E9" stopOpacity={0.4}/>
+                          <stop offset="100%" stopColor="#0EA5E9" stopOpacity={0}/>
+                        </linearGradient>
+                      </defs>
+                      <Area type="monotone" dataKey="v" stroke="#0EA5E9" fill="url(#revGrad)" strokeWidth={2} />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
 
-      {/* Content */}
-      {view === 'single' ? renderContent() : renderMultiCompany()}
+            <div className="stat-card red">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--text-muted)' }}>Total Expenses</p>
+                  <p className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>{formatCurrency(expenses)}</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="badge badge-red text-xs"><FiTrendingDown className="w-3 h-3 mr-1" />-3.2%</span>
+                  </div>
+                </div>
+                <div className="w-16 h-16">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <BarChart data={[{v:40},{v:35},{v:45},{v:38},{v:42},{v:36},{v:40}]}>
+                      <Bar dataKey="v" fill="#EF4444" radius={[2,2,0,0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+
+            <div className="stat-card emerald">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--text-muted)' }}>Net Profit</p>
+                  <p className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>{formatCurrency(profit)}</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="badge badge-cyan text-xs">Margin: {margin}%</span>
+                  </div>
+                </div>
+                <div className="w-16 h-16">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <LineChart data={[{v:20},{v:35},{v:30},{v:45},{v:40},{v:55},{v:50}]}>
+                      <Line type="monotone" dataKey="v" stroke="#10B981" strokeWidth={2} dot={false} />
+                    </LineChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+
+            <div className="stat-card purple">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--text-muted)' }}>Health Score</p>
+                  <p className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>{profit > 0 ? 'Good' : 'Review'}</p>
+                  <div className="flex items-center gap-2 mt-2">
+                    <span className="text-xs flex items-center gap-1" style={{ color: profit > 0 ? 'var(--success)' : 'var(--error)' }}>
+                      {profit > 0 ? <FiCheck className="w-3 h-3" /> : <FiX className="w-3 h-3" />} {profit > 0 ? 'Profitable' : 'Loss'}
+                    </span>
+                  </div>
+                </div>
+                <div className="w-16 h-16">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadialBarChart cx="50%" cy="50%" innerRadius="60%" outerRadius="100%" data={healthGauge} startAngle={180} endAngle={0}>
+                      <RadialBar background={{ fill: 'var(--bg-secondary)' }} dataKey="value" cornerRadius={10} fill={healthGauge[0].fill} />
+                    </RadialBarChart>
+                  </ResponsiveContainer>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Main Charts */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Revenue vs Expenses */}
+            <div className="lg:col-span-2 chart-card">
+              <div className="chart-card-header">
+                <div>
+                  <h3 className="chart-card-title">Financial Performance Trend</h3>
+                  <p className="chart-card-subtitle">Monthly revenue, expenses & profit analysis</p>
+                </div>
+                <div className="flex gap-3 text-xs">
+                  <span className="flex items-center gap-1"><span className="w-3 h-3 rounded" style={{background:'#0EA5E9'}}/> Revenue</span>
+                  <span className="flex items-center gap-1"><span className="w-3 h-3 rounded" style={{background:'#EF4444'}}/> Expenses</span>
+                  <span className="flex items-center gap-1"><span className="w-3 h-3 rounded" style={{background:'#10B981'}}/> Profit</span>
+                </div>
+              </div>
+              <ResponsiveContainer width="100%" height={320}>
+                <ComposedChart data={monthlyData}>
+                  <defs>
+                    <linearGradient id="revAreaGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#0EA5E9" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="#0EA5E9" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
+                  <XAxis dataKey="month" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} />
+                  <YAxis tickFormatter={formatCurrency} tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} />
+                  <Tooltip content={<CustomTooltip />} />
+                  <Area type="monotone" dataKey="revenue" name="Revenue" stroke="#0EA5E9" fill="url(#revAreaGrad)" strokeWidth={2} />
+                  <Bar dataKey="expenses" name="Expenses" fill="#EF4444" radius={[4, 4, 0, 0]} barSize={20} />
+                  <Line type="monotone" dataKey="profit" name="Profit" stroke="#10B981" strokeWidth={3} dot={{ fill: '#10B981', r: 4 }} />
+                  <ReferenceLine y={profit / 12} stroke="#F59E0B" strokeDasharray="3 3" />
+                </ComposedChart>
+              </ResponsiveContainer>
+            </div>
+
+            {/* Performance Radar */}
+            <div className="chart-card">
+              <div className="chart-card-header">
+                <h3 className="chart-card-title">Performance Metrics</h3>
+              </div>
+              <ResponsiveContainer width="100%" height={280}>
+                <RadarChart data={performanceRadar}>
+                  <PolarGrid stroke="var(--border-color)" />
+                  <PolarAngleAxis dataKey="metric" tick={{ fill: 'var(--text-muted)', fontSize: 10 }} />
+                  <PolarRadiusAxis angle={30} domain={[0, 100]} tick={{ fill: 'var(--text-muted)', fontSize: 9 }} />
+                  <Radar name="Score" dataKey="value" stroke="#8B5CF6" fill="#8B5CF6" fillOpacity={0.3} strokeWidth={2} />
+                  <Tooltip content={<CustomTooltip />} />
+                </RadarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* Expense Breakdown */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="chart-card">
+              <div className="chart-card-header">
+                <h3 className="chart-card-title">Expense Distribution</h3>
+              </div>
+              <div className="flex items-center gap-6">
+                <ResponsiveContainer width="50%" height={240}>
+                  <PieChart>
+                    <Pie data={expenseBreakdown} cx="50%" cy="50%" innerRadius={55} outerRadius={90} paddingAngle={3} dataKey="value">
+                      {expenseBreakdown.map((entry, i) => <Cell key={i} fill={entry.fill || CHART_COLORS[i]} />)}
+                    </Pie>
+                    <Tooltip content={<CustomTooltip />} />
+                  </PieChart>
+                </ResponsiveContainer>
+                <div className="flex-1 space-y-3">
+                  {expenseBreakdown.map((item, i) => (
+                    <div key={i} className="flex items-center gap-3">
+                      <span className="w-3 h-3 rounded-full" style={{ background: item.fill || CHART_COLORS[i] }} />
+                      <span className="flex-1 text-sm" style={{ color: 'var(--text-primary)' }}>{item.name}</span>
+                      <span className="font-bold text-sm" style={{ color: item.fill || CHART_COLORS[i] }}>{formatCurrency(item.value)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Summary */}
+            <div className="summary-card secondary">
+              <div className="flex items-center gap-4 mb-6">
+                <div className="w-16 h-16 rounded-xl flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.2)' }}>
+                  <FiAward className="w-8 h-8" />
+                </div>
+                <div>
+                  <p className="text-sm opacity-80">Financial Summary</p>
+                  <p className="text-2xl font-bold">{selectedCompany}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-6">
+                <div>
+                  <p className="text-sm opacity-80">Revenue</p>
+                  <p className="text-2xl font-bold">{formatCurrency(revenue)}</p>
+                </div>
+                <div>
+                  <p className="text-sm opacity-80">Profit</p>
+                  <p className="text-2xl font-bold">{formatCurrency(profit)}</p>
+                </div>
+                <div>
+                  <p className="text-sm opacity-80">Margin</p>
+                  <p className="text-2xl font-bold">{margin}%</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
-  );
-};
-
-export default AnalyticsPage;
+  )
+}

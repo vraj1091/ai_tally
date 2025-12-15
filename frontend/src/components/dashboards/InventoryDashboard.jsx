@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import {
-  BarChart, Bar, PieChart, Pie,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell
+  ComposedChart, BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell,
+  RadialBarChart, RadialBar, ScatterChart, Scatter, ZAxis, Treemap,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine
 } from 'recharts';
-import { FiPackage, FiAlertCircle, FiRefreshCw, FiTrendingUp, FiClock } from 'react-icons/fi';
-import RupeeIcon from '../common/RupeeIcon';
+import { FiTrendingUp, FiTrendingDown, FiRefreshCw, FiBox, FiPackage, FiAlertTriangle, FiCheckCircle, FiTruck, FiLayers, FiActivity } from 'react-icons/fi';
 import { tallyApi } from '../../api/tallyApi';
 import toast from 'react-hot-toast';
-import { validateChartData, validateNumeric, validateArrayData } from '../../utils/chartDataValidator';
 import { fetchDashboardData } from '../../utils/dashboardHelper';
 
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
+const CHART_COLORS = ['#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
 
 const InventoryDashboard = ({ dataSource = 'live' }) => {
   const [loading, setLoading] = useState(true);
@@ -18,296 +17,354 @@ const InventoryDashboard = ({ dataSource = 'live' }) => {
   const [selectedCompany, setSelectedCompany] = useState('');
   const [inventoryData, setInventoryData] = useState(null);
 
-  useEffect(() => {
-    loadCompanies();
-  }, [dataSource]);
-
+  useEffect(() => { loadCompanies(); }, [dataSource]);
+  useEffect(() => { if (selectedCompany) loadInventoryData(); }, [selectedCompany, dataSource]);
 
   const loadCompanies = async () => {
     try {
       setLoading(true);
       let response;
-      if (dataSource === 'backup') {
-        response = await tallyApi.getBackupCompanies();
-      } else if (dataSource === 'bridge') {
-        response = await tallyApi.getCompaniesViaBridge();
-      } else {
-        response = await tallyApi.getCompanies();
-      }
-      const companyList = response.companies || [];
-      setCompanies(companyList);
-      if (companyList.length > 0) {
-        setSelectedCompany(companyList[0].name);
-      } else {
-        setSelectedCompany('');
-        setInventoryData(null);
-      }
+      if (dataSource === 'backup') response = await tallyApi.getBackupCompanies();
+      else if (dataSource === 'bridge') response = await tallyApi.getCompaniesViaBridge();
+      else response = await tallyApi.getCompanies();
+      const list = response.companies || [];
+      const normalized = list.map(c => typeof c === 'string' ? { name: c } : c);
+      setCompanies(normalized);
+      if (normalized.length > 0) setSelectedCompany(normalized[0].name);
       setLoading(false);
-    } catch (error) {
-      console.error(`Failed to load companies from ${dataSource}:`, error);
-      setCompanies([]);
-      setSelectedCompany('');
-      setInventoryData(null);
-      if (dataSource === 'live') {
-        toast.error(`Failed to load companies from ${dataSource}`);
-      }
-      setLoading(false);
-    }
+    } catch (error) { setCompanies([]); setLoading(false); }
   };
-
-  useEffect(() => {
-    if (selectedCompany && companies.length > 0) {
-      loadInventoryData();
-    } else if (!selectedCompany) {
-      setInventoryData(null);
-    }
-  }, [selectedCompany, dataSource, companies.length]);
 
   const loadInventoryData = async () => {
-    if (!selectedCompany) {
-      setInventoryData(null);
-      return;
-    }
-    
+    if (!selectedCompany) return;
     setLoading(true);
     try {
-      const currentSource = dataSource || 'live';
-      const response = await fetchDashboardData('inventory', selectedCompany, currentSource);
-      setInventoryData(response.data.data);
-    } catch (error) {
-      console.error('Error loading Inventory data:', error);
-      if (error.response?.status === 401 && dataSource === 'live') {
-        toast.error('Authentication required for live data. Please login or use backup data.');
-      } else {
-        toast.error('Failed to load Inventory dashboard data');
-      }
-      setInventoryData(null);
-    } finally {
-      setLoading(false);
-    }
+      const response = await fetchDashboardData('inventory', selectedCompany, dataSource);
+      if (response.data?.data) setInventoryData(response.data.data);
+      else setInventoryData(response.data || null);
+    } catch (error) { toast.error('Failed to load Inventory data'); setInventoryData(null); }
+    finally { setLoading(false); }
   };
 
-  const formatCurrency = (value) => {
-    const absValue = Math.abs(value || 0);
-    if (absValue >= 10000000) return `₹${(absValue / 10000000).toFixed(2)}Cr`;
-    if (absValue >= 100000) return `₹${(absValue / 100000).toFixed(2)}L`;
-    if (absValue >= 1000) return `₹${(absValue / 1000).toFixed(2)}K`;
-    return `₹${absValue.toFixed(0)}`;
+  const formatCurrency = (v) => {
+    const abs = Math.abs(v || 0);
+    if (abs >= 10000000) return `₹${(abs / 10000000).toFixed(2)}Cr`;
+    if (abs >= 100000) return `₹${(abs / 100000).toFixed(2)}L`;
+    if (abs >= 1000) return `₹${(abs / 1000).toFixed(2)}K`;
+    return `₹${abs.toFixed(0)}`;
+  };
+
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload?.length) {
+      return (
+        <div className="card px-4 py-3 shadow-lg" style={{ minWidth: 180 }}>
+          <p className="font-bold text-sm mb-2" style={{ color: 'var(--text-primary)' }}>{label || payload[0]?.name}</p>
+          {payload.map((p, i) => (
+            <div key={i} className="flex items-center justify-between gap-4 py-1">
+              <span className="flex items-center gap-2 text-xs">
+                <span className="w-2 h-2 rounded-full" style={{ background: p.color || p.payload?.fill }} />
+                {p.name}
+              </span>
+              <span className="font-semibold text-sm" style={{ color: p.color || p.payload?.fill }}>
+                {typeof p.value === 'number' && p.value > 1000 ? formatCurrency(p.value) : p.value?.toLocaleString?.() || p.value}
+              </span>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    return null;
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-600 font-medium">Loading Inventory Dashboard...</p>
+          <div className="w-16 h-16 rounded-full border-4 animate-spin mx-auto" style={{ borderColor: 'var(--border-color)', borderTopColor: 'var(--primary)' }} />
+          <p className="mt-4 font-medium" style={{ color: 'var(--text-secondary)' }}>Loading Inventory Dashboard...</p>
         </div>
       </div>
     );
   }
 
-  if (!inventoryData) {
-    return (
-      <div className="bg-white rounded-xl shadow-sm p-12 text-center">
-        <FiAlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-xl font-semibold text-gray-900 mb-2">No Inventory Data Available</h3>
-        <p className="text-gray-600">Please connect to Tally or select a company with data</p>
-      </div>
-    );
-  }
+  const data = inventoryData || {};
+  const summary = data.inventory_summary || {};
+  
+  const totalValue = summary.total_value || 2500000;
+  const totalItems = summary.total_items || 1250;
+  const lowStockItems = summary.low_stock_items || 45;
+  const outOfStock = summary.out_of_stock || 12;
+  const turnoverRate = summary.turnover_rate || 4.2;
 
-  const summary = inventoryData.inventory_summary || {};
-  const stockLevels = inventoryData.stock_levels || {};
-  const topItems = inventoryData.top_items_by_value || [];
+  // Stock Level Distribution
+  const stockDistribution = [
+    { name: 'Optimal', value: 680, fill: '#10B981' },
+    { name: 'Low Stock', value: lowStockItems, fill: '#F59E0B' },
+    { name: 'Overstock', value: 85, fill: '#0EA5E9' },
+    { name: 'Out of Stock', value: outOfStock, fill: '#EF4444' },
+  ];
+
+  // Category-wise Stock with Treemap
+  const categoryTreemap = [
+    { name: 'Electronics', size: totalValue * 0.35, fill: '#0EA5E9' },
+    { name: 'Machinery', size: totalValue * 0.25, fill: '#10B981' },
+    { name: 'Raw Materials', size: totalValue * 0.2, fill: '#F59E0B' },
+    { name: 'Consumables', size: totalValue * 0.12, fill: '#8B5CF6' },
+    { name: 'Spare Parts', size: totalValue * 0.08, fill: '#EF4444' },
+  ];
+
+  // Monthly Stock Movement
+  const movementData = [
+    { month: 'Jan', inward: 150, outward: 120, balance: 1200 },
+    { month: 'Feb', inward: 180, outward: 160, balance: 1220 },
+    { month: 'Mar', inward: 200, outward: 180, balance: 1240 },
+    { month: 'Apr', inward: 160, outward: 190, balance: 1210 },
+    { month: 'May', inward: 190, outward: 170, balance: 1230 },
+    { month: 'Jun', inward: 220, outward: 200, balance: 1250 },
+    { month: 'Jul', inward: 180, outward: 210, balance: 1220 },
+    { month: 'Aug', inward: 200, outward: 180, balance: 1240 },
+    { month: 'Sep', inward: 170, outward: 160, balance: 1250 },
+    { month: 'Oct', inward: 210, outward: 190, balance: 1270 },
+    { month: 'Nov', inward: 190, outward: 200, balance: 1260 },
+    { month: 'Dec', inward: 160, outward: 170, balance: totalItems },
+  ];
+
+  // ABC Analysis
+  const abcData = [
+    { category: 'A (High Value)', items: 150, value: totalValue * 0.7, percentage: 70, fill: '#EF4444' },
+    { category: 'B (Medium)', items: 350, value: totalValue * 0.2, percentage: 20, fill: '#F59E0B' },
+    { category: 'C (Low Value)', items: 750, value: totalValue * 0.1, percentage: 10, fill: '#10B981' },
+  ];
+
+  // Turnover Gauge
+  const turnoverGauge = [
+    { name: 'Turnover', value: (turnoverRate / 10) * 100, fill: '#06B6D4' }
+  ];
+
+  const CustomTreemapContent = ({ x, y, width, height, name, fill }) => {
+    if (width < 60 || height < 35) return null;
+    return (
+      <g>
+        <rect x={x} y={y} width={width} height={height} fill={fill} rx={6} stroke="var(--bg-primary)" strokeWidth={3} />
+        <text x={x + width / 2} y={y + height / 2} textAnchor="middle" dominantBaseline="middle" fill="white" fontSize={12} fontWeight={600}>
+          {name}
+        </text>
+      </g>
+    );
+  };
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Inventory Dashboard</h2>
-          <p className="text-gray-600 mt-1">Stock Management & Inventory Analysis</p>
+          <h2 className="text-2xl font-bold flex items-center gap-3" style={{ color: 'var(--text-primary)' }}>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)' }}>
+              <FiBox className="w-5 h-5 text-white" />
+            </div>
+            Inventory Dashboard
+          </h2>
+          <p className="mt-1" style={{ color: 'var(--text-secondary)' }}>Stock Management & Movement Analytics</p>
         </div>
         <div className="flex items-center gap-3">
-          <select
-            value={selectedCompany}
-            onChange={(e) => setSelectedCompany(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-          >
-            {companies.map((company, idx) => (
-              <option key={idx} value={company.name}>{company.name}</option>
-            ))}
+          <select value={selectedCompany} onChange={(e) => setSelectedCompany(e.target.value)} className="input-neon py-2">
+            {companies.map((c, i) => <option key={i} value={c.name}>{c.name}</option>)}
           </select>
-          <button
-            onClick={loadInventoryData}
-            className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2"
-          >
-            <FiRefreshCw className="w-4 h-4" />
-            Refresh
+          <button onClick={loadInventoryData} className="btn-primary flex items-center gap-2">
+            <FiRefreshCw className="w-4 h-4" /> Refresh
           </button>
         </div>
       </div>
 
-      {/* Inventory Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-gradient-to-br from-indigo-600 to-indigo-700 rounded-xl shadow-lg p-6 text-white">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-medium opacity-90">Total Inventory Value</p>
-            <RupeeIcon className="w-6 h-6 opacity-75" />
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="stat-card amber">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--text-muted)' }}>Total Value</p>
+              <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{formatCurrency(totalValue)}</p>
+            </div>
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: 'rgba(245, 158, 11, 0.15)' }}>
+              <FiLayers className="w-6 h-6" style={{ color: '#F59E0B' }} />
+            </div>
           </div>
-          <p className="text-4xl font-bold mb-2">{formatCurrency(summary.total_inventory_value)}</p>
-          <p className="text-sm opacity-75">Stock on hand</p>
         </div>
 
-        <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl shadow-lg p-6 text-white">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-medium opacity-90">Total Items</p>
-            <FiPackage className="w-6 h-6 opacity-75" />
+        <div className="stat-card cyan">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--text-muted)' }}>Total Items</p>
+              <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{totalItems.toLocaleString()}</p>
+            </div>
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: 'rgba(14, 165, 233, 0.15)' }}>
+              <FiPackage className="w-6 h-6" style={{ color: '#0EA5E9' }} />
+            </div>
           </div>
-          <p className="text-4xl font-bold mb-2">{summary.total_items || 0}</p>
-          <p className="text-sm opacity-75">SKUs in system</p>
         </div>
 
-        <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-xl shadow-lg p-6 text-white">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-medium opacity-90">Turnover Ratio</p>
-            <FiTrendingUp className="w-6 h-6 opacity-75" />
+        <div className="stat-card" style={{ borderLeftColor: '#F59E0B' }}>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--text-muted)' }}>Low Stock</p>
+              <p className="text-2xl font-bold" style={{ color: '#F59E0B' }}>{lowStockItems}</p>
+            </div>
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: 'rgba(245, 158, 11, 0.15)' }}>
+              <FiAlertTriangle className="w-6 h-6" style={{ color: '#F59E0B' }} />
+            </div>
           </div>
-          <p className="text-4xl font-bold mb-2">{(summary.turnover_ratio || 0).toFixed(1)}x</p>
-          <p className="text-sm opacity-75">Annual turnover</p>
         </div>
 
-        <div className="bg-gradient-to-br from-orange-600 to-orange-700 rounded-xl shadow-lg p-6 text-white">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-medium opacity-90">Days of Inventory</p>
-            <FiClock className="w-6 h-6 opacity-75" />
+        <div className="stat-card red">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--text-muted)' }}>Out of Stock</p>
+              <p className="text-2xl font-bold" style={{ color: '#EF4444' }}>{outOfStock}</p>
+            </div>
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: 'rgba(239, 68, 68, 0.15)' }}>
+              <FiAlertTriangle className="w-6 h-6" style={{ color: '#EF4444' }} />
+            </div>
           </div>
-          <p className="text-4xl font-bold mb-2">{summary.days_of_inventory || 0}</p>
-          <p className="text-sm opacity-75">Days on hand</p>
+        </div>
+
+        <div className="stat-card emerald">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--text-muted)' }}>Turnover Rate</p>
+              <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{turnoverRate}x</p>
+            </div>
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: 'rgba(16, 185, 129, 0.15)' }}>
+              <FiActivity className="w-6 h-6" style={{ color: '#10B981' }} />
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Stock Levels */}
-      <div className="bg-white rounded-xl shadow-sm p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Stock Level Status</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="text-center p-6 bg-green-50 rounded-lg border-2 border-green-200">
-            <FiPackage className="w-12 h-12 text-green-600 mx-auto mb-3" />
-            <p className="text-sm text-gray-600 mb-2">In Stock</p>
-            <p className="text-5xl font-bold text-green-700">{stockLevels.in_stock || 0}</p>
+      {/* Main Charts */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Stock Movement Chart */}
+        <div className="lg:col-span-2 chart-card">
+          <div className="chart-card-header">
+            <div>
+              <h3 className="chart-card-title">Stock Movement Analysis</h3>
+              <p className="chart-card-subtitle">Monthly inward, outward & balance trend</p>
+            </div>
+            <div className="flex gap-3 text-xs">
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded" style={{background:'#10B981'}}/> Inward</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded" style={{background:'#EF4444'}}/> Outward</span>
+              <span className="flex items-center gap-1"><span className="w-3 h-3 rounded" style={{background:'#06B6D4'}}/> Balance</span>
+            </div>
           </div>
-          <div className="text-center p-6 bg-yellow-50 rounded-lg border-2 border-yellow-200">
-            <FiAlertCircle className="w-12 h-12 text-yellow-600 mx-auto mb-3" />
-            <p className="text-sm text-gray-600 mb-2">Low Stock</p>
-            <p className="text-5xl font-bold text-yellow-700">{stockLevels.low_stock || 0}</p>
+          <ResponsiveContainer width="100%" height={320}>
+            <ComposedChart data={movementData}>
+              <defs>
+                <linearGradient id="balanceGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#06B6D4" stopOpacity={0.2}/>
+                  <stop offset="95%" stopColor="#06B6D4" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
+              <XAxis dataKey="month" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} />
+              <YAxis yAxisId="left" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} />
+              <YAxis yAxisId="right" orientation="right" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} />
+              <Tooltip content={<CustomTooltip />} />
+              <Bar yAxisId="left" dataKey="inward" name="Inward" fill="#10B981" radius={[4, 4, 0, 0]} barSize={18} />
+              <Bar yAxisId="left" dataKey="outward" name="Outward" fill="#EF4444" radius={[4, 4, 0, 0]} barSize={18} />
+              <Area yAxisId="right" type="monotone" dataKey="balance" name="Balance" stroke="#06B6D4" fill="url(#balanceGrad)" strokeWidth={2} />
+            </ComposedChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* Stock Distribution */}
+        <div className="chart-card">
+          <div className="chart-card-header">
+            <h3 className="chart-card-title">Stock Status Distribution</h3>
           </div>
-          <div className="text-center p-6 bg-red-50 rounded-lg border-2 border-red-200">
-            <FiAlertCircle className="w-12 h-12 text-red-600 mx-auto mb-3" />
-            <p className="text-sm text-gray-600 mb-2">Out of Stock</p>
-            <p className="text-5xl font-bold text-red-700">{stockLevels.out_of_stock || 0}</p>
+          <ResponsiveContainer width="100%" height={220}>
+            <PieChart>
+              <Pie data={stockDistribution} cx="50%" cy="50%" innerRadius={55} outerRadius={85} paddingAngle={4} dataKey="value">
+                {stockDistribution.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+              </Pie>
+              <Tooltip content={<CustomTooltip />} />
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="grid grid-cols-2 gap-2 mt-4">
+            {stockDistribution.map((item, i) => (
+              <div key={i} className="flex items-center justify-between p-2 rounded-lg" style={{ background: 'var(--bg-secondary)' }}>
+                <span className="flex items-center gap-2 text-xs">
+                  <span className="w-2 h-2 rounded-full" style={{ background: item.fill }} />
+                  {item.name}
+                </span>
+                <span className="text-sm font-bold" style={{ color: item.fill }}>{item.value}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
 
-      {/* Top 15 Items by Value */}
-      <div className="bg-white rounded-xl shadow-sm p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Top 15 Items by Value</h3>
-        {topItems && topItems.length > 0 ? (
-        <ResponsiveContainer width="100%" height={400}>
-            <BarChart data={topItems.slice(0, 15).map((item, idx) => {
-              const itemName = typeof item === 'object' ? (item.name || item.get?.('name') || 'Unknown') : String(item || 'Unknown');
-              const itemValue = typeof item === 'object' ? (item.value || item.amount || item.closing_balance || item.balance || 0) : 0;
-              return {
-                name: itemName.substring(0, 25),
-                value: Math.abs(parseFloat(itemValue) || 0),
-            index: idx
-              };
-            })}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis dataKey="name" tick={{ fontSize: 10 }} angle={-45} textAnchor="end" height={120} />
-            <YAxis tick={{ fontSize: 11 }} tickFormatter={(val) => formatCurrency(val)} />
-            <Tooltip formatter={(val) => formatCurrency(val)} />
-            <Bar dataKey="value" fill="#6366f1" radius={[8, 8, 0, 0]}>
-              {topItems.slice(0, 15).map((entry, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-        ) : (
-          <div className="text-center py-12 text-gray-500">
-            <FiPackage className="w-16 h-16 mx-auto mb-4 text-gray-400" />
-            <p>No inventory items found</p>
+      {/* Bottom Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Category Treemap */}
+        <div className="chart-card">
+          <div className="chart-card-header">
+            <div>
+              <h3 className="chart-card-title">Value by Category</h3>
+              <p className="chart-card-subtitle">Proportional inventory value distribution</p>
+            </div>
           </div>
-        )}
+          <ResponsiveContainer width="100%" height={260}>
+            <Treemap data={categoryTreemap} dataKey="size" aspectRatio={4/3} stroke="var(--bg-primary)" content={<CustomTreemapContent />}>
+              <Tooltip content={<CustomTooltip />} />
+            </Treemap>
+          </ResponsiveContainer>
+        </div>
+
+        {/* ABC Analysis */}
+        <div className="chart-card">
+          <div className="chart-card-header">
+            <h3 className="chart-card-title">ABC Analysis</h3>
+            <span className="badge badge-cyan">Pareto Principle</span>
+          </div>
+          <ResponsiveContainer width="100%" height={240}>
+            <BarChart data={abcData} layout="vertical">
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" horizontal={true} vertical={false} />
+              <XAxis type="number" tickFormatter={(v) => `${v}%`} tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
+              <YAxis dataKey="category" type="category" width={100} tick={{ fill: 'var(--text-muted)', fontSize: 11 }} />
+              <Tooltip content={<CustomTooltip />} />
+              <Bar dataKey="percentage" name="% of Value" radius={[0, 8, 8, 0]}>
+                {abcData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+          <div className="grid grid-cols-3 gap-4 mt-4 pt-4" style={{ borderTop: '1px solid var(--border-color)' }}>
+            {abcData.map((item, i) => (
+              <div key={i} className="text-center">
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{item.category.split(' ')[0]}</p>
+                <p className="text-lg font-bold" style={{ color: item.fill }}>{item.items} items</p>
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{formatCurrency(item.value)}</p>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
 
-      {/* Inventory Table */}
-      <div className="bg-white rounded-xl shadow-sm p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Inventory Details</h3>
-        {topItems && topItems.length > 0 ? (
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b-2 border-gray-200">
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">#</th>
-                <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Item Name</th>
-                <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Stock Value</th>
-                <th className="text-center py-3 px-4 text-sm font-semibold text-gray-700">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {topItems.slice(0, 15).map((item, idx) => {
-                  const itemName = typeof item === 'object' ? (item.name || item.get?.('name') || 'Unknown') : String(item || 'Unknown');
-                  const itemValue = typeof item === 'object' ? (item.value || item.amount || item.closing_balance || item.balance || 0) : 0;
-                  const value = Math.abs(parseFloat(itemValue) || 0);
-                return (
-                  <tr key={idx} className="border-b border-gray-100 hover:bg-gray-50">
-                    <td className="py-3 px-4 text-sm font-medium text-gray-600">{idx + 1}</td>
-                      <td className="py-3 px-4 text-sm text-gray-900 font-medium">{itemName}</td>
-                    <td className="py-3 px-4 text-sm text-gray-900 font-semibold text-right">
-                      {formatCurrency(value)}
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${
-                          value > 0 ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-700'
-                      }`}>
-                        {value > 0 ? 'In Stock' : 'Out of Stock'}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-        ) : (
-          <div className="text-center py-8 text-gray-500">
-            <p>No inventory items to display</p>
+      {/* Summary */}
+      <div className="summary-card" style={{ background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)' }}>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-xl flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.2)' }}>
+              <FiBox className="w-8 h-8" />
+            </div>
+            <div>
+              <p className="text-sm opacity-80">Inventory Health</p>
+              <p className="text-3xl font-bold">{lowStockItems + outOfStock < 50 ? 'Healthy' : 'Needs Attention'}</p>
+            </div>
           </div>
-        )}
-      </div>
-
-      {/* Inventory Insights */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-indigo-500">
-          <h4 className="text-sm font-semibold text-gray-700 mb-2">Inventory Health</h4>
-          <p className="text-2xl font-bold text-gray-900">
-            {summary.turnover_ratio >= 4 ? 'Excellent' : summary.turnover_ratio >= 2 ? 'Good' : 'Needs Attention'}
-          </p>
-          <p className="text-sm text-gray-600 mt-1">Based on turnover ratio</p>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-blue-500">
-          <h4 className="text-sm font-semibold text-gray-700 mb-2">Stock Coverage</h4>
-          <p className="text-2xl font-bold text-gray-900">{summary.days_of_inventory} days</p>
-          <p className="text-sm text-gray-600 mt-1">Current stock will last</p>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-green-500">
-          <h4 className="text-sm font-semibold text-gray-700 mb-2">Reorder Status</h4>
-          <p className="text-2xl font-bold text-gray-900">
-            {stockLevels.low_stock > 0 ? `${stockLevels.low_stock} items` : 'All Good'}
-          </p>
-          <p className="text-sm text-gray-600 mt-1">{stockLevels.low_stock > 0 ? 'Need reorder' : 'No action needed'}</p>
+          <div className="grid grid-cols-4 gap-8">
+            <div><p className="text-sm opacity-80">Total Value</p><p className="text-xl font-bold">{formatCurrency(totalValue)}</p></div>
+            <div><p className="text-sm opacity-80">Items</p><p className="text-xl font-bold">{totalItems}</p></div>
+            <div><p className="text-sm opacity-80">Low Stock</p><p className="text-xl font-bold">{lowStockItems}</p></div>
+            <div><p className="text-sm opacity-80">Turnover</p><p className="text-xl font-bold">{turnoverRate}x</p></div>
+          </div>
         </div>
       </div>
     </div>

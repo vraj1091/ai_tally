@@ -1,201 +1,138 @@
 import React, { useState } from 'react'
-import { useNavigate, Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
+import { FiMail, FiLock, FiEye, FiEyeOff, FiZap, FiArrowRight } from 'react-icons/fi'
 import useAuthStore from '../store/authStore'
-import { FiMail, FiLock, FiArrowRight, FiZap, FiCpu, FiDatabase } from 'react-icons/fi'
+import toast from 'react-hot-toast'
 
-const LoginPage = () => {
+export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
-  const navigate = useNavigate()
   const { login } = useAuthStore()
+  const navigate = useNavigate()
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    setError('')
     setLoading(true)
-
     try {
-      const storedUser = localStorage.getItem('user')
-      
-      if (storedUser) {
-        const user = JSON.parse(storedUser)
-        const token = 'demo-token-' + Date.now()
-        login(user, token)
-        localStorage.setItem('token', token)
-        localStorage.setItem('isAuthenticated', 'true')
-        navigate('/dashboard')
-      } else {
-        const user = {
-          email,
-          username: email.split('@')[0],
-          id: Date.now().toString(),
-          createdAt: new Date().toISOString()
-        }
-        const token = 'demo-token-' + Date.now()
-        login(user, token)
-        localStorage.setItem('user', JSON.stringify(user))
-        localStorage.setItem('token', token)
-        localStorage.setItem('isAuthenticated', 'true')
-        navigate('/dashboard')
-      }
-    } catch (err) {
-      setError(err.message || 'An error occurred')
+      await login(email, password)
+      toast.success('Welcome back!')
+      navigate('/dashboard')
+    } catch (error) {
+      toast.error(error.message || 'Login failed')
     } finally {
       setLoading(false)
     }
   }
 
-  const features = [
-    { icon: FiCpu, text: 'AI-Powered Analytics with Phi4:14b' },
-    { icon: FiDatabase, text: 'Real-time Tally ERP Integration' },
-    { icon: FiZap, text: '20+ Specialized Dashboards' },
-  ]
-
   return (
-    <div className="min-h-screen bg-[#050505] flex relative overflow-hidden">
-      {/* Animated Background */}
-      <div className="absolute inset-0 pointer-events-none">
-        <div className="absolute top-1/4 left-1/4 w-[800px] h-[800px] bg-[#00F5FF]/10 rounded-full blur-[150px] animate-float" />
-        <div className="absolute bottom-1/4 right-1/4 w-[600px] h-[600px] bg-[#BF00FF]/10 rounded-full blur-[150px] animate-float" style={{ animationDelay: '2s' }} />
-        <div className="absolute top-1/2 right-1/3 w-[400px] h-[400px] bg-[#FF00E5]/5 rounded-full blur-[120px] animate-float" style={{ animationDelay: '4s' }} />
-        <div className="absolute inset-0 bg-grid-pattern opacity-20" />
-      </div>
-
-      {/* Left Panel - Branding */}
-      <div className="hidden lg:flex flex-1 flex-col justify-center px-16 relative">
-        <div className="max-w-lg">
-          {/* Logo */}
-          <div className="flex items-center gap-4 mb-12">
-            <div className="relative">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#00F5FF] to-[#BF00FF] flex items-center justify-center shadow-2xl animate-pulse-glow">
-                <FiZap className="w-8 h-8 text-white" />
-              </div>
-              <div className="absolute -inset-2 rounded-3xl bg-gradient-to-br from-[#00F5FF] to-[#BF00FF] opacity-30 blur-xl -z-10" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-black text-gradient">TallyDash Pro</h1>
-              <p className="text-white/40">AI-Powered Analytics</p>
-            </div>
+    <div className="min-h-screen flex" style={{ background: 'var(--bg-primary)' }}>
+      {/* Left Side - Branding */}
+      <div className="hidden lg:flex lg:w-1/2 items-center justify-center p-12 relative overflow-hidden" style={{ background: 'var(--gradient-dark)' }}>
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-20 left-20 w-64 h-64 rounded-full" style={{ background: 'var(--primary)', filter: 'blur(100px)' }} />
+          <div className="absolute bottom-20 right-20 w-80 h-80 rounded-full" style={{ background: 'var(--blue)', filter: 'blur(120px)' }} />
+        </div>
+        
+        <div className="relative z-10 text-center text-white max-w-md">
+          <div className="w-20 h-20 mx-auto mb-8 rounded-2xl flex items-center justify-center" style={{ background: 'var(--gradient-primary)' }}>
+            <FiZap className="w-10 h-10" />
           </div>
-
-          {/* Tagline */}
-          <h2 className="text-5xl font-black leading-tight mb-6">
-            Transform Your <br />
-            <span className="text-gradient">Financial Data</span> <br />
-            Into Insights
-          </h2>
-          <p className="text-white/50 text-lg mb-12 leading-relaxed">
-            Harness the power of AI to analyze your Tally ERP data. Get instant insights, 
-            forecasts, and actionable intelligence at your fingertips.
-          </p>
-
-          {/* Features */}
-          <div className="space-y-4">
-            {features.map((f, i) => (
-              <div key={i} className="flex items-center gap-4 text-white/70">
-                <div className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
-                  <f.icon className="w-5 h-5 text-[#00F5FF]" />
+          <h1 className="text-4xl font-bold mb-4">TallyDash Pro</h1>
+          <p className="text-lg opacity-80 mb-8">Enterprise Analytics & AI-Powered Insights for Your Business</p>
+          
+          <div className="space-y-4 text-left">
+            {['20+ Specialized Dashboards', 'AI-Powered Analysis', 'Real-time Tally Integration', 'Multi-Company Support'].map((f, i) => (
+              <div key={i} className="flex items-center gap-3 text-sm opacity-90">
+                <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.1)' }}>
+                  <FiArrowRight className="w-3 h-3" />
                 </div>
-                <span>{f.text}</span>
+                {f}
               </div>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Right Panel - Login Form */}
-      <div className="flex-1 flex items-center justify-center px-6 py-12">
+      {/* Right Side - Form */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
-          {/* Mobile Logo */}
-          <div className="lg:hidden flex items-center justify-center gap-3 mb-12">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#00F5FF] to-[#BF00FF] flex items-center justify-center">
-              <FiZap className="w-6 h-6 text-white" />
+          <div className="lg:hidden flex items-center gap-3 mb-8">
+            <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'var(--gradient-primary)' }}>
+              <FiZap className="w-5 h-5 text-white" />
             </div>
-            <h1 className="text-2xl font-black text-gradient">TallyDash Pro</h1>
+            <h1 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>TallyDash</h1>
           </div>
 
-          {/* Form Card */}
-          <div className="glass-card p-8">
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-bold mb-2">Welcome Back</h2>
-              <p className="text-white/50">Sign in to access your dashboard</p>
-            </div>
+          <div className="card p-8">
+            <h2 className="text-2xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>Welcome back</h2>
+            <p className="mb-6" style={{ color: 'var(--text-muted)' }}>Sign in to continue to your dashboard</p>
 
-            {error && (
-              <div className="mb-6 p-4 rounded-xl bg-[#FF6B00]/10 border border-[#FF6B00]/30 text-[#FF6B00] text-sm">
-                {error}
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-5">
               <div>
-                <label className="block text-sm font-medium text-white/70 mb-2">Email Address</label>
+                <label className="text-sm font-medium mb-2 block" style={{ color: 'var(--text-secondary)' }}>Email</label>
                 <div className="relative">
-                  <FiMail className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 w-5 h-5" />
+                  <FiMail className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5" style={{ color: 'var(--text-muted)' }} />
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@company.com"
-                    required
+                    placeholder="you@example.com"
                     className="input-neon pl-12"
+                    required
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-white/70 mb-2">Password</label>
+                <label className="text-sm font-medium mb-2 block" style={{ color: 'var(--text-secondary)' }}>Password</label>
                 <div className="relative">
-                  <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 w-5 h-5" />
+                  <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5" style={{ color: 'var(--text-muted)' }} />
                   <input
-                    type="password"
+                    type={showPassword ? 'text' : 'password'}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
+                    className="input-neon pl-12 pr-12"
                     required
-                    className="input-neon pl-12"
                   />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2"
+                    style={{ color: 'var(--text-muted)' }}
+                  >
+                    {showPassword ? <FiEyeOff className="w-5 h-5" /> : <FiEye className="w-5 h-5" />}
+                  </button>
                 </div>
               </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className="btn-neon w-full flex items-center justify-center gap-2 py-4 disabled:opacity-50"
-              >
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" className="w-4 h-4 rounded" style={{ accentColor: 'var(--primary)' }} />
+                  <span className="text-sm" style={{ color: 'var(--text-secondary)' }}>Remember me</span>
+                </label>
+                <Link to="/forgot-password" className="text-sm font-medium" style={{ color: 'var(--primary)' }}>Forgot password?</Link>
+              </div>
+
+              <button type="submit" disabled={loading} className="btn-primary w-full py-3 flex items-center justify-center gap-2">
                 {loading ? (
-                  <>
-                    <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    Signing in...
-                  </>
+                  <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 ) : (
-                  <>
-                    Sign In <FiArrowRight className="w-5 h-5" />
-                  </>
+                  <>Sign In <FiArrowRight className="w-4 h-4" /></>
                 )}
               </button>
             </form>
 
-            <div className="mt-8 text-center">
-              <p className="text-white/40 text-sm">
-                Don't have an account?{' '}
-                <Link to="/register" className="text-[#00F5FF] font-semibold hover:underline">
-                  Create Account
-                </Link>
-              </p>
-            </div>
+            <p className="text-center mt-6" style={{ color: 'var(--text-muted)' }}>
+              Don't have an account?{' '}
+              <Link to="/register" className="font-medium" style={{ color: 'var(--primary)' }}>Create account</Link>
+            </p>
           </div>
-
-          {/* Footer */}
-          <p className="text-center text-white/30 text-xs mt-8">
-            © 2024 TallyDash Pro. AI-Powered Financial Analytics.
-          </p>
         </div>
       </div>
     </div>
   )
 }
 
-export default LoginPage

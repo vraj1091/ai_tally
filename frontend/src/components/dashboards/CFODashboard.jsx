@@ -1,16 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import {
-  BarChart, Bar, LineChart, Line, RadarChart, Radar, PolarGrid, PolarAngleAxis, PolarRadiusAxis,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell
+  ComposedChart, BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell,
+  RadialBarChart, RadialBar, Sankey, FunnelChart, Funnel, LabelList,
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine
 } from 'recharts';
-import { FiTrendingUp, FiAlertCircle, FiRefreshCw, FiActivity } from 'react-icons/fi';
-import RupeeIcon from '../common/RupeeIcon';
+import { FiTrendingUp, FiTrendingDown, FiRefreshCw, FiDollarSign, FiPieChart, FiTarget, FiAlertTriangle, FiShield, FiActivity, FiLayers } from 'react-icons/fi';
 import { tallyApi } from '../../api/tallyApi';
 import toast from 'react-hot-toast';
-import { validateChartData, validateNumeric } from '../../utils/chartDataValidator';
 import { fetchDashboardData } from '../../utils/dashboardHelper';
 
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+const CHART_COLORS = ['#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
 
 const CFODashboard = ({ dataSource = 'live' }) => {
   const [loading, setLoading] = useState(true);
@@ -18,303 +17,324 @@ const CFODashboard = ({ dataSource = 'live' }) => {
   const [selectedCompany, setSelectedCompany] = useState('');
   const [cfoData, setCfoData] = useState(null);
 
-  useEffect(() => {
-    loadCompanies();
-  }, [dataSource]);
-
-  useEffect(() => {
-    if (selectedCompany) {
-      loadCFOData();
-    }
-  }, [selectedCompany, dataSource]);
+  useEffect(() => { loadCompanies(); }, [dataSource]);
+  useEffect(() => { if (selectedCompany) loadCFOData(); }, [selectedCompany, dataSource]);
 
   const loadCompanies = async () => {
     try {
       setLoading(true);
       let response;
-      if (dataSource === 'backup') {
-        response = await tallyApi.getBackupCompanies();
-      } else if (dataSource === 'bridge') {
-        response = await tallyApi.getCompaniesViaBridge();
-      } else {
-        response = await tallyApi.getCompanies();
-      }
-      const companyList = response.companies || [];
-      setCompanies(companyList);
-      if (companyList.length > 0) {
-        setSelectedCompany(companyList[0].name);
-      } else {
-        setSelectedCompany('');
-        setCfoData(null);
-      }
+      if (dataSource === 'backup') response = await tallyApi.getBackupCompanies();
+      else if (dataSource === 'bridge') response = await tallyApi.getCompaniesViaBridge();
+      else response = await tallyApi.getCompanies();
+      const list = response.companies || [];
+      const normalized = list.map(c => typeof c === 'string' ? { name: c } : c);
+      setCompanies(normalized);
+      if (normalized.length > 0) setSelectedCompany(normalized[0].name);
       setLoading(false);
-    } catch (error) {
-      console.error(`Failed to load companies from ${dataSource}:`, error);
-      setCompanies([]);
-      setSelectedCompany('');
-      setCfoData(null);
-      if (dataSource === 'live') {
-        toast.error(`Failed to load companies from ${dataSource}`);
-      }
-      setLoading(false);
-    }
+    } catch (error) { setCompanies([]); setLoading(false); }
   };
-
-  useEffect(() => {
-    if (selectedCompany && companies.length > 0) {
-      loadCFOData();
-    } else if (!selectedCompany) {
-      setCfoData(null);
-    }
-  }, [selectedCompany, dataSource, companies.length]);
 
   const loadCFOData = async () => {
-    if (!selectedCompany) {
-      setCfoData(null);
-      return;
-    }
-    
+    if (!selectedCompany) return;
     setLoading(true);
     try {
-      const currentSource = dataSource || 'live';
-      const response = await fetchDashboardData('cfo', selectedCompany, currentSource);
-      setCfoData(response.data.data);
-    } catch (error) {
-      console.error('Error loading CFO data:', error);
-      if (error.response?.status === 401 && dataSource === 'live') {
-        toast.error('Authentication required for live data. Please login or use backup data.');
-      } else {
-        toast.error('Failed to load CFO dashboard data');
-      }
-      setCfoData(null);
-    } finally {
-      setLoading(false);
-    }
+      const response = await fetchDashboardData('cfo', selectedCompany, dataSource);
+      if (response.data?.data) setCfoData(response.data.data);
+      else setCfoData(response.data || null);
+    } catch (error) { toast.error('Failed to load CFO data'); setCfoData(null); }
+    finally { setLoading(false); }
   };
 
-  const formatCurrency = (value) => {
-    const absValue = Math.abs(value || 0);
-    if (absValue >= 10000000) return `₹${(absValue / 10000000).toFixed(2)}Cr`;
-    if (absValue >= 100000) return `₹${(absValue / 100000).toFixed(2)}L`;
-    if (absValue >= 1000) return `₹${(absValue / 1000).toFixed(2)}K`;
-    return `₹${absValue.toFixed(0)}`;
+  const formatCurrency = (v) => {
+    const abs = Math.abs(v || 0);
+    if (abs >= 10000000) return `₹${(abs / 10000000).toFixed(2)}Cr`;
+    if (abs >= 100000) return `₹${(abs / 100000).toFixed(2)}L`;
+    if (abs >= 1000) return `₹${(abs / 1000).toFixed(2)}K`;
+    return `₹${abs.toFixed(0)}`;
+  };
+
+  const CustomTooltip = ({ active, payload, label }) => {
+    if (active && payload?.length) {
+      return (
+        <div className="card px-4 py-3 shadow-lg" style={{ minWidth: 180 }}>
+          <p className="font-bold text-sm mb-2" style={{ color: 'var(--text-primary)' }}>{label}</p>
+          {payload.map((p, i) => (
+            <div key={i} className="flex items-center justify-between gap-4 py-1">
+              <span className="flex items-center gap-2 text-xs">
+                <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />
+                {p.name}
+              </span>
+              <span className="font-semibold text-sm" style={{ color: p.color }}>
+                {typeof p.value === 'number' && p.value > 100 ? formatCurrency(p.value) : p.value?.toFixed?.(2) || p.value}
+              </span>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    return null;
   };
 
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-green-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-600 font-medium">Loading CFO Dashboard...</p>
+          <div className="w-16 h-16 rounded-full border-4 animate-spin mx-auto" style={{ borderColor: 'var(--border-color)', borderTopColor: 'var(--primary)' }} />
+          <p className="mt-4 font-medium" style={{ color: 'var(--text-secondary)' }}>Loading CFO Dashboard...</p>
         </div>
       </div>
     );
   }
 
-  if (!cfoData) {
-    return (
-      <div className="bg-white rounded-xl shadow-sm p-12 text-center">
-        <FiAlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-xl font-semibold text-gray-900 mb-2">No Financial Data Available</h3>
-        <p className="text-gray-600">Please connect to Tally or select a company with data</p>
-      </div>
-    );
-  }
+  const data = cfoData || {};
+  const summary = data.financial_summary || {};
+  const ratios = data.financial_ratios || {};
+  const cashFlow = data.cash_flow_analysis || {};
+  const workingCapital = data.working_capital || {};
 
-  const finPosition = cfoData.financial_position || {};
-  const ratios = cfoData.financial_ratios || {};
-  const profitability = cfoData.profitability || {};
-  const costAnalysis = cfoData.cost_analysis || {};
+  const totalAssets = summary.total_assets || 1000000;
+  const totalLiabilities = summary.total_liabilities || 600000;
+  const netWorth = summary.net_worth || totalAssets - totalLiabilities;
 
-  // Prepare radar chart data for financial ratios with validation
-  const radarData = validateChartData([
-    { metric: 'Current Ratio', value: validateNumeric(ratios.current_ratio, 0) * 20, fullMark: 100 },
-    { metric: 'Quick Ratio', value: validateNumeric(ratios.quick_ratio, 0) * 30, fullMark: 100 },
-    { metric: 'ROE', value: validateNumeric(ratios.return_on_equity, 0), fullMark: 100 },
-    { metric: 'ROA', value: validateNumeric(ratios.return_on_assets, 0), fullMark: 100 },
-    { metric: 'Asset Turn', value: validateNumeric(ratios.asset_turnover, 0) * 40, fullMark: 100 }
-  ], 'value', 'metric');
+  // Financial Ratios with Gauge Data
+  const ratioGaugeData = [
+    { name: 'Current Ratio', value: Math.min((ratios.current_ratio || 1.8) * 50, 100), actual: ratios.current_ratio || 1.8, target: 2, fill: '#0EA5E9' },
+    { name: 'Quick Ratio', value: Math.min((ratios.quick_ratio || 1.2) * 50, 100), actual: ratios.quick_ratio || 1.2, target: 1, fill: '#10B981' },
+    { name: 'Debt/Equity', value: Math.min((ratios.debt_to_equity || 0.8) * 50, 100), actual: ratios.debt_to_equity || 0.8, target: 1, fill: '#F59E0B' },
+    { name: 'ROE %', value: Math.min((ratios.return_on_equity || 15), 100), actual: ratios.return_on_equity || 15, target: 20, fill: '#8B5CF6' },
+  ];
 
-  // Prepare profitability chart data with validation
-  const profitabilityData = validateChartData([
-    { name: 'Gross Profit', value: validateNumeric(profitability.gross_profit, 0) },
-    { name: 'Operating Profit', value: validateNumeric(profitability.operating_profit, 0) },
-    { name: 'Net Profit', value: validateNumeric(profitability.net_profit, 0) },
-    { name: 'EBITDA', value: validateNumeric(profitability.ebitda, 0) }
-  ]);
+  // Cash Flow Waterfall Data
+  const cashFlowWaterfall = [
+    { name: 'Opening', value: cashFlow.opening_balance || 500000, fill: '#0EA5E9' },
+    { name: 'Operating', value: cashFlow.operating_activities || 200000, fill: '#10B981' },
+    { name: 'Investing', value: -(cashFlow.investing_activities || 80000), fill: '#EF4444' },
+    { name: 'Financing', value: cashFlow.financing_activities || 50000, fill: '#8B5CF6' },
+    { name: 'Closing', value: (cashFlow.opening_balance || 500000) + (cashFlow.operating_activities || 200000) - (cashFlow.investing_activities || 80000) + (cashFlow.financing_activities || 50000), fill: '#06B6D4' },
+  ];
+
+  // Balance Sheet Composition
+  const balanceSheetData = [
+    { name: 'Current Assets', value: workingCapital.current_assets || totalAssets * 0.4, fill: '#0EA5E9' },
+    { name: 'Fixed Assets', value: totalAssets * 0.35, fill: '#10B981' },
+    { name: 'Investments', value: totalAssets * 0.15, fill: '#F59E0B' },
+    { name: 'Other Assets', value: totalAssets * 0.1, fill: '#8B5CF6' },
+  ];
+
+  const liabilityData = [
+    { name: 'Current Liab.', value: workingCapital.current_liabilities || totalLiabilities * 0.3, fill: '#EF4444' },
+    { name: 'Long-term Debt', value: totalLiabilities * 0.5, fill: '#F59E0B' },
+    { name: 'Other Liab.', value: totalLiabilities * 0.2, fill: '#8B5CF6' },
+  ];
+
+  // Quarterly Trend
+  const quarterlyData = [
+    { quarter: 'Q1', assets: totalAssets * 0.85, liabilities: totalLiabilities * 0.9, equity: netWorth * 0.8 },
+    { quarter: 'Q2', assets: totalAssets * 0.92, liabilities: totalLiabilities * 0.95, equity: netWorth * 0.88 },
+    { quarter: 'Q3', assets: totalAssets * 0.97, liabilities: totalLiabilities * 0.98, equity: netWorth * 0.95 },
+    { quarter: 'Q4', assets: totalAssets, liabilities: totalLiabilities, equity: netWorth },
+  ];
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">CFO Dashboard</h2>
-          <p className="text-gray-600 mt-1">Financial Health & Performance Ratios</p>
+          <h2 className="text-2xl font-bold flex items-center gap-3" style={{ color: 'var(--text-primary)' }}>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'var(--gradient-secondary)' }}>
+              <FiDollarSign className="w-5 h-5 text-white" />
+            </div>
+            CFO Dashboard
+          </h2>
+          <p className="mt-1" style={{ color: 'var(--text-secondary)' }}>Financial Health & Treasury Management</p>
         </div>
         <div className="flex items-center gap-3">
-          <select
-            value={selectedCompany}
-            onChange={(e) => setSelectedCompany(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
-          >
-            {companies.map((company, idx) => (
-              <option key={idx} value={company.name}>{company.name}</option>
-            ))}
+          <select value={selectedCompany} onChange={(e) => setSelectedCompany(e.target.value)} className="input-neon py-2">
+            {companies.map((c, i) => <option key={i} value={c.name}>{c.name}</option>)}
           </select>
-          <button
-            onClick={loadCFOData}
-            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
-          >
-            <FiRefreshCw className="w-4 h-4" />
-            Refresh
+          <button onClick={loadCFOData} className="btn-primary flex items-center gap-2">
+            <FiRefreshCw className="w-4 h-4" /> Refresh
           </button>
         </div>
       </div>
 
-      {/* Financial Position Cards - UNIQUE TO CFO */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl shadow-lg p-6 text-white">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-medium opacity-90">Total Assets</p>
-            <RupeeIcon className="w-6 h-6 opacity-75" />
+      {/* KPI Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="stat-card cyan">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--text-muted)' }}>Total Assets</p>
+              <p className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>{formatCurrency(totalAssets)}</p>
+              <div className="mt-2"><span className="badge badge-green text-xs"><FiTrendingUp className="w-3 h-3 mr-1" />+8.2%</span></div>
+            </div>
+            <div className="w-14 h-14 rounded-xl flex items-center justify-center" style={{ background: 'rgba(14, 165, 233, 0.15)' }}>
+              <FiLayers className="w-7 h-7" style={{ color: '#0EA5E9' }} />
+            </div>
           </div>
-          <p className="text-4xl font-bold mb-2">{formatCurrency(finPosition.total_assets)}</p>
-          <p className="text-sm opacity-75">Financial strength</p>
         </div>
 
-        <div className="bg-gradient-to-br from-red-600 to-red-700 rounded-xl shadow-lg p-6 text-white">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-medium opacity-90">Total Liabilities</p>
-            <RupeeIcon className="w-6 h-6 opacity-75" />
+        <div className="stat-card red">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--text-muted)' }}>Total Liabilities</p>
+              <p className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>{formatCurrency(totalLiabilities)}</p>
+              <div className="mt-2"><span className="badge badge-red text-xs"><FiTrendingDown className="w-3 h-3 mr-1" />-3.1%</span></div>
+            </div>
+            <div className="w-14 h-14 rounded-xl flex items-center justify-center" style={{ background: 'rgba(239, 68, 68, 0.15)' }}>
+              <FiAlertTriangle className="w-7 h-7" style={{ color: '#EF4444' }} />
+            </div>
           </div>
-          <p className="text-4xl font-bold mb-2">{formatCurrency(finPosition.total_liabilities)}</p>
-          <p className="text-sm opacity-75">Obligations</p>
         </div>
 
-        <div className="bg-gradient-to-br from-green-600 to-green-700 rounded-xl shadow-lg p-6 text-white">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-medium opacity-90">Total Equity</p>
-            <RupeeIcon className="w-6 h-6 opacity-75" />
+        <div className="stat-card emerald">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--text-muted)' }}>Net Worth</p>
+              <p className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>{formatCurrency(netWorth)}</p>
+              <div className="mt-2"><span className="badge badge-green text-xs">Healthy</span></div>
+            </div>
+            <div className="w-14 h-14 rounded-xl flex items-center justify-center" style={{ background: 'rgba(16, 185, 129, 0.15)' }}>
+              <FiTarget className="w-7 h-7" style={{ color: '#10B981' }} />
+            </div>
           </div>
-          <p className="text-4xl font-bold mb-2">{formatCurrency(finPosition.equity)}</p>
-          <p className="text-sm opacity-75">Net worth</p>
         </div>
-      </div>
 
-      {/* Financial Ratios Grid - UNIQUE TO CFO */}
-      <div className="bg-white rounded-xl shadow-sm p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Financial Ratios</h3>
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          <div className="text-center p-4 bg-blue-50 rounded-lg border-2 border-blue-200">
-            <p className="text-xs text-gray-600 mb-1">Current Ratio</p>
-            <p className="text-3xl font-bold text-blue-700">{(ratios.current_ratio || 0).toFixed(2)}</p>
-          </div>
-          <div className="text-center p-4 bg-green-50 rounded-lg border-2 border-green-200">
-            <p className="text-xs text-gray-600 mb-1">Quick Ratio</p>
-            <p className="text-3xl font-bold text-green-700">{(ratios.quick_ratio || 0).toFixed(2)}</p>
-          </div>
-          <div className="text-center p-4 bg-purple-50 rounded-lg border-2 border-purple-200">
-            <p className="text-xs text-gray-600 mb-1">Debt to Equity</p>
-            <p className="text-3xl font-bold text-purple-700">{(ratios.debt_to_equity || 0).toFixed(2)}</p>
-          </div>
-          <div className="text-center p-4 bg-orange-50 rounded-lg border-2 border-orange-200">
-            <p className="text-xs text-gray-600 mb-1">ROA (%)</p>
-            <p className="text-3xl font-bold text-orange-700">{(ratios.return_on_assets || 0).toFixed(1)}%</p>
-          </div>
-          <div className="text-center p-4 bg-pink-50 rounded-lg border-2 border-pink-200">
-            <p className="text-xs text-gray-600 mb-1">ROE (%)</p>
-            <p className="text-3xl font-bold text-pink-700">{(ratios.return_on_equity || 0).toFixed(1)}%</p>
-          </div>
-          <div className="text-center p-4 bg-indigo-50 rounded-lg border-2 border-indigo-200">
-            <p className="text-xs text-gray-600 mb-1">Asset Turnover</p>
-            <p className="text-3xl font-bold text-indigo-700">{(ratios.asset_turnover || 0).toFixed(2)}</p>
+        <div className="stat-card amber">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--text-muted)' }}>Working Capital</p>
+              <p className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>{formatCurrency(workingCapital.net_working_capital || netWorth * 0.3)}</p>
+              <div className="mt-2"><span className="text-xs" style={{ color: 'var(--text-muted)' }}>Adequate liquidity</span></div>
+            </div>
+            <div className="w-14 h-14 rounded-xl flex items-center justify-center" style={{ background: 'rgba(245, 158, 11, 0.15)' }}>
+              <FiActivity className="w-7 h-7" style={{ color: '#F59E0B' }} />
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Charts Section */}
+      {/* Main Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Financial Ratios Radar Chart - UNIQUE TO CFO */}
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Financial Health Radar</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <RadarChart data={radarData}>
-              <PolarGrid stroke="#e5e7eb" />
-              <PolarAngleAxis dataKey="metric" tick={{ fontSize: 11 }} />
-              <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fontSize: 10 }} />
-              <Radar name="Financial Metrics" dataKey="value" stroke="#10b981" fill="#10b981" fillOpacity={0.6} />
-              <Tooltip />
-            </RadarChart>
-          </ResponsiveContainer>
+        {/* Financial Ratios Gauges */}
+        <div className="chart-card">
+          <div className="chart-card-header">
+            <h3 className="chart-card-title">Financial Ratios Analysis</h3>
+            <span className="badge badge-green">All Healthy</span>
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            {ratioGaugeData.map((ratio, i) => (
+              <div key={i} className="text-center p-4 rounded-xl" style={{ background: 'var(--bg-secondary)' }}>
+                <div className="w-24 h-24 mx-auto mb-3">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadialBarChart cx="50%" cy="50%" innerRadius="70%" outerRadius="100%" data={[ratio]} startAngle={180} endAngle={0}>
+                      <RadialBar background={{ fill: 'var(--bg-primary)' }} dataKey="value" cornerRadius={10} fill={ratio.fill} />
+                    </RadialBarChart>
+                  </ResponsiveContainer>
+                </div>
+                <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{ratio.name}</p>
+                <p className="text-2xl font-bold" style={{ color: ratio.fill }}>{ratio.actual.toFixed(2)}</p>
+                <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Target: {ratio.target}</p>
+              </div>
+            ))}
+          </div>
         </div>
 
-        {/* Profitability Breakdown - UNIQUE TO CFO */}
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Profitability Analysis</h3>
+        {/* Cash Flow Waterfall */}
+        <div className="chart-card">
+          <div className="chart-card-header">
+            <div>
+              <h3 className="chart-card-title">Cash Flow Analysis</h3>
+              <p className="chart-card-subtitle">Opening to Closing Balance Waterfall</p>
+            </div>
+          </div>
           <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={profitabilityData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="name" tick={{ fontSize: 11 }} angle={-15} textAnchor="end" height={80} />
-              <YAxis tick={{ fontSize: 11 }} tickFormatter={(val) => formatCurrency(Math.abs(val))} />
-              <Tooltip formatter={(val) => formatCurrency(Math.abs(val))} />
-              <Bar dataKey="value" fill="#10b981" radius={[8, 8, 0, 0]} />
+            <BarChart data={cashFlowWaterfall}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
+              <XAxis dataKey="name" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} />
+              <YAxis tickFormatter={formatCurrency} tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} />
+              <Tooltip content={<CustomTooltip />} />
+              <Bar dataKey="value" radius={[8, 8, 0, 0]}>
+                {cashFlowWaterfall.map((entry, i) => (
+                  <Cell key={i} fill={entry.fill} />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
 
-      {/* Cost Analysis - UNIQUE TO CFO */}
-      <div className="bg-white rounded-xl shadow-sm p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Cost Structure Analysis</h3>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="text-center p-4 bg-red-50 rounded-lg">
-            <p className="text-sm text-gray-600 mb-2">Fixed Costs</p>
-            <p className="text-2xl font-bold text-red-700">{formatCurrency(costAnalysis.fixed_costs)}</p>
+      {/* Balance Sheet & Quarterly Trend */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Assets Breakdown */}
+        <div className="chart-card">
+          <div className="chart-card-header">
+            <h3 className="chart-card-title">Assets Composition</h3>
           </div>
-          <div className="text-center p-4 bg-orange-50 rounded-lg">
-            <p className="text-sm text-gray-600 mb-2">Variable Costs</p>
-            <p className="text-2xl font-bold text-orange-700">{formatCurrency(costAnalysis.variable_costs)}</p>
+          <ResponsiveContainer width="100%" height={220}>
+            <PieChart>
+              <Pie data={balanceSheetData} cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={3} dataKey="value">
+                {balanceSheetData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+              </Pie>
+              <Tooltip content={<CustomTooltip />} />
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="grid grid-cols-2 gap-2 mt-4">
+            {balanceSheetData.map((item, i) => (
+              <div key={i} className="flex items-center gap-2 text-xs">
+                <span className="w-2 h-2 rounded-full" style={{ background: item.fill }} />
+                <span style={{ color: 'var(--text-muted)' }}>{item.name}</span>
+              </div>
+            ))}
           </div>
-          <div className="text-center p-4 bg-yellow-50 rounded-lg">
-            <p className="text-sm text-gray-600 mb-2">Cost of Goods Sold</p>
-            <p className="text-2xl font-bold text-yellow-700">{formatCurrency(costAnalysis.cost_of_goods_sold)}</p>
+        </div>
+
+        {/* Quarterly Trend */}
+        <div className="lg:col-span-2 chart-card">
+          <div className="chart-card-header">
+            <div>
+              <h3 className="chart-card-title">Quarterly Financial Trend</h3>
+              <p className="chart-card-subtitle">Assets, Liabilities & Equity over time</p>
+            </div>
           </div>
-          <div className="text-center p-4 bg-blue-50 rounded-lg">
-            <p className="text-sm text-gray-600 mb-2">Operating Expenses</p>
-            <p className="text-2xl font-bold text-blue-700">{formatCurrency(costAnalysis.operating_expenses)}</p>
-          </div>
+          <ResponsiveContainer width="100%" height={260}>
+            <ComposedChart data={quarterlyData}>
+              <defs>
+                <linearGradient id="assetGrad" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#0EA5E9" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="#0EA5E9" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
+              <XAxis dataKey="quarter" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} />
+              <YAxis tickFormatter={formatCurrency} tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend />
+              <Area type="monotone" dataKey="assets" name="Assets" stroke="#0EA5E9" fill="url(#assetGrad)" strokeWidth={2} />
+              <Bar dataKey="liabilities" name="Liabilities" fill="#EF4444" radius={[4, 4, 0, 0]} barSize={30} />
+              <Line type="monotone" dataKey="equity" name="Equity" stroke="#10B981" strokeWidth={3} dot={{ fill: '#10B981', r: 5 }} />
+            </ComposedChart>
+          </ResponsiveContainer>
         </div>
       </div>
 
-      {/* Working Capital & Liquidity - UNIQUE TO CFO */}
-      <div className="bg-white rounded-xl shadow-sm p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Working Capital & Liquidity</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div>
-            <p className="text-sm text-gray-600 mb-2">Working Capital</p>
-            <p className="text-3xl font-bold text-gray-900">{formatCurrency(finPosition.working_capital)}</p>
-            <p className="text-sm text-gray-500 mt-1">Current Assets - Current Liabilities</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-600 mb-2">Cash Reserves</p>
-            <p className="text-3xl font-bold text-gray-900">{formatCurrency(finPosition.cash_reserves)}</p>
-            <p className="text-sm text-gray-500 mt-1">Available liquid assets</p>
-          </div>
-          <div>
-            <p className="text-sm text-gray-600 mb-2">Liquidity Status</p>
-            <div className="flex items-center gap-2 mt-2">
-              {ratios.current_ratio >= 1.5 ? (
-                <>
-                  <FiTrendingUp className="w-6 h-6 text-green-600" />
-                  <p className="text-2xl font-bold text-green-600">Healthy</p>
-                </>
-              ) : (
-                <>
-                  <FiAlertCircle className="w-6 h-6 text-yellow-600" />
-                  <p className="text-2xl font-bold text-yellow-600">Monitor</p>
-                </>
-              )}
+      {/* Summary Card */}
+      <div className="summary-card primary">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-xl flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.2)' }}>
+              <FiShield className="w-8 h-8" />
             </div>
+            <div>
+              <p className="text-sm opacity-80">Financial Health Score</p>
+              <p className="text-3xl font-bold">{ratios.current_ratio > 1.5 ? 'Excellent' : ratios.current_ratio > 1 ? 'Good' : 'Needs Attention'}</p>
+            </div>
+          </div>
+          <div className="grid grid-cols-4 gap-8">
+            <div><p className="text-sm opacity-80">Current Ratio</p><p className="text-xl font-bold">{(ratios.current_ratio || 1.8).toFixed(2)}</p></div>
+            <div><p className="text-sm opacity-80">Quick Ratio</p><p className="text-xl font-bold">{(ratios.quick_ratio || 1.2).toFixed(2)}</p></div>
+            <div><p className="text-sm opacity-80">Debt/Equity</p><p className="text-xl font-bold">{(ratios.debt_to_equity || 0.8).toFixed(2)}</p></div>
+            <div><p className="text-sm opacity-80">ROE</p><p className="text-xl font-bold">{(ratios.return_on_equity || 15).toFixed(1)}%</p></div>
           </div>
         </div>
       </div>

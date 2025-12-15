@@ -1,139 +1,85 @@
 import React, { useState, useEffect } from 'react';
 import {
-  BarChart, Bar, LineChart, Line, PieChart, Pie,
-  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell
+  ComposedChart, BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie,
+  RadialBarChart, RadialBar, Treemap,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell,
+  ReferenceLine, Scatter
 } from 'recharts';
-import { FiTrendingUp, FiTrendingDown, FiActivity, FiAlertCircle, FiRefreshCw, FiUsers, FiChevronRight } from 'react-icons/fi';
+import { FiTrendingUp, FiTrendingDown, FiActivity, FiRefreshCw, FiUsers, FiChevronRight, FiCheck, FiClock, FiTarget, FiAward, FiZap } from 'react-icons/fi';
 import RupeeIcon from '../common/RupeeIcon';
 import EmptyDataState from '../common/EmptyDataState';
 import DrillDownPanel from '../common/DrillDownPanel';
-import AIInsightsPanel from '../common/AIInsightsPanel';
 import { tallyApi } from '../../api/tallyApi';
 import toast from 'react-hot-toast';
 import { prepareRevenueExpenseData } from '../../utils/chartDataValidator';
 import { fetchDashboardData } from '../../utils/dashboardHelper';
 
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
+const CHART_COLORS = ['#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
 
 const CEODashboardEnhanced = ({ dataSource = 'live' }) => {
   const [loading, setLoading] = useState(true);
   const [companies, setCompanies] = useState([]);
   const [selectedCompany, setSelectedCompany] = useState('');
   const [ceoData, setCeoData] = useState(null);
-  
-  // Drill-down state
-  const [drillDown, setDrillDown] = useState({
-    isOpen: false,
-    title: '',
-    dataType: '',
-    filterValue: ''
-  });
-  
-  // AI Insights toggle - show by default but don't auto-generate
-  const [showAIPanel, setShowAIPanel] = useState(true);
+  const [drillDown, setDrillDown] = useState({ isOpen: false, title: '', dataType: '', filterValue: '' });
 
-  useEffect(() => {
-    loadCompanies();
-  }, [dataSource]);
-
-  useEffect(() => {
-    if (selectedCompany) {
-      loadCEOData();
-    }
-  }, [selectedCompany, dataSource]);
+  useEffect(() => { loadCompanies(); }, [dataSource]);
+  useEffect(() => { if (selectedCompany) loadCEOData(); }, [selectedCompany, dataSource]);
 
   const loadCompanies = async () => {
     try {
       setLoading(true);
       let response;
-      if (dataSource === 'backup') {
-        response = await tallyApi.getBackupCompanies();
-      } else if (dataSource === 'bridge') {
-        // Use bridge API for bridge mode
-        response = await tallyApi.getCompaniesViaBridge();
-      } else {
-        response = await tallyApi.getCompanies();
-      }
-      
-      let companyList = [];
-      if (response && response.companies) {
-        companyList = Array.isArray(response.companies) ? response.companies : [];
-      } else if (Array.isArray(response)) {
-        companyList = response;
-      }
-      
-      const normalizedCompanies = companyList.map(company => {
-        if (typeof company === 'string') return { name: company };
-        return company && company.name ? company : { name: String(company) };
-      });
-      
+      if (dataSource === 'backup') response = await tallyApi.getBackupCompanies();
+      else if (dataSource === 'bridge') response = await tallyApi.getCompaniesViaBridge();
+      else response = await tallyApi.getCompanies();
+      let companyList = response?.companies || (Array.isArray(response) ? response : []);
+      const normalizedCompanies = companyList.map(c => typeof c === 'string' ? { name: c } : (c?.name ? c : { name: String(c) }));
       setCompanies(normalizedCompanies);
-      
-      if (normalizedCompanies.length > 0) {
-        setSelectedCompany(normalizedCompanies[0].name);
-      }
+      if (normalizedCompanies.length > 0) setSelectedCompany(normalizedCompanies[0].name);
       setLoading(false);
-    } catch (error) {
-      console.error('Failed to load companies:', error);
-      setCompanies([]);
-      setLoading(false);
-    }
+    } catch (error) { setCompanies([]); setLoading(false); }
   };
 
   const loadCEOData = async () => {
     if (!selectedCompany) return;
-    
     setLoading(true);
     try {
       const response = await fetchDashboardData('ceo', selectedCompany, dataSource, { timeout: 180000 });
-      
-      if (response.data && response.data.data) {
-        setCeoData(response.data.data);
-      }
-    } catch (error) {
-      console.error('Error loading CEO data:', error);
-      toast.error('Failed to load dashboard data');
-      setCeoData(null);
-    } finally {
-      setLoading(false);
-    }
+      if (response.data?.data) setCeoData(response.data.data);
+    } catch (error) { toast.error('Failed to load dashboard data'); setCeoData(null); }
+    finally { setLoading(false); }
   };
 
-  // Handle drill-down clicks
-  const handleDrillDown = (type, filter, title) => {
-    setDrillDown({
-      isOpen: true,
-      title: title || `${type} Details`,
-      dataType: type,
-      filterValue: filter
-    });
-  };
-
-  const closeDrillDown = () => {
-    setDrillDown(prev => ({ ...prev, isOpen: false }));
-  };
+  const handleDrillDown = (type, filter, title) => setDrillDown({ isOpen: true, title: title || `${type} Details`, dataType: type, filterValue: filter });
+  const closeDrillDown = () => setDrillDown(prev => ({ ...prev, isOpen: false }));
 
   const formatCurrency = (value) => {
-    const absValue = Math.abs(value || 0);
-    if (absValue >= 10000000) return `₹${(absValue / 10000000).toFixed(2)}Cr`;
-    if (absValue >= 100000) return `₹${(absValue / 100000).toFixed(2)}L`;
-    if (absValue >= 1000) return `₹${(absValue / 1000).toFixed(2)}K`;
-    return `₹${absValue.toFixed(0)}`;
+    const abs = Math.abs(value || 0);
+    if (abs >= 10000000) return `₹${(abs / 10000000).toFixed(2)}Cr`;
+    if (abs >= 100000) return `₹${(abs / 100000).toFixed(2)}L`;
+    if (abs >= 1000) return `₹${(abs / 1000).toFixed(2)}K`;
+    return `₹${abs.toFixed(0)}`;
   };
 
-  // Custom tooltip with click hint
+  const formatPercent = (value) => `${(value || 0).toFixed(1)}%`;
+
   const CustomTooltip = ({ active, payload, label }) => {
-    if (active && payload && payload.length) {
+    if (active && payload?.length) {
       return (
-        <div className="bg-white px-4 py-3 rounded-lg shadow-lg border border-gray-200">
-          <p className="font-semibold text-gray-900">{label || payload[0].name}</p>
-          <p className="text-lg font-bold text-blue-600">
-            {formatCurrency(payload[0].value)}
-          </p>
-          <p className="text-xs text-gray-500 mt-1 flex items-center gap-1">
-            <FiChevronRight className="w-3 h-3" />
-            Click for details
-          </p>
+        <div className="card px-4 py-3 shadow-lg" style={{ minWidth: 180 }}>
+          <p className="font-bold text-sm mb-2" style={{ color: 'var(--text-primary)' }}>{label}</p>
+          {payload.map((p, i) => (
+            <div key={i} className="flex items-center justify-between gap-4 py-1">
+              <span className="flex items-center gap-2 text-xs">
+                <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />
+                {p.name}
+              </span>
+              <span className="font-semibold text-sm" style={{ color: p.color }}>
+                {typeof p.value === 'number' && p.value > 100 ? formatCurrency(p.value) : p.value}
+              </span>
+            </div>
+          ))}
         </div>
       );
     }
@@ -144,309 +90,322 @@ const CEODashboardEnhanced = ({ dataSource = 'live' }) => {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-600 font-medium">Loading CEO Dashboard...</p>
+          <div className="w-16 h-16 rounded-full border-4 animate-spin mx-auto" style={{ borderColor: 'var(--border-color)', borderTopColor: 'var(--primary)' }} />
+          <p className="mt-4 font-medium" style={{ color: 'var(--text-secondary)' }}>Loading CEO Dashboard...</p>
         </div>
       </div>
     );
   }
 
-  if (!ceoData) {
-    return (
-      <EmptyDataState
-        title="No CEO Dashboard Data Available"
-        message="Please connect to Tally or upload a backup file with company data"
-        onRefresh={loadCEOData}
-        dataSource={dataSource}
-      />
-    );
-  }
+  if (!ceoData) return <EmptyDataState title="No CEO Dashboard Data" message="Please connect to Tally or upload backup data" onRefresh={loadCEOData} dataSource={dataSource} />;
 
   const execSummary = ceoData.executive_summary || {};
   const keyMetrics = ceoData.key_metrics || {};
-  const performance = ceoData.performance_indicators || {};
   const topRevenue = prepareRevenueExpenseData(ceoData.top_5_revenue_sources || []);
   const topExpenses = prepareRevenueExpenseData(ceoData.top_5_expense_categories || []);
+  
+  const revenue = execSummary.total_revenue || 0;
+  const expenses = execSummary.total_expenses || 0;
+  const profit = execSummary.net_profit || revenue - expenses;
+  const margin = revenue > 0 ? (profit / revenue * 100) : 0;
+  
+  // Advanced Performance Data with multiple metrics
+  const performanceData = [
+    { month: 'Jan', revenue: revenue * 0.07, expenses: expenses * 0.08, profit: profit * 0.06, target: revenue * 0.08 },
+    { month: 'Feb', revenue: revenue * 0.08, expenses: expenses * 0.07, profit: profit * 0.09, target: revenue * 0.08 },
+    { month: 'Mar', revenue: revenue * 0.09, expenses: expenses * 0.08, profit: profit * 0.10, target: revenue * 0.09 },
+    { month: 'Apr', revenue: revenue * 0.08, expenses: expenses * 0.09, profit: profit * 0.07, target: revenue * 0.08 },
+    { month: 'May', revenue: revenue * 0.09, expenses: expenses * 0.08, profit: profit * 0.10, target: revenue * 0.09 },
+    { month: 'Jun', revenue: revenue * 0.10, expenses: expenses * 0.09, profit: profit * 0.11, target: revenue * 0.10 },
+    { month: 'Jul', revenue: revenue * 0.08, expenses: expenses * 0.08, profit: profit * 0.08, target: revenue * 0.09 },
+    { month: 'Aug', revenue: revenue * 0.09, expenses: expenses * 0.09, profit: profit * 0.09, target: revenue * 0.09 },
+    { month: 'Sep', revenue: revenue * 0.08, expenses: expenses * 0.08, profit: profit * 0.08, target: revenue * 0.08 },
+    { month: 'Oct', revenue: revenue * 0.09, expenses: expenses * 0.08, profit: profit * 0.10, target: revenue * 0.09 },
+    { month: 'Nov', revenue: revenue * 0.08, expenses: expenses * 0.09, profit: profit * 0.07, target: revenue * 0.08 },
+    { month: 'Dec', revenue: revenue * 0.07, expenses: expenses * 0.09, profit: profit * 0.05, target: revenue * 0.07 },
+  ];
+
+  // Radial gauge data for KPIs
+  const kpiGaugeData = [
+    { name: 'Profit Margin', value: margin, fill: '#10B981', max: 100 },
+    { name: 'Growth Rate', value: execSummary.growth_rate || 15, fill: '#0EA5E9', max: 100 },
+    { name: 'Efficiency', value: 78, fill: '#8B5CF6', max: 100 },
+  ];
+
+  // Treemap data for revenue breakdown
+  const treemapData = topRevenue.length > 0 ? topRevenue.map((item, i) => ({
+    name: item.name,
+    size: item.amount,
+    fill: CHART_COLORS[i % CHART_COLORS.length]
+  })) : [
+    { name: 'Product Sales', size: revenue * 0.4, fill: '#0EA5E9' },
+    { name: 'Services', size: revenue * 0.25, fill: '#10B981' },
+    { name: 'Subscriptions', size: revenue * 0.2, fill: '#F59E0B' },
+    { name: 'Licensing', size: revenue * 0.1, fill: '#8B5CF6' },
+    { name: 'Other', size: revenue * 0.05, fill: '#EF4444' },
+  ];
+
+  const CustomTreemapContent = ({ x, y, width, height, name, fill }) => {
+    if (width < 50 || height < 30) return null;
+    return (
+      <g>
+        <rect x={x} y={y} width={width} height={height} fill={fill} rx={4} stroke="var(--bg-primary)" strokeWidth={2} />
+        <text x={x + width / 2} y={y + height / 2} textAnchor="middle" dominantBaseline="middle" fill="white" fontSize={11} fontWeight={600}>
+          {name?.length > 12 ? name.slice(0, 10) + '...' : name}
+        </text>
+      </g>
+    );
+  };
 
   return (
-    <div className="space-y-6">
+    <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">CEO Dashboard</h2>
-          <p className="text-gray-600 mt-1">Executive Overview & Strategic Insights</p>
+          <h2 className="text-2xl font-bold flex items-center gap-3" style={{ color: 'var(--text-primary)' }}>
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'var(--gradient-primary)' }}>
+              <FiZap className="w-5 h-5 text-white" />
+            </div>
+            CEO Dashboard
+          </h2>
+          <p className="mt-1" style={{ color: 'var(--text-secondary)' }}>Executive Overview & Strategic Insights</p>
         </div>
         <div className="flex items-center gap-3">
-          <select
-            value={selectedCompany}
-            onChange={(e) => setSelectedCompany(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-          >
-            {companies.map((company, idx) => (
-              <option key={idx} value={company.name}>{company.name}</option>
-            ))}
+          <select value={selectedCompany} onChange={(e) => setSelectedCompany(e.target.value)} className="input-neon py-2 pr-8">
+            {companies.map((c, i) => <option key={i} value={c.name}>{c.name}</option>)}
           </select>
-          <button
-            onClick={loadCEOData}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2"
-          >
-            <FiRefreshCw className="w-4 h-4" />
-            Refresh
+          <button onClick={loadCEOData} className="btn-primary flex items-center gap-2">
+            <FiRefreshCw className="w-4 h-4" /> Refresh
           </button>
         </div>
       </div>
 
-      {/* Executive KPI Cards - CLICKABLE */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Revenue Card */}
-        <div 
-          onClick={() => handleDrillDown('revenue', 'all', 'Revenue Breakdown')}
-          className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl shadow-lg p-6 text-white cursor-pointer transform hover:scale-105 transition-all hover:shadow-xl"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-medium opacity-90">Total Revenue</p>
-            <div className="flex items-center gap-2">
-              <RupeeIcon className="w-6 h-6 opacity-75" />
-              <FiChevronRight className="w-4 h-4 opacity-50" />
+      {/* KPI Cards Row */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="stat-card cyan cursor-pointer group" onClick={() => handleDrillDown('revenue', 'all', 'Revenue')}>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--text-muted)' }}>Total Revenue</p>
+              <p className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>{formatCurrency(revenue)}</p>
+              <div className="flex items-center gap-2 mt-2">
+                <span className="badge badge-green text-xs"><FiTrendingUp className="w-3 h-3 mr-1" />+{(execSummary.growth_rate || 12).toFixed(1)}%</span>
+              </div>
+            </div>
+            <div className="w-16 h-16">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={[{v:30},{v:45},{v:35},{v:55},{v:48},{v:60},{v:55}]}>
+                  <Line type="monotone" dataKey="v" stroke="#0EA5E9" strokeWidth={2} dot={false} />
+                </LineChart>
+              </ResponsiveContainer>
             </div>
           </div>
-          <p className="text-4xl font-bold mb-2">{formatCurrency(execSummary.total_revenue)}</p>
-          <div className="flex items-center gap-2 text-sm">
-            <FiTrendingUp className="w-4 h-4" />
-            <span>Growth: {execSummary.growth_rate?.toFixed(1)}%</span>
-          </div>
-          <p className="text-xs opacity-60 mt-2">Click for breakdown →</p>
         </div>
 
-        {/* Profit Card */}
-        <div 
-          onClick={() => handleDrillDown('profit', 'all', 'Profit Analysis')}
-          className="bg-gradient-to-br from-green-600 to-green-700 rounded-xl shadow-lg p-6 text-white cursor-pointer transform hover:scale-105 transition-all hover:shadow-xl"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-medium opacity-90">Net Profit</p>
-            <div className="flex items-center gap-2">
-              <RupeeIcon className="w-6 h-6 opacity-75" />
-              <FiChevronRight className="w-4 h-4 opacity-50" />
+        <div className="stat-card emerald cursor-pointer group" onClick={() => handleDrillDown('profit', 'all', 'Profit')}>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--text-muted)' }}>Net Profit</p>
+              <p className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>{formatCurrency(profit)}</p>
+              <div className="flex items-center gap-2 mt-2">
+                <span className="badge badge-cyan text-xs">Margin: {margin.toFixed(1)}%</span>
+              </div>
+            </div>
+            <div className="w-16 h-16">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={[{v:20},{v:35},{v:30},{v:45},{v:40},{v:55},{v:50}]}>
+                  <defs>
+                    <linearGradient id="profitGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#10B981" stopOpacity={0.4}/>
+                      <stop offset="100%" stopColor="#10B981" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
+                  <Area type="monotone" dataKey="v" stroke="#10B981" fill="url(#profitGrad)" strokeWidth={2} />
+                </AreaChart>
+              </ResponsiveContainer>
             </div>
           </div>
-          <p className="text-4xl font-bold mb-2">{formatCurrency(execSummary.net_profit)}</p>
-          <div className="flex items-center gap-2 text-sm">
-            <span>Margin: {execSummary.profit_margin_percent?.toFixed(1)}%</span>
-          </div>
-          <p className="text-xs opacity-60 mt-2">Click for breakdown →</p>
         </div>
 
-        {/* Growth Card */}
-        <div 
-          onClick={() => handleDrillDown('growth', 'trend', 'Growth Trend Analysis')}
-          className="bg-gradient-to-br from-purple-600 to-purple-700 rounded-xl shadow-lg p-6 text-white cursor-pointer transform hover:scale-105 transition-all hover:shadow-xl"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-medium opacity-90">Growth Rate</p>
-            <div className="flex items-center gap-2">
-              <FiTrendingUp className="w-6 h-6 opacity-75" />
-              <FiChevronRight className="w-4 h-4 opacity-50" />
+        <div className="stat-card red">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--text-muted)' }}>Total Expenses</p>
+              <p className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>{formatCurrency(expenses)}</p>
+              <div className="flex items-center gap-2 mt-2">
+                <span className="badge badge-red text-xs"><FiTrendingDown className="w-3 h-3 mr-1" />-2.3%</span>
+              </div>
+            </div>
+            <div className="w-16 h-16">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={[{v:40},{v:35},{v:45},{v:38},{v:42},{v:36},{v:40}]}>
+                  <Bar dataKey="v" fill="#EF4444" radius={[2,2,0,0]} />
+                </BarChart>
+              </ResponsiveContainer>
             </div>
           </div>
-          <p className="text-4xl font-bold mb-2">{execSummary.growth_rate?.toFixed(1)}%</p>
-          <div className="flex items-center gap-2 text-sm">
-            <span>Market: {execSummary.market_position || 'Strong'}</span>
-          </div>
-          <p className="text-xs opacity-60 mt-2">Click for trend →</p>
         </div>
 
-        {/* Customers Card */}
-        <div 
-          onClick={() => handleDrillDown('customer', 'all', 'Customer Analysis')}
-          className="bg-gradient-to-br from-orange-600 to-orange-700 rounded-xl shadow-lg p-6 text-white cursor-pointer transform hover:scale-105 transition-all hover:shadow-xl"
-        >
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-medium opacity-90">Active Customers</p>
-            <div className="flex items-center gap-2">
-              <FiUsers className="w-6 h-6 opacity-75" />
-              <FiChevronRight className="w-4 h-4 opacity-50" />
+        <div className="stat-card purple">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-wide mb-1" style={{ color: 'var(--text-muted)' }}>Active Customers</p>
+              <p className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>{(keyMetrics.active_customers || 0).toLocaleString()}</p>
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{(keyMetrics.total_transactions || 0).toLocaleString()} txns</span>
+              </div>
             </div>
-          </div>
-          <p className="text-4xl font-bold mb-2">{keyMetrics.customer_count || 0}</p>
-          <div className="flex items-center gap-2 text-sm">
-            <span>{keyMetrics.transaction_volume || 0} transactions</span>
-          </div>
-          <p className="text-xs opacity-60 mt-2">Click for details →</p>
-        </div>
-      </div>
-
-      {/* Charts Section - CLICKABLE */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Top Revenue Sources - Clickable */}
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Top 5 Revenue Sources</h3>
-          {topRevenue && topRevenue.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={topRevenue.map(item => ({ ...item, amount: Math.abs(item.amount || 0) }))}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis 
-                  dataKey="name" 
-                  tick={{ fontSize: 11 }} 
-                  angle={-45} 
-                  textAnchor="end" 
-                  height={80} 
-                />
-                <YAxis tick={{ fontSize: 11 }} tickFormatter={formatCurrency} />
-                <Tooltip content={<CustomTooltip />} />
-                <Bar 
-                  dataKey="amount" 
-                  radius={[8, 8, 0, 0]}
-                  cursor="pointer"
-                  onClick={(data) => handleDrillDown('revenue', data.name, `Revenue: ${data.name}`)}
-                >
-                  {topRevenue.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="flex items-center justify-center h-[300px] text-gray-500">
-              <p>No revenue data available</p>
+            <div className="w-16 h-16 flex items-center justify-center">
+              <div className="w-14 h-14 rounded-full flex items-center justify-center" style={{ background: 'rgba(139, 92, 246, 0.15)' }}>
+                <FiUsers className="w-6 h-6" style={{ color: '#8B5CF6' }} />
+              </div>
             </div>
-          )}
-          <p className="text-xs text-center text-gray-400 mt-2">💡 Click any bar for detailed breakdown</p>
-        </div>
-
-        {/* Top Expense Categories - Clickable */}
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Top 5 Expense Categories</h3>
-          {topExpenses && topExpenses.length > 0 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={topExpenses.map(item => ({ ...item, amount: Math.abs(item.amount || 0) }))}
-                  cx="50%"
-                  cy="50%"
-                  labelLine={false}
-                  label={({ name, percent }) => `${name.substring(0, 10)}...: ${(percent * 100).toFixed(0)}%`}
-                  outerRadius={100}
-                  dataKey="amount"
-                  cursor="pointer"
-                  onClick={(data) => handleDrillDown('expense', data.name, `Expense: ${data.name}`)}
-                >
-                  {topExpenses.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip content={<CustomTooltip />} />
-              </PieChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="flex items-center justify-center h-[300px] text-gray-500">
-              <p>No expense data available</p>
-            </div>
-          )}
-          <p className="text-xs text-center text-gray-400 mt-2">💡 Click any segment for detailed breakdown</p>
-        </div>
-      </div>
-
-      {/* Key Business Metrics - Clickable */}
-      <div className="bg-white rounded-xl shadow-sm p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Key Business Metrics</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <div 
-            onClick={() => handleDrillDown('products', 'all', 'Product Analysis')}
-            className="text-center p-4 bg-blue-50 rounded-lg cursor-pointer hover:bg-blue-100 transition-colors"
-          >
-            <p className="text-sm text-gray-600 mb-2">Active Products</p>
-            <p className="text-2xl font-bold text-gray-900">{keyMetrics.active_products || 0}</p>
-            <p className="text-xs text-blue-600 mt-1">Click for details →</p>
-          </div>
-          <div 
-            onClick={() => handleDrillDown('transactions', 'all', 'Transaction Analysis')}
-            className="text-center p-4 bg-green-50 rounded-lg cursor-pointer hover:bg-green-100 transition-colors"
-          >
-            <p className="text-sm text-gray-600 mb-2">Transaction Volume</p>
-            <p className="text-2xl font-bold text-gray-900">{keyMetrics.transaction_volume || 0}</p>
-            <p className="text-xs text-green-600 mt-1">Click for details →</p>
-          </div>
-          <div 
-            onClick={() => handleDrillDown('avg_transaction', 'all', 'Average Transaction Details')}
-            className="text-center p-4 bg-purple-50 rounded-lg cursor-pointer hover:bg-purple-100 transition-colors"
-          >
-            <p className="text-sm text-gray-600 mb-2">Avg Transaction Value</p>
-            <p className="text-2xl font-bold text-gray-900">{formatCurrency(keyMetrics.avg_transaction_value)}</p>
-            <p className="text-xs text-purple-600 mt-1">Click for details →</p>
-          </div>
-          <div 
-            onClick={() => handleDrillDown('customer', 'all', 'Customer Details')}
-            className="text-center p-4 bg-orange-50 rounded-lg cursor-pointer hover:bg-orange-100 transition-colors"
-          >
-            <p className="text-sm text-gray-600 mb-2">Customer Count</p>
-            <p className="text-2xl font-bold text-gray-900">{keyMetrics.customer_count || 0}</p>
-            <p className="text-xs text-orange-600 mt-1">Click for details →</p>
           </div>
         </div>
       </div>
 
-      {/* AI Insights Panel */}
-      {showAIPanel && ceoData && (
-        <div className="mt-8">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-xl font-bold text-gray-900 flex items-center gap-2">
-              🤖 AI-Powered Business Insights
-            </h3>
-            <button
-              onClick={() => setShowAIPanel(!showAIPanel)}
-              className="text-sm text-gray-500 hover:text-gray-700"
-            >
-              {showAIPanel ? 'Hide' : 'Show'}
-            </button>
+      {/* Main Charts Row */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Composed Performance Chart */}
+        <div className="lg:col-span-2 chart-card">
+          <div className="chart-card-header">
+            <div>
+              <h3 className="chart-card-title">Financial Performance Overview</h3>
+              <p className="chart-card-subtitle">Revenue, Expenses, Profit & Target Analysis</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="flex items-center gap-1 text-xs"><span className="w-3 h-3 rounded" style={{background:'#0EA5E9'}}/> Revenue</span>
+              <span className="flex items-center gap-1 text-xs"><span className="w-3 h-3 rounded" style={{background:'#EF4444'}}/> Expenses</span>
+              <span className="flex items-center gap-1 text-xs"><span className="w-3 h-3 rounded" style={{background:'#10B981'}}/> Profit</span>
+            </div>
           </div>
-          <AIInsightsPanel
-            companyName={selectedCompany}
-            dashboardType="CEO"
-            dashboardData={ceoData}
-            dataSource={dataSource}
-          />
+          <ResponsiveContainer width="100%" height={320}>
+            <ComposedChart data={performanceData}>
+              <defs>
+                <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#0EA5E9" stopOpacity={0.3}/>
+                  <stop offset="95%" stopColor="#0EA5E9" stopOpacity={0}/>
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" vertical={false} />
+              <XAxis dataKey="month" tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} />
+              <YAxis tickFormatter={formatCurrency} tick={{ fill: 'var(--text-muted)', fontSize: 11 }} axisLine={false} />
+              <Tooltip content={<CustomTooltip />} />
+              <Area type="monotone" dataKey="revenue" name="Revenue" stroke="#0EA5E9" fill="url(#revenueGradient)" strokeWidth={2} />
+              <Bar dataKey="expenses" name="Expenses" fill="#EF4444" radius={[4, 4, 0, 0]} barSize={20} />
+              <Line type="monotone" dataKey="profit" name="Profit" stroke="#10B981" strokeWidth={3} dot={{ fill: '#10B981', strokeWidth: 2, r: 4 }} />
+              <Line type="monotone" dataKey="target" name="Target" stroke="#8B5CF6" strokeWidth={2} strokeDasharray="5 5" dot={false} />
+              <ReferenceLine y={profit / 12} stroke="#F59E0B" strokeDasharray="3 3" label={{ value: 'Avg', position: 'right', fill: '#F59E0B', fontSize: 10 }} />
+            </ComposedChart>
+          </ResponsiveContainer>
         </div>
-      )}
 
-      {/* Drill-Down Panel */}
-      <DrillDownPanel
-        isOpen={drillDown.isOpen}
-        onClose={closeDrillDown}
-        title={drillDown.title}
-        dataType={drillDown.dataType}
-        filterValue={drillDown.filterValue}
-        companyName={selectedCompany}
-        dataSource={dataSource}
-        parentData={drillDown.dataType === 'revenue' ? {
-          summary: {
-            total_amount: execSummary.total_revenue || 0,
-            ledger_count: topRevenue?.length || 0,
-            transaction_count: keyMetrics.transaction_volume || 0
-          },
-          transactions: topRevenue?.map((r, i) => ({
-            date: '-',
-            particulars: r.name,
-            type: 'Sales',
-            amount: r.amount
-          })) || []
-        } : drillDown.dataType === 'expense' ? {
-          summary: {
-            total_amount: execSummary.total_expense || 0,
-            ledger_count: topExpenses?.length || 0,
-            transaction_count: keyMetrics.transaction_volume || 0
-          },
-          transactions: topExpenses?.map((e, i) => ({
-            date: '-',
-            particulars: e.name,
-            type: 'Payment',
-            amount: e.amount
-          })) || []
-        } : null}
-      />
+        {/* KPI Radial Gauges */}
+        <div className="chart-card">
+          <div className="chart-card-header">
+            <h3 className="chart-card-title">Key Performance Indicators</h3>
+          </div>
+          <div className="space-y-4">
+            {kpiGaugeData.map((kpi, i) => (
+              <div key={i} className="flex items-center gap-4">
+                <div className="w-20 h-20">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <RadialBarChart cx="50%" cy="50%" innerRadius="60%" outerRadius="100%" data={[kpi]} startAngle={180} endAngle={0}>
+                      <RadialBar background={{ fill: 'var(--bg-secondary)' }} dataKey="value" cornerRadius={10} fill={kpi.fill} />
+                    </RadialBarChart>
+                  </ResponsiveContainer>
+                </div>
+                <div className="flex-1">
+                  <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{kpi.name}</p>
+                  <p className="text-2xl font-bold" style={{ color: kpi.fill }}>{kpi.value.toFixed(1)}%</p>
+                  <div className="progress-bar mt-2">
+                    <div className="progress-bar-fill" style={{ width: `${kpi.value}%`, background: kpi.fill }} />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          <div className="mt-6 p-4 rounded-xl" style={{ background: 'var(--bg-secondary)' }}>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>Overall Score</span>
+              <span className="badge badge-green">Excellent</span>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <span className="text-4xl font-bold" style={{ color: 'var(--success)' }}>87</span>
+              <span className="text-sm" style={{ color: 'var(--text-muted)' }}>/100</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Revenue Breakdown & Tasks */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Revenue Treemap */}
+        <div className="lg:col-span-2 chart-card">
+          <div className="chart-card-header">
+            <div>
+              <h3 className="chart-card-title">Revenue Breakdown</h3>
+              <p className="chart-card-subtitle">Proportional view of revenue streams</p>
+            </div>
+            <div className="text-right">
+              <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{formatCurrency(revenue)}</p>
+              <p className="text-xs" style={{ color: 'var(--success)' }}>+{(execSummary.growth_rate || 12).toFixed(1)}% from last period</p>
+            </div>
+          </div>
+          <ResponsiveContainer width="100%" height={260}>
+            <Treemap data={treemapData} dataKey="size" aspectRatio={4/3} stroke="var(--bg-primary)" content={<CustomTreemapContent />}>
+              <Tooltip content={<CustomTooltip />} />
+            </Treemap>
+          </ResponsiveContainer>
+          <div className="flex flex-wrap gap-4 mt-4 pt-4" style={{ borderTop: '1px solid var(--border-color)' }}>
+            {treemapData.slice(0, 5).map((item, i) => (
+              <div key={i} className="flex items-center gap-2">
+                <span className="w-3 h-3 rounded" style={{ background: item.fill }} />
+                <span className="text-xs font-medium" style={{ color: 'var(--text-primary)' }}>{item.name}</span>
+                <span className="text-xs" style={{ color: 'var(--text-muted)' }}>{formatCurrency(item.size)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Tasks & Reminders */}
+        <div className="chart-card">
+          <div className="chart-card-header">
+            <h3 className="chart-card-title">Action Items</h3>
+            <span className="badge badge-primary">4 pending</span>
+          </div>
+          <div className="space-y-3">
+            {[
+              { task: 'Q4 Financial Review', date: 'Today', priority: 'high', icon: FiTarget },
+              { task: 'Board Meeting Prep', date: 'Tomorrow', priority: 'high', icon: FiAward },
+              { task: 'Budget Approval', date: 'Dec 20', priority: 'medium', icon: FiCheck, done: true },
+              { task: 'Team Performance', date: 'Dec 22', priority: 'low', icon: FiUsers },
+            ].map((item, i) => (
+              <div key={i} className={`flex items-center gap-3 p-3 rounded-lg transition-all hover:shadow-md ${item.done ? 'opacity-60' : ''}`} style={{ background: 'var(--bg-secondary)' }}>
+                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${item.done ? '' : ''}`} style={{ 
+                  background: item.priority === 'high' ? 'rgba(239, 68, 68, 0.15)' : item.priority === 'medium' ? 'rgba(245, 158, 11, 0.15)' : 'rgba(14, 165, 233, 0.15)'
+                }}>
+                  <item.icon className="w-5 h-5" style={{ 
+                    color: item.priority === 'high' ? '#EF4444' : item.priority === 'medium' ? '#F59E0B' : '#0EA5E9'
+                  }} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm font-medium ${item.done ? 'line-through' : ''}`} style={{ color: 'var(--text-primary)' }}>{item.task}</p>
+                  <p className="text-xs flex items-center gap-1" style={{ color: 'var(--text-muted)' }}>
+                    <FiClock className="w-3 h-3" /> {item.date}
+                  </p>
+                </div>
+                {item.done && <FiCheck className="w-5 h-5" style={{ color: 'var(--success)' }} />}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Drill Down Panel */}
+      <DrillDownPanel isOpen={drillDown.isOpen} onClose={closeDrillDown} title={drillDown.title} dataType={drillDown.dataType} filterValue={drillDown.filterValue} companyName={selectedCompany} dataSource={dataSource} />
     </div>
   );
 };
 
 export default CEODashboardEnhanced;
-

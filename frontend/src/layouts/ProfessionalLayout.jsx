@@ -3,7 +3,8 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { 
   FiHome, FiGrid, FiBarChart2, FiFileText, FiDatabase, 
   FiMessageCircle, FiLogOut, FiMenu, FiX, FiChevronRight,
-  FiBell, FiSettings, FiZap, FiCpu, FiWifi, FiWifiOff
+  FiBell, FiSettings, FiZap, FiCpu, FiWifi, FiWifiOff,
+  FiSun, FiMoon, FiSearch
 } from 'react-icons/fi';
 import { Toaster } from 'react-hot-toast';
 import useAuthStore from '../store/authStore';
@@ -13,16 +14,29 @@ const ProfessionalLayout = ({ children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [tallyStatus, setTallyStatus] = useState({ connected: false });
+  const [darkMode, setDarkMode] = useState(() => {
+    const saved = localStorage.getItem('theme');
+    return saved === 'dark';
+  });
   const { user, logout } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [darkMode]);
 
   useEffect(() => {
     const checkTallyStatus = async () => {
       try {
         const connectionType = localStorage.getItem('tally_connection_type');
         const bridgeToken = localStorage.getItem('tally_bridge_token') || 'user_tally_bridge';
-        
         if (connectionType === 'BRIDGE') {
           const bridgeStatus = await tallyApi.getBridgeStatus(bridgeToken);
           if (bridgeStatus?.connected) {
@@ -30,23 +44,19 @@ const ProfessionalLayout = ({ children }) => {
             return;
           }
         }
-        
         const status = await tallyApi.getStatus();
         setTallyStatus({ connected: status?.connected || status?.is_connected || false, viaBridge: false });
       } catch {
         setTallyStatus({ connected: false });
       }
     };
-
     const timeout = setTimeout(checkTallyStatus, 1000);
     const interval = setInterval(checkTallyStatus, 30000);
     return () => { clearTimeout(timeout); clearInterval(interval); };
   }, []);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
-  };
+  const handleLogout = () => { logout(); navigate('/login'); };
+  const toggleTheme = () => setDarkMode(!darkMode);
 
   const navigation = [
     { name: 'Dashboard', path: '/dashboard', icon: FiHome },
@@ -59,184 +69,158 @@ const ProfessionalLayout = ({ children }) => {
   ];
 
   return (
-    <div className="min-h-screen bg-[#050505] flex">
-      {/* Ambient Background Effects */}
-      <div className="fixed inset-0 pointer-events-none overflow-hidden">
-        <div className="absolute top-0 left-1/4 w-[800px] h-[800px] bg-[#00F5FF]/5 rounded-full blur-4xl" />
-        <div className="absolute bottom-0 right-1/4 w-[600px] h-[600px] bg-[#BF00FF]/5 rounded-full blur-4xl" />
-        <div className="absolute top-1/2 right-0 w-[400px] h-[400px] bg-[#FF00E5]/5 rounded-full blur-4xl" />
-        <div className="absolute inset-0 bg-grid-pattern opacity-30" />
-      </div>
-
-      {/* Sidebar - Desktop */}
-      <aside className={`hidden lg:flex flex-col fixed left-0 top-0 bottom-0 z-50 transition-all duration-500 ${sidebarOpen ? 'w-72' : 'w-20'}`}>
-        <div className="flex-1 flex flex-col bg-[#0a0a0a]/80 backdrop-blur-2xl border-r border-white/5">
-          {/* Logo */}
-          <div className="p-6 flex items-center gap-4">
-            <div className="relative">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#00F5FF] to-[#BF00FF] flex items-center justify-center shadow-lg animate-pulse-glow">
-                <FiZap className="w-6 h-6 text-white" />
-              </div>
-              <div className="absolute -inset-1 rounded-2xl bg-gradient-to-br from-[#00F5FF] to-[#BF00FF] opacity-30 blur-lg -z-10" />
-            </div>
-            {sidebarOpen && (
-              <div className="animate-fade-up">
-                <h1 className="text-xl font-bold text-gradient">TallyDash</h1>
-                <p className="text-xs text-white/40">AI-Powered Analytics</p>
-              </div>
-            )}
+    <div className="min-h-screen flex" style={{ background: 'var(--bg-primary)' }}>
+      {/* Sidebar */}
+      <aside className={`hidden lg:flex flex-col fixed left-0 top-0 bottom-0 z-50 transition-all duration-300 ${sidebarOpen ? 'w-64' : 'w-20'}`}
+             style={{ background: 'var(--bg-secondary)', borderRight: '1px solid var(--border-color)' }}>
+        
+        {/* Logo */}
+        <div className="h-16 flex items-center px-6 gap-3" style={{ borderBottom: '1px solid var(--border-color)' }}>
+          <div className="w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'var(--gradient-primary)' }}>
+            <FiZap className="w-5 h-5 text-white" />
           </div>
-
-          {/* Navigation */}
-          <nav className="flex-1 px-4 py-6 space-y-2">
-            {navigation.map((item, i) => {
-              const isActive = location.pathname === item.path;
-              const Icon = item.icon;
-              return (
-                <Link
-                  key={item.name}
-                  to={item.path}
-                  className={`nav-item ${isActive ? 'active' : ''}`}
-                  style={{ animationDelay: `${i * 0.05}s` }}
-                >
-                  <Icon className="w-5 h-5 flex-shrink-0" />
-                  {sidebarOpen && <span className="font-medium">{item.name}</span>}
-                  {sidebarOpen && isActive && <FiChevronRight className="w-4 h-4 ml-auto" />}
-                </Link>
-              );
-            })}
-          </nav>
-
-          {/* Status Card */}
           {sidebarOpen && (
-            <div className="px-4 pb-4">
-              <div className="glass-card p-4">
-                <div className="flex items-center gap-3 mb-3">
-                  {tallyStatus.connected ? (
-                    <div className="w-10 h-10 rounded-xl bg-[#00FF88]/20 flex items-center justify-center">
-                      <FiWifi className="w-5 h-5 text-[#00FF88]" />
-                    </div>
-                  ) : (
-                    <div className="w-10 h-10 rounded-xl bg-[#FF6B00]/20 flex items-center justify-center">
-                      <FiWifiOff className="w-5 h-5 text-[#FF6B00]" />
-                    </div>
-                  )}
-                  <div>
-                    <p className="text-sm font-semibold">{tallyStatus.connected ? 'Connected' : 'Disconnected'}</p>
-                    <p className="text-xs text-white/40">{tallyStatus.viaBridge ? 'Via Bridge' : 'Direct'}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <FiCpu className="w-3 h-3 text-[#00F5FF]" />
-                  <span className="text-xs text-white/50">Phi4:14b Ready</span>
-                </div>
-              </div>
+            <div>
+              <h1 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>TallyDash</h1>
+              <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Analytics Pro</p>
             </div>
           )}
+        </div>
 
-          {/* User Section */}
-          <div className="p-4 border-t border-white/5">
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#BF00FF] to-[#FF00E5] flex items-center justify-center font-bold text-white">
-                  {(user?.username || user?.name || 'U')[0].toUpperCase()}
+        {/* Navigation */}
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
+          {navigation.map((item) => {
+            const isActive = location.pathname === item.path;
+            const Icon = item.icon;
+            return (
+              <Link key={item.name} to={item.path} className={`nav-item ${isActive ? 'active' : ''}`} title={item.name}>
+                <Icon className="w-5 h-5 flex-shrink-0" />
+                {sidebarOpen && <span>{item.name}</span>}
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* Connection Status */}
+        {sidebarOpen && (
+          <div className="px-4 py-4" style={{ borderTop: '1px solid var(--border-color)' }}>
+            <div className="card p-3">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center" 
+                     style={{ background: tallyStatus.connected ? 'rgba(40, 199, 111, 0.15)' : 'rgba(234, 84, 85, 0.15)' }}>
+                  {tallyStatus.connected ? <FiWifi className="w-4 h-4" style={{ color: 'var(--green)' }} /> : <FiWifiOff className="w-4 h-4" style={{ color: 'var(--red)' }} />}
                 </div>
-                <div className="absolute bottom-0 right-0 w-3 h-3 bg-[#00FF88] rounded-full border-2 border-[#0a0a0a]" />
+                <div>
+                  <p className="text-xs font-semibold" style={{ color: 'var(--text-primary)' }}>{tallyStatus.connected ? 'Connected' : 'Disconnected'}</p>
+                  <p className="text-xs" style={{ color: 'var(--text-muted)' }}>{tallyStatus.viaBridge ? 'Bridge Mode' : 'Direct'}</p>
+                </div>
               </div>
-              {sidebarOpen && (
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold truncate">{user?.username || user?.name || 'User'}</p>
-                  <p className="text-xs text-white/40 truncate">{user?.email || 'user@example.com'}</p>
-                </div>
-              )}
-              <button onClick={handleLogout} className="p-2 text-white/40 hover:text-[#FF6B00] hover:bg-[#FF6B00]/10 rounded-lg transition-all">
-                <FiLogOut className="w-5 h-5" />
-              </button>
             </div>
           </div>
+        )}
 
-          {/* Toggle Button */}
-          <button
-            onClick={() => setSidebarOpen(!sidebarOpen)}
-            className="absolute -right-3 top-8 w-6 h-6 bg-[#0a0a0a] border border-white/10 rounded-full flex items-center justify-center text-white/50 hover:text-white hover:border-[#00F5FF]/50 transition-all"
-          >
-            <FiChevronRight className={`w-3 h-3 transition-transform ${sidebarOpen ? 'rotate-180' : ''}`} />
-          </button>
+        {/* User */}
+        <div className="px-4 py-3" style={{ borderTop: '1px solid var(--border-color)' }}>
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg flex items-center justify-center font-semibold text-white flex-shrink-0" style={{ background: 'var(--gradient-dark)' }}>
+              {(user?.username || user?.name || 'U')[0].toUpperCase()}
+            </div>
+            {sidebarOpen && (
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>{user?.username || 'User'}</p>
+                <p className="text-xs truncate" style={{ color: 'var(--text-muted)' }}>{user?.email || 'user@example.com'}</p>
+              </div>
+            )}
+            <button onClick={handleLogout} className="p-2 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors" style={{ color: 'var(--red)' }}>
+              <FiLogOut className="w-4 h-4" />
+            </button>
+          </div>
         </div>
+
+        {/* Toggle */}
+        <button onClick={() => setSidebarOpen(!sidebarOpen)}
+          className="absolute -right-3 top-20 w-6 h-6 rounded-full flex items-center justify-center shadow-md transition-all"
+          style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', color: 'var(--text-muted)' }}>
+          <FiChevronRight className={`w-3 h-3 transition-transform ${sidebarOpen ? 'rotate-180' : ''}`} />
+        </button>
       </aside>
 
       {/* Mobile Header */}
-      <header className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-[#0a0a0a]/90 backdrop-blur-2xl border-b border-white/5">
-        <div className="flex items-center justify-between px-4 h-16">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#00F5FF] to-[#BF00FF] flex items-center justify-center">
-              <FiZap className="w-5 h-5 text-white" />
-            </div>
-            <h1 className="text-lg font-bold text-gradient">TallyDash</h1>
+      <header className="lg:hidden fixed top-0 left-0 right-0 z-50 h-16 flex items-center justify-between px-4"
+              style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'var(--gradient-primary)' }}>
+            <FiZap className="w-5 h-5 text-white" />
           </div>
-          <div className="flex items-center gap-2">
-            <button className="p-2 text-white/50 hover:text-white" onClick={() => navigate('/notifications')}>
-              <FiBell className="w-5 h-5" />
-            </button>
-            <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 text-white/50 hover:text-white">
-              {mobileMenuOpen ? <FiX className="w-6 h-6" /> : <FiMenu className="w-6 h-6" />}
-            </button>
-          </div>
+          <h1 className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>TallyDash</h1>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={toggleTheme} className="theme-toggle">
+            {darkMode ? <FiSun className="w-4 h-4" /> : <FiMoon className="w-4 h-4" />}
+          </button>
+          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 rounded-lg" style={{ color: 'var(--text-secondary)' }}>
+            {mobileMenuOpen ? <FiX className="w-6 h-6" /> : <FiMenu className="w-6 h-6" />}
+          </button>
         </div>
 
-        {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="absolute top-16 left-0 right-0 bg-[#0a0a0a]/95 backdrop-blur-2xl border-b border-white/5 p-4 space-y-2 animate-fade-up">
+          <div className="absolute top-16 left-0 right-0 p-4 space-y-1 shadow-lg animate-fade-up"
+               style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
             {navigation.map((item) => {
               const isActive = location.pathname === item.path;
               const Icon = item.icon;
               return (
-                <Link
-                  key={item.name}
-                  to={item.path}
-                  onClick={() => setMobileMenuOpen(false)}
-                  className={`nav-item ${isActive ? 'active' : ''}`}
-                >
-                  <Icon className="w-5 h-5" />
-                  <span className="font-medium">{item.name}</span>
+                <Link key={item.name} to={item.path} onClick={() => setMobileMenuOpen(false)} className={`nav-item ${isActive ? 'active' : ''}`}>
+                  <Icon className="w-5 h-5" /><span>{item.name}</span>
                 </Link>
               );
             })}
-            <button onClick={handleLogout} className="nav-item w-full text-left text-[#FF6B00]">
-              <FiLogOut className="w-5 h-5" />
-              <span className="font-medium">Logout</span>
-            </button>
           </div>
         )}
       </header>
 
-      {/* Main Content */}
-      <main className={`flex-1 min-h-screen transition-all duration-500 ${sidebarOpen ? 'lg:ml-72' : 'lg:ml-20'} pt-16 lg:pt-0`}>
-        <div className="relative">
-          {children}
+      {/* Top Bar */}
+      <div className={`hidden lg:flex fixed top-0 right-0 z-40 h-16 items-center gap-4 px-6 transition-all duration-300 ${sidebarOpen ? 'left-64' : 'left-20'}`}
+           style={{ background: 'var(--bg-secondary)', borderBottom: '1px solid var(--border-color)' }}>
+        
+        {/* Search */}
+        <div className="flex-1 max-w-md relative">
+          <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: 'var(--text-muted)' }} />
+          <input type="text" placeholder="Search..." className="input-neon pl-10 py-2 text-sm" />
         </div>
+        
+        <div className="flex-1" />
+        
+        <button onClick={toggleTheme} className="theme-toggle" title={darkMode ? 'Light Mode' : 'Dark Mode'}>
+          {darkMode ? <FiSun className="w-4 h-4" /> : <FiMoon className="w-4 h-4" />}
+        </button>
+        
+        <button className="theme-toggle relative" onClick={() => navigate('/notifications')}>
+          <FiBell className="w-4 h-4" />
+          <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full text-xs flex items-center justify-center text-white" style={{ background: 'var(--red)' }}>3</span>
+        </button>
+        
+        <div className="flex items-center gap-3 pl-4" style={{ borderLeft: '1px solid var(--border-color)' }}>
+          <div className="w-9 h-9 rounded-lg flex items-center justify-center font-semibold text-white" style={{ background: 'var(--gradient-primary)' }}>
+            {(user?.username || 'U')[0].toUpperCase()}
+          </div>
+          <div>
+            <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{user?.username || 'User'}</p>
+            <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Admin</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Main Content */}
+      <main className={`flex-1 min-h-screen transition-all duration-300 ${sidebarOpen ? 'lg:ml-64' : 'lg:ml-20'} pt-16`}>
+        {children}
       </main>
 
-      {/* Toast */}
-      <Toaster 
-        position="bottom-right"
-        toastOptions={{
-          style: {
-            background: 'rgba(10, 10, 10, 0.95)',
-            color: '#fff',
-            border: '1px solid rgba(255,255,255,0.1)',
-            backdropFilter: 'blur(20px)',
-            borderRadius: '16px',
-            padding: '16px',
-          },
-          success: {
-            iconTheme: { primary: '#00FF88', secondary: '#050505' }
-          },
-          error: {
-            iconTheme: { primary: '#FF6B00', secondary: '#050505' }
-          }
-        }}
-      />
+      <Toaster position="top-right" toastOptions={{
+        style: { background: 'var(--bg-secondary)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', borderRadius: '8px' },
+        success: { iconTheme: { primary: '#28C76F', secondary: 'white' } },
+        error: { iconTheme: { primary: '#EA5455', secondary: 'white' } }
+      }} />
     </div>
   );
 };
