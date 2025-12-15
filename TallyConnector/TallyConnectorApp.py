@@ -451,9 +451,10 @@ class TallyConnectorApp:
     async def handle_message(self, data, websocket):
         """Handle incoming WebSocket messages"""
         msg_type = data.get("type")
-        request_id = data.get("request_id")
+        # Backend uses 'id' for request matching
+        request_id = data.get("id") or data.get("request_id")
         
-        logger.info(f"Received message type: {msg_type}, request_id: {request_id}")
+        logger.info(f"Received message type: {msg_type}, id: {request_id}")
         
         if msg_type == "status":
             # Handle status check
@@ -463,7 +464,7 @@ class TallyConnectorApp:
             
             await websocket.send(json.dumps({
                 "type": "status_response",
-                "request_id": request_id,
+                "id": request_id,
                 "tally_connected": tally_ok,
                 "bridge_connected": True
             }))
@@ -479,7 +480,7 @@ class TallyConnectorApp:
             # Send response back
             await websocket.send(json.dumps({
                 "type": "tally_response",
-                "request_id": request_id,
+                "id": request_id,
                 "response": response,
                 "success": response is not None
             }))
@@ -491,7 +492,7 @@ class TallyConnectorApp:
                 self.root.after(0, lambda: self.log_message("❌ Tally request failed"))
         
         elif msg_type == "ping":
-            await websocket.send(json.dumps({"type": "pong", "request_id": request_id}))
+            await websocket.send(json.dumps({"type": "pong", "id": request_id}))
         
         elif msg_type == "get_companies":
             self.root.after(0, lambda: self.log_message("📥 Fetching companies from Tally..."))
@@ -503,7 +504,7 @@ class TallyConnectorApp:
             
             await websocket.send(json.dumps({
                 "type": "companies_response",
-                "request_id": request_id,
+                "id": request_id,
                 "response": response,
                 "success": response is not None
             }))
@@ -518,7 +519,7 @@ class TallyConnectorApp:
             # Send error response for unknown types
             await websocket.send(json.dumps({
                 "type": "error",
-                "request_id": request_id,
+                "id": request_id,
                 "error": f"Unknown message type: {msg_type}"
             }))
     
