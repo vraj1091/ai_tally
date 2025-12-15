@@ -269,6 +269,104 @@ class BridgeTallyService:
         
         return groups
     
+    async def get_stock_items(self, company_name: str) -> List[Dict]:
+        """Get all stock items for a company"""
+        xml_request = f"""<ENVELOPE>
+<HEADER>
+<VERSION>1</VERSION>
+<TALLYREQUEST>Export</TALLYREQUEST>
+<TYPE>Collection</TYPE>
+<ID>StockItemCollection</ID>
+</HEADER>
+<BODY>
+<DESC>
+<STATICVARIABLES>
+<SVCURRENTCOMPANY>{company_name}</SVCURRENTCOMPANY>
+<SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+</STATICVARIABLES>
+<TDL>
+<TDLMESSAGE>
+<COLLECTION NAME="StockItemCollection">
+<TYPE>StockItem</TYPE>
+<FETCH>NAME, PARENT, BASEUNITS, OPENINGBALANCE, CLOSINGBALANCE, CLOSINGVALUE, CLOSINGRATE</FETCH>
+</COLLECTION>
+</TDLMESSAGE>
+</TDL>
+</DESC>
+</BODY>
+</ENVELOPE>"""
+        
+        response = await self._send_tally_request(xml_request, timeout=60)
+        stock_items = []
+        
+        if response:
+            logger.info(f"Stock items response size: {len(response)} bytes")
+            
+            try:
+                # Sanitize and parse XML
+                sanitized = self._sanitize_xml(response)
+                root = ET.fromstring(sanitized)
+                
+                # Find stock items
+                for item in root.findall('.//STOCKITEM'):
+                    name = item.get('NAME') or ''
+                    if not name:
+                        name_el = item.find('NAME')
+                        name = name_el.text if name_el is not None else ''
+                    
+                    parent_el = item.find('PARENT')
+                    parent = parent_el.text if parent_el is not None else ''
+                    
+                    unit_el = item.find('BASEUNITS')
+                    unit = unit_el.text if unit_el is not None else ''
+                    
+                    # Get closing balance (quantity)
+                    closing_bal_el = item.find('CLOSINGBALANCE')
+                    closing_qty = 0
+                    if closing_bal_el is not None and closing_bal_el.text:
+                        try:
+                            closing_qty = float(closing_bal_el.text.split()[0].replace(',', ''))
+                        except:
+                            pass
+                    
+                    # Get closing value (monetary)
+                    closing_val_el = item.find('CLOSINGVALUE')
+                    closing_value = 0
+                    if closing_val_el is not None and closing_val_el.text:
+                        try:
+                            closing_value = abs(float(closing_val_el.text.replace(',', '')))
+                        except:
+                            pass
+                    
+                    # Get rate
+                    rate_el = item.find('CLOSINGRATE')
+                    rate = 0
+                    if rate_el is not None and rate_el.text:
+                        try:
+                            rate = float(rate_el.text.split()[0].replace(',', ''))
+                        except:
+                            pass
+                    
+                    if name:
+                        stock_items.append({
+                            'name': name.strip(),
+                            'parent': parent.strip() if parent else '',
+                            'unit': unit.strip() if unit else '',
+                            'closing_quantity': closing_qty,
+                            'closing_value': closing_value,
+                            'rate': rate
+                        })
+                
+                logger.info(f"Parsed {len(stock_items)} stock items")
+            except Exception as e:
+                logger.error(f"Error parsing stock items: {e}")
+                # Try regex fallback
+                names = re.findall(r'<STOCKITEM[^>]*NAME="([^"]+)"', response)
+                for name in names:
+                    stock_items.append({'name': name, 'parent': '', 'unit': '', 'closing_quantity': 0, 'closing_value': 0, 'rate': 0})
+        
+        return stock_items
+    
     async def get_vouchers(self, company_name: str, limit: int = 100, days: int = 90) -> List[Dict]:
         """
         Get recent vouchers for a company (last N days only to avoid huge data)
@@ -651,17 +749,30 @@ class BridgeTallyService:
         else:
             logger.info(f"Bridge: Skipping vouchers (include_vouchers=False)")
         
-        logger.info(f"Bridge: Got {len(ledgers)} ledgers, {len(vouchers)} vouchers, {len(groups)} groups")
+        # Fetch stock items for inventory dashboard
+        stock_items = []
+        try:
+            stock_items = await self.get_stock_items(company_name)
+            logger.info(f"Bridge: Got {len(stock_items)} stock items for {company_name}")
+        except Exception as e:
+            logger.warning(f"Bridge: Stock items fetch failed: {e}")
+        
+        logger.info(f"Bridge: Got {len(ledgers)} ledgers, {len(vouchers)} vouchers, {len(groups)} groups, {len(stock_items)} stock items")
         
         # Build summary from ledgers (same structure as TallyDataService)
         summary = self._build_summary_from_ledgers(ledgers, vouchers)
+        
+        # Add stock summary
+        total_stock_value = sum(item.get('closing_value', 0) for item in stock_items)
+        summary['total_stock_items'] = len(stock_items)
+        summary['total_stock_value'] = total_stock_value
         
         # Return in EXACT same format as TallyDataService
         return {
             "ledgers": ledgers,
             "vouchers": vouchers,
             "summary": summary,
-            "stock_items": [],  # Stock data not fetched via simple bridge
+            "stock_items": stock_items,
             "groups": groups,
             "source": "bridge"
         }

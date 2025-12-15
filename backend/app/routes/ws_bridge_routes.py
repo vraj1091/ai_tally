@@ -397,12 +397,14 @@ async def get_companies_via_bridge(user_token: str):
                     if name and len(name) > 1:
                         companies.append({'name': name.strip()})
             
-            # Deduplicate companies
+            # Deduplicate and filter invalid company names
             seen = set()
             unique_companies = []
+            invalid_names = {'0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '', 'NAME', 'Company', 'COMPANY'}
             for c in companies:
                 name = c.get('name', '').strip()
-                if name and name not in seen:
+                # Filter out invalid/numeric names and duplicates
+                if name and name not in seen and name not in invalid_names and not name.isdigit():
                     seen.add(name)
                     unique_companies.append({'name': name})
             companies = unique_companies
