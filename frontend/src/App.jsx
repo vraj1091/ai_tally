@@ -29,6 +29,9 @@ import DocumentAnalysisDashboard from './components/documents/DocumentAnalysisDa
 // Analytics with real data
 import AnalyticsPage from './pages/AnalyticsPage';
 
+// Backup Management
+import BackupPage from './pages/BackupPage';
+
 import './App.css';
 
 // Protected Route Component - Requires authentication
@@ -124,6 +127,12 @@ function App() {
         <Route path="/tally" element={
           <ProtectedRoute>
             <EnhancedTallyExplorer />
+          </ProtectedRoute>
+        } />
+
+        <Route path="/backup" element={
+          <ProtectedRoute>
+            <BackupPage />
           </ProtectedRoute>
         } />
 

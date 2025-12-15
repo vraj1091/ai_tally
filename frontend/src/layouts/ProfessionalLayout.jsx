@@ -4,7 +4,7 @@ import {
   FiHome, FiGrid, FiBarChart2, FiFileText, FiDatabase, 
   FiMessageCircle, FiLogOut, FiMenu, FiX, FiChevronRight,
   FiBell, FiSettings, FiZap, FiCpu, FiWifi, FiWifiOff,
-  FiSun, FiMoon, FiSearch
+  FiSun, FiMoon, FiSearch, FiHardDrive
 } from 'react-icons/fi';
 import { Toaster } from 'react-hot-toast';
 import useAuthStore from '../store/authStore';
@@ -63,6 +63,7 @@ const ProfessionalLayout = ({ children }) => {
     { name: 'Analytics', path: '/analytics', icon: FiBarChart2 },
     { name: 'Dashboards', path: '/dashboards', icon: FiGrid },
     { name: 'Tally Data', path: '/tally', icon: FiDatabase },
+    { name: 'Backup', path: '/backup', icon: FiHardDrive },
     { name: 'Documents', path: '/documents', icon: FiFileText },
     { name: 'AI Chat', path: '/chat', icon: FiMessageCircle },
     { name: 'Settings', path: '/settings', icon: FiSettings },
