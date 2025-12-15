@@ -11,24 +11,24 @@ import DataSourceSelector from '../components/common/DataSourceSelector';
 // Lazy load dashboard components
 const CEODashboardEnhanced = lazy(() => import('../components/dashboards/CEODashboardEnhanced'));
 const CFODashboard = lazy(() => import('../components/dashboards/CFODashboard'));
-const ExecutiveSummary = lazy(() => import('../components/dashboards/ExecutiveSummary'));
+const ExecutiveSummary = lazy(() => import('../components/dashboards/ExecutiveSummaryDashboard'));
 const SalesDashboard = lazy(() => import('../components/dashboards/SalesDashboard'));
 const InventoryDashboard = lazy(() => import('../components/dashboards/InventoryDashboard'));
-const RealtimeOps = lazy(() => import('../components/dashboards/RealtimeOps'));
+const RealtimeOps = lazy(() => import('../components/dashboards/RealtimeOperationsDashboard'));
 const ReceivablesDashboard = lazy(() => import('../components/dashboards/ReceivablesDashboard'));
-const PayablesDashboard = lazy(() => import('../components/dashboards/PayablesDashboard'));
+const PayablesDashboard = lazy(() => import('../components/dashboards/AccountsPayableDashboard'));
 const CashFlowDashboard = lazy(() => import('../components/dashboards/CashFlowDashboard'));
 const ProfitLossDashboard = lazy(() => import('../components/dashboards/ProfitLossDashboard'));
 const BalanceSheetDashboard = lazy(() => import('../components/dashboards/BalanceSheetDashboard'));
 const TaxDashboard = lazy(() => import('../components/dashboards/TaxDashboard'));
 const ComplianceDashboard = lazy(() => import('../components/dashboards/ComplianceDashboard'));
-const BudgetDashboard = lazy(() => import('../components/dashboards/BudgetDashboard'));
-const ForecastDashboard = lazy(() => import('../components/dashboards/ForecastDashboard'));
-const CustomerDashboard = lazy(() => import('../components/dashboards/CustomerDashboard'));
-const VendorDashboard = lazy(() => import('../components/dashboards/VendorDashboard'));
-const ProductDashboard = lazy(() => import('../components/dashboards/ProductDashboard'));
-const ExpenseDashboard = lazy(() => import('../components/dashboards/ExpenseDashboard'));
-const RevenueDashboard = lazy(() => import('../components/dashboards/RevenueDashboard'));
+const BudgetDashboard = lazy(() => import('../components/dashboards/BudgetActualDashboard'));
+const ForecastDashboard = lazy(() => import('../components/dashboards/ForecastingDashboard'));
+const CustomerDashboard = lazy(() => import('../components/dashboards/CustomerAnalyticsDashboard'));
+const VendorDashboard = lazy(() => import('../components/dashboards/VendorAnalyticsDashboard'));
+const ProductDashboard = lazy(() => import('../components/dashboards/ProductPerformanceDashboard'));
+const ExpenseDashboard = lazy(() => import('../components/dashboards/ExpenseAnalysisDashboard'));
+const RevenueDashboard = lazy(() => import('../components/dashboards/RevenueAnalysisDashboard'));
 
 const dashboards = [
   { id: 'ceo', name: 'CEO Dashboard', desc: 'Executive overview & strategic insights', icon: FiZap, category: 'executive', color: '#06B6D4', Component: CEODashboardEnhanced },
