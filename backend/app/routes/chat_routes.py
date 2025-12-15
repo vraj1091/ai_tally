@@ -183,21 +183,22 @@ async def chat(query: ChatQuery, db: Session = Depends(get_db)):
         # ===== STEP 0: Try BRIDGE Data First (for remote Tally) =====
         try:
             from app.services.bridge_tally_service import BridgeTallyService
-            from app.routes.ws_bridge_routes import bridge_connections
+            from app.routes.ws_bridge_routes import bridge_manager
             import json
             
             # Check if bridge is connected
             bridge_token = "user_tally_bridge"
-            logger.info(f"Chat: Checking bridge. Available bridges: {list(bridge_connections.keys())}")
+            is_connected = bridge_manager.is_connected(bridge_token)
+            logger.info(f"Chat: Checking bridge. Connected: {is_connected}")
             
-            if bridge_token in bridge_connections:
-                bridge_info = bridge_connections[bridge_token]
+            if is_connected:
+                bridge_info = bridge_manager.bridge_info.get(bridge_token, {})
                 logger.info(f"Chat: Bridge info - tally_connected={bridge_info.get('tally_connected')}")
                 
                 if bridge_info.get("tally_connected"):
                     logger.info("✅ Bridge connected - fetching data for chat")
                     
-                    bridge_service = BridgeTallyService(bridge_token)
+                    bridge_service = BridgeTallyService(bridge_manager, bridge_token)
                     companies = await bridge_service.get_companies()
                     
                     if companies:
@@ -427,7 +428,7 @@ Answer:"""
                         "prompt": prompt,
                         "stream": False
                     },
-                    timeout=180  # Increased timeout for phi4:14b
+                    timeout=300  # Increased timeout for phi4:14b
                 )
                 
                 if ollama_response.status_code == 200:
@@ -439,6 +440,28 @@ Answer:"""
                         document_sources=[],
                         success=True
                     )
+                else:
+                    logger.error(f"Ollama returned status {ollama_response.status_code}")
+            except requests.exceptions.ConnectionError:
+                logger.warning("Ollama not available - using data summary response")
+                # Provide helpful response even without LLM
+                answer = f"""I found your Tally data but the AI model is currently unavailable.
+
+**Here's a summary of your data ({data_source.upper()} source):**
+{tally_context[:2000]}
+
+**To ask AI-powered questions:**
+1. Ensure Ollama is running on the server
+2. Run: `ollama run phi4:14b` on the server
+
+Would you like me to show specific data from your Tally records?"""
+                return ChatResponse(
+                    answer=answer,
+                    query=query.query,
+                    tally_sources=tally_sources,
+                    document_sources=[],
+                    success=True
+                )
             except Exception as e:
                 logger.error(f"Error calling Ollama with tally context: {e}")
         

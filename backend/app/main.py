@@ -440,6 +440,32 @@ async def health_check():
         except Exception as e:
             health_data["database_status"] = f"error: {str(e)}"
             health_data["status"] = "degraded"
+    
+    # Check Ollama AI status
+    try:
+        import requests
+        ollama_resp = requests.get(f"{Config.OLLAMA_BASE_URL}/api/tags", timeout=5)
+        if ollama_resp.status_code == 200:
+            models = ollama_resp.json().get("models", [])
+            model_names = [m.get("name", "") for m in models]
+            health_data["ollama_status"] = "running"
+            health_data["ollama_models"] = model_names
+            if Config.OLLAMA_MODEL not in str(model_names):
+                health_data["ollama_warning"] = f"Model {Config.OLLAMA_MODEL} not found. Available: {model_names}"
+        else:
+            health_data["ollama_status"] = "error"
+    except Exception as e:
+        health_data["ollama_status"] = "not_available"
+        health_data["status"] = "degraded"
+    
+    # Check WebSocket bridge status
+    try:
+        from app.routes.ws_bridge_routes import bridge_manager
+        connected_bridges = len(bridge_manager.connections)
+        health_data["bridge_connections"] = connected_bridges
+    except:
+        health_data["bridge_connections"] = 0
+    
     return health_data
 
 @app.get("/api/debug/routes")
@@ -464,10 +490,10 @@ async def debug_routes():
 async def get_version():
     """Get API version information"""
     return {
-        "version": "2.0.0",
-        "name": "AI Tally Assistant",
+        "version": "2.1.0",
+        "name": "TallyDash Pro",
         "status": "production",
-        "build_date": "2025-11-17",
+        "build_date": "2025-12-15",
         "python_version": "3.9+",
         "framework": "FastAPI 0.118.0",
         "features": {
