@@ -1,3 +1,6 @@
+/* Google Fonts - MUST be first */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -6,8 +9,6 @@
    TALLYDASH PRO - FUTURISTIC THEME
    Cyberpunk-inspired with Neon Accents
    ============================================ */
-
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
   /* Core Dark Theme */
@@ -69,7 +70,8 @@
 @layer components {
   /* Glassmorphism Card */
   .glass-card {
-    @apply relative overflow-hidden;
+    position: relative;
+    overflow: hidden;
     background: var(--bg-card);
     backdrop-filter: blur(20px);
     -webkit-backdrop-filter: blur(20px);
@@ -86,10 +88,17 @@
   
   /* Neon Button */
   .btn-neon {
-    @apply relative px-6 py-3 font-semibold rounded-xl overflow-hidden transition-all duration-300;
+    position: relative;
+    padding: 12px 24px;
+    font-weight: 600;
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s ease;
     background: var(--gradient-primary);
     color: white;
     box-shadow: var(--glow-cyan);
+    border: none;
+    cursor: pointer;
   }
   
   .btn-neon:hover {
@@ -99,17 +108,22 @@
   
   .btn-neon::before {
     content: '';
-    @apply absolute inset-0;
+    position: absolute;
+    inset: 0;
     background: linear-gradient(135deg, rgba(255,255,255,0.2) 0%, transparent 50%);
     pointer-events: none;
   }
   
   /* Ghost Button */
   .btn-ghost {
-    @apply px-6 py-3 font-semibold rounded-xl transition-all duration-300;
+    padding: 12px 24px;
+    font-weight: 600;
+    border-radius: 12px;
+    transition: all 0.3s ease;
     background: rgba(255, 255, 255, 0.05);
     border: 1px solid var(--border-subtle);
     color: var(--text-secondary);
+    cursor: pointer;
   }
   
   .btn-ghost:hover {
@@ -121,7 +135,10 @@
   
   /* Input Field */
   .input-neon {
-    @apply w-full px-5 py-4 rounded-xl transition-all duration-300;
+    width: 100%;
+    padding: 16px 20px;
+    border-radius: 12px;
+    transition: all 0.3s ease;
     background: rgba(255, 255, 255, 0.03);
     border: 1px solid var(--border-subtle);
     color: var(--text-primary);
@@ -141,7 +158,10 @@
   
   /* Stat Badge */
   .stat-badge {
-    @apply px-3 py-1 rounded-full text-xs font-bold;
+    padding: 4px 12px;
+    border-radius: 9999px;
+    font-size: 12px;
+    font-weight: 700;
     background: rgba(0, 245, 255, 0.15);
     color: var(--neon-cyan);
     border: 1px solid rgba(0, 245, 255, 0.3);
@@ -171,15 +191,18 @@
     box-shadow: var(--glow-purple);
   }
   
-  /* Animated Gradient Border */
+  /* Gradient Border */
   .gradient-border {
-    @apply relative rounded-2xl;
+    position: relative;
+    border-radius: 16px;
     background: var(--bg-card);
   }
   
   .gradient-border::before {
     content: '';
-    @apply absolute -inset-[1px] rounded-2xl;
+    position: absolute;
+    inset: -1px;
+    border-radius: 16px;
     background: var(--gradient-primary);
     mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
@@ -191,8 +214,14 @@
   
   /* Navigation Item */
   .nav-item {
-    @apply flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-300;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    border-radius: 12px;
+    transition: all 0.3s ease;
     color: var(--text-muted);
+    text-decoration: none;
   }
   
   .nav-item:hover {
@@ -213,18 +242,8 @@
     animation: float 6s ease-in-out infinite;
   }
   
-  @keyframes float {
-    0%, 100% { transform: translateY(0px); }
-    50% { transform: translateY(-20px); }
-  }
-  
   .animate-pulse-glow {
     animation: pulseGlow 2s ease-in-out infinite;
-  }
-  
-  @keyframes pulseGlow {
-    0%, 100% { opacity: 1; box-shadow: 0 0 20px rgba(0, 245, 255, 0.5); }
-    50% { opacity: 0.8; box-shadow: 0 0 40px rgba(0, 245, 255, 0.8); }
   }
   
   .animate-gradient {
@@ -232,55 +251,16 @@
     animation: gradientShift 3s ease infinite;
   }
   
-  @keyframes gradientShift {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-  }
-  
   .animate-fade-up {
     animation: fadeUp 0.5s ease-out forwards;
-  }
-  
-  @keyframes fadeUp {
-    from {
-      opacity: 0;
-      transform: translateY(30px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
   }
   
   .animate-scale-in {
     animation: scaleIn 0.3s ease-out forwards;
   }
   
-  @keyframes scaleIn {
-    from {
-      opacity: 0;
-      transform: scale(0.9);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1);
-    }
-  }
-  
   .animate-slide-right {
     animation: slideRight 0.4s ease-out forwards;
-  }
-  
-  @keyframes slideRight {
-    from {
-      opacity: 0;
-      transform: translateX(-20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateX(0);
-    }
   }
   
   .animate-spin-slow {
@@ -319,6 +299,56 @@
   .stagger-6 { animation-delay: 0.6s; }
 }
 
+/* Keyframes */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-20px); }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { opacity: 1; box-shadow: 0 0 20px rgba(0, 245, 255, 0.5); }
+  50% { opacity: 0.8; box-shadow: 0 0 40px rgba(0, 245, 255, 0.8); }
+}
+
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes fadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes slideRight {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 /* Custom Scrollbar - Cyberpunk Style */
 ::-webkit-scrollbar {
   width: 8px;
@@ -353,4 +383,13 @@
 /* Remove default focus for non-keyboard users */
 :focus:not(:focus-visible) {
   outline: none;
+}
+
+/* No scrollbar utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }
