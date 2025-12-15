@@ -324,7 +324,47 @@ async def get_companies_via_bridge(user_token: str):
         'timeout': 30
     })
     
-    return response
+    # Parse XML response to extract company names
+    companies = []
+    if response.get('success') and response.get('response'):
+        try:
+            import xml.etree.ElementTree as ET
+            import re
+            
+            xml_data = response['response']
+            # Sanitize XML
+            xml_data = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', xml_data)
+            
+            root = ET.fromstring(xml_data)
+            
+            # Find company names in various Tally XML formats
+            for company in root.findall('.//COMPANY'):
+                name = company.get('NAME') or company.text
+                if name:
+                    companies.append({'name': name.strip()})
+            
+            # Also try COMPANYNAME elements
+            for company in root.findall('.//COMPANYNAME'):
+                name = company.text
+                if name:
+                    companies.append({'name': name.strip()})
+            
+            # Try SVCURRENTCOMPANY
+            for company in root.findall('.//SVCURRENTCOMPANY'):
+                name = company.text
+                if name:
+                    companies.append({'name': name.strip()})
+            
+            logger.info(f"Bridge: Parsed {len(companies)} companies from Tally")
+        except Exception as e:
+            logger.error(f"Error parsing companies XML: {e}")
+    
+    return {
+        'success': True,
+        'companies': companies,
+        'count': len(companies),
+        'source': 'bridge'
+    }
 
 
 # Helper function for other routes to use
