@@ -473,25 +473,27 @@ class TallyConnectorApp:
             logger.info(f"Status response sent: tally={tally_ok}")
         
         elif msg_type == "tally_request":
-            xml_request = data.get("xml_request", "")
-            self.root.after(0, lambda: self.log_message(f"📥 Tally request ({len(xml_request)} bytes)"))
+            # Backend can send XML as 'payload' or 'xml_request'
+            xml_request = data.get("payload", "") or data.get("xml_request", "")
+            self.root.after(0, lambda xml_len=len(xml_request): self.log_message(f"[IN] Tally request ({xml_len} bytes)"))
             
             # Send to Tally
             response = await self.send_to_tally(xml_request)
             
-            # Send response back
+            # Send response back - backend expects 'content' key
             await websocket.send(json.dumps({
                 "type": "tally_response",
                 "id": request_id,
-                "response": response,
-                "success": response is not None
+                "content": response or "",  # Backend expects 'content'
+                "response": response or "",  # Also include 'response' for compatibility
+                "success": response is not None and len(response) > 0
             }))
             
             if response:
                 size_kb = len(response) / 1024
-                self.root.after(0, lambda: self.log_message(f"📤 Response sent ({size_kb:.1f} KB)"))
+                self.root.after(0, lambda sz=size_kb: self.log_message(f"[OUT] Response sent ({sz:.1f} KB)"))
             else:
-                self.root.after(0, lambda: self.log_message("❌ Tally request failed"))
+                self.root.after(0, lambda: self.log_message("[ERR] Tally request failed"))
         
         elif msg_type == "ping":
             await websocket.send(json.dumps({"type": "pong", "id": request_id}))

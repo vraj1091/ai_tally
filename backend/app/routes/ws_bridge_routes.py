@@ -397,7 +397,17 @@ async def get_companies_via_bridge(user_token: str):
                     if name and len(name) > 1:
                         companies.append({'name': name.strip()})
             
-            logger.info(f"Bridge: Parsed {len(companies)} companies from Tally")
+            # Deduplicate companies
+            seen = set()
+            unique_companies = []
+            for c in companies:
+                name = c.get('name', '').strip()
+                if name and name not in seen:
+                    seen.add(name)
+                    unique_companies.append({'name': name})
+            companies = unique_companies
+            
+            logger.info(f"Bridge: Parsed {len(companies)} unique companies from Tally")
         except Exception as e:
             logger.error(f"Error parsing companies XML: {e}")
             import traceback
