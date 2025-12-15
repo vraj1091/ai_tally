@@ -7,7 +7,6 @@ import { FiShield, FiAlertCircle, FiRefreshCw, FiCheckCircle, FiXCircle, FiFileT
 import { tallyApi } from '../../api/tallyApi';
 import { fetchDashboardData } from '../../utils/dashboardHelper';
 import toast from 'react-hot-toast';
-import { validateChartData, validateNumeric, validateArrayData } from '../../utils/chartDataValidator';
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
@@ -20,7 +19,6 @@ const ComplianceDashboard = ({ dataSource = 'live' }) => {
   useEffect(() => {
     loadCompanies();
   }, [dataSource]);
-
 
   const loadCompanies = async () => {
     try {
@@ -90,8 +88,8 @@ const ComplianceDashboard = ({ dataSource = 'live' }) => {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-600 font-medium">Loading Regulatory Compliance...</p>
+          <div className="w-16 h-16 rounded-full border-4 animate-spin mx-auto" style={{ borderColor: 'var(--border-color)', borderTopColor: 'var(--primary)' }} />
+          <p className="mt-4 font-medium" style={{ color: 'var(--text-secondary)' }}>Loading Regulatory Compliance...</p>
         </div>
       </div>
     );
@@ -99,10 +97,10 @@ const ComplianceDashboard = ({ dataSource = 'live' }) => {
 
   if (!complianceData) {
     return (
-      <div className="bg-white rounded-xl shadow-sm p-12 text-center">
-        <FiAlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-xl font-semibold text-gray-900 mb-2">No Data Available</h3>
-        <p className="text-gray-600">Please connect to Tally or select a company with data</p>
+      <div className="card p-12 text-center">
+        <FiAlertCircle className="w-16 h-16 mx-auto mb-4" style={{ color: 'var(--text-muted)' }} />
+        <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>No Data Available</h3>
+        <p style={{ color: 'var(--text-secondary)' }}>Please connect to Tally or select a company with data</p>
       </div>
     );
   }
@@ -113,7 +111,6 @@ const ComplianceDashboard = ({ dataSource = 'live' }) => {
   const auditStatus = complianceData.audit_status || {};
   const filingStatus = complianceData.filing_status || {};
 
-  // Compliance radar data
   const radarData = [
     { requirement: 'GST', score: regulatoryRequirements.gst_compliance?.score || 0 },
     { requirement: 'TDS', score: regulatoryRequirements.tds_compliance?.score || 0 },
@@ -121,7 +118,6 @@ const ComplianceDashboard = ({ dataSource = 'live' }) => {
     { requirement: 'Audit', score: regulatoryRequirements.audit_requirements?.score || 0 }
   ];
 
-  // Compliance status data
   const complianceStatusData = [
     { name: 'GST', status: regulatoryRequirements.gst_compliance?.status || 'Unknown', score: regulatoryRequirements.gst_compliance?.score || 0 },
     { name: 'TDS', status: regulatoryRequirements.tds_compliance?.status || 'Unknown', score: regulatoryRequirements.tds_compliance?.score || 0 },
@@ -130,15 +126,15 @@ const ComplianceDashboard = ({ dataSource = 'live' }) => {
   ];
 
   const getStatusColor = (status) => {
-    if (status === 'Compliant') return 'text-green-600';
-    if (status === 'Pending') return 'text-yellow-600';
-    return 'text-red-600';
+    if (status === 'Compliant') return '#10B981';
+    if (status === 'Pending') return '#F59E0B';
+    return '#EF4444';
   };
 
   const getStatusBg = (status) => {
-    if (status === 'Compliant') return 'bg-green-50 border-green-500';
-    if (status === 'Pending') return 'bg-yellow-50 border-yellow-500';
-    return 'bg-red-50 border-red-500';
+    if (status === 'Compliant') return { background: 'rgba(16, 185, 129, 0.1)', border: '2px solid #10B981' };
+    if (status === 'Pending') return { background: 'rgba(245, 158, 11, 0.1)', border: '2px solid #F59E0B' };
+    return { background: 'rgba(239, 68, 68, 0.1)', border: '2px solid #EF4444' };
   };
 
   return (
@@ -146,14 +142,14 @@ const ComplianceDashboard = ({ dataSource = 'live' }) => {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Regulatory Compliance</h2>
-          <p className="text-gray-600 mt-1">Compliance Status & Regulatory Requirements</p>
+          <h2 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Regulatory Compliance</h2>
+          <p className="mt-1" style={{ color: 'var(--text-secondary)' }}>Compliance Status & Regulatory Requirements</p>
         </div>
         <div className="flex items-center gap-3">
           <select
             value={selectedCompany}
             onChange={(e) => setSelectedCompany(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            className="input-neon"
           >
             {companies.map((company, idx) => (
               <option key={idx} value={company.name}>{company.name}</option>
@@ -161,7 +157,7 @@ const ComplianceDashboard = ({ dataSource = 'live' }) => {
           </select>
           <button
             onClick={loadComplianceData}
-            className="px-4 py-2 bg-indigo-500 text-white rounded-lg hover:bg-indigo-600 flex items-center gap-2"
+            className="btn-primary flex items-center gap-2"
           >
             <FiRefreshCw className="w-4 h-4" />
             Refresh
@@ -170,13 +166,13 @@ const ComplianceDashboard = ({ dataSource = 'live' }) => {
       </div>
 
       {/* Compliance Score Card */}
-      <div className="bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-xl shadow-lg p-8 text-white">
+      <div className="card p-8 text-white" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', boxShadow: '0 8px 32px rgba(139, 92, 246, 0.3)' }}>
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-medium opacity-90 mb-2">Overall Compliance Score</p>
             <p className="text-6xl font-bold">{complianceScore}%</p>
             <p className="text-sm opacity-75 mt-2">
-              {complianceScore >= 80 ? 'Excellent' : complianceScore >= 60 ? 'Good' : complianceScore >= 40 ? 'Fair' : 'Needs Improvement'}
+              {complianceScore >= 80 ? '✓ Excellent' : complianceScore >= 60 ? '✓ Good' : complianceScore >= 40 ? '⚠ Fair' : '✗ Needs Improvement'}
             </p>
           </div>
           <FiShield className="w-24 h-24 opacity-25" />
@@ -185,28 +181,28 @@ const ComplianceDashboard = ({ dataSource = 'live' }) => {
 
       {/* Regulatory Requirements */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Compliance Status</h3>
+        <div className="card p-6">
+          <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Compliance Status</h3>
           <div className="space-y-3">
             {complianceStatusData.map((item, idx) => (
-              <div key={idx} className={`p-4 rounded-lg border-2 ${getStatusBg(item.status)}`}>
+              <div key={idx} className="p-4 rounded-xl" style={getStatusBg(item.status)}>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     {item.status === 'Compliant' ? (
-                      <FiCheckCircle className="w-5 h-5 text-green-600" />
+                      <FiCheckCircle className="w-5 h-5" style={{ color: '#10B981' }} />
                     ) : item.status === 'Pending' ? (
-                      <FiAlertCircle className="w-5 h-5 text-yellow-600" />
+                      <FiAlertCircle className="w-5 h-5" style={{ color: '#F59E0B' }} />
                     ) : (
-                      <FiXCircle className="w-5 h-5 text-red-600" />
+                      <FiXCircle className="w-5 h-5" style={{ color: '#EF4444' }} />
                     )}
                     <div>
-                      <p className="font-semibold text-gray-900">{item.name} Compliance</p>
-                      <p className={`text-sm ${getStatusColor(item.status)}`}>{item.status}</p>
+                      <p className="font-semibold" style={{ color: 'var(--text-primary)' }}>{item.name} Compliance</p>
+                      <p className="text-sm" style={{ color: getStatusColor(item.status) }}>{item.status}</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-2xl font-bold text-gray-900">{item.score}%</p>
-                    <p className="text-xs text-gray-500">Score</p>
+                    <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{item.score}%</p>
+                    <p className="text-xs" style={{ color: 'var(--text-muted)' }}>Score</p>
                   </div>
                 </div>
               </div>
@@ -214,13 +210,13 @@ const ComplianceDashboard = ({ dataSource = 'live' }) => {
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Compliance Radar</h3>
+        <div className="card p-6">
+          <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Compliance Radar</h3>
           <ResponsiveContainer width="100%" height={300}>
             <RadarChart data={radarData}>
-              <PolarGrid />
-              <PolarAngleAxis dataKey="requirement" />
-              <PolarRadiusAxis angle={90} domain={[0, 100]} />
+              <PolarGrid stroke="var(--border-color)" />
+              <PolarAngleAxis dataKey="requirement" tick={{ fill: 'var(--text-secondary)', fontSize: 12 }} />
+              <PolarRadiusAxis angle={90} domain={[0, 100]} tick={{ fill: 'var(--text-muted)', fontSize: 10 }} />
               <Radar name="Compliance" dataKey="score" stroke="#6366f1" fill="#6366f1" fillOpacity={0.6} />
               <Tooltip 
                 contentStyle={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)' }}
@@ -233,33 +229,33 @@ const ComplianceDashboard = ({ dataSource = 'live' }) => {
       </div>
 
       {/* Filing Status */}
-      <div className="bg-white rounded-xl shadow-sm p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Filing Status</h3>
+      <div className="card p-6">
+        <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Filing Status</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="p-4 bg-blue-50 rounded-lg border-2 border-blue-500">
-            <div className="flex items-center gap-2 mb-2">
-              <FiFileText className="w-5 h-5 text-blue-600" />
-              <p className="text-sm font-semibold text-gray-700">GST Returns</p>
+          <div className="p-5 rounded-xl" style={{ background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.1) 100%)', border: '2px solid rgba(59, 130, 246, 0.3)' }}>
+            <div className="flex items-center gap-2 mb-3">
+              <FiFileText className="w-5 h-5" style={{ color: '#3B82F6' }} />
+              <p className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>GST Returns</p>
             </div>
-            <p className={`text-lg font-bold ${filingStatus.gst_returns === 'Filed' ? 'text-green-700' : 'text-yellow-700'}`}>
+            <p className="text-xl font-bold" style={{ color: filingStatus.gst_returns === 'Filed' ? '#10B981' : '#F59E0B' }}>
               {filingStatus.gst_returns || 'Unknown'}
             </p>
           </div>
-          <div className="p-4 bg-blue-50 rounded-lg border-2 border-blue-500">
-            <div className="flex items-center gap-2 mb-2">
-              <FiFileText className="w-5 h-5 text-blue-600" />
-              <p className="text-sm font-semibold text-gray-700">TDS Returns</p>
+          <div className="p-5 rounded-xl" style={{ background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.1) 100%)', border: '2px solid rgba(59, 130, 246, 0.3)' }}>
+            <div className="flex items-center gap-2 mb-3">
+              <FiFileText className="w-5 h-5" style={{ color: '#3B82F6' }} />
+              <p className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>TDS Returns</p>
             </div>
-            <p className={`text-lg font-bold ${filingStatus.tds_returns === 'Filed' ? 'text-green-700' : 'text-yellow-700'}`}>
+            <p className="text-xl font-bold" style={{ color: filingStatus.tds_returns === 'Filed' ? '#10B981' : '#F59E0B' }}>
               {filingStatus.tds_returns || 'Unknown'}
             </p>
           </div>
-          <div className="p-4 bg-blue-50 rounded-lg border-2 border-blue-500">
-            <div className="flex items-center gap-2 mb-2">
-              <FiFileText className="w-5 h-5 text-blue-600" />
-              <p className="text-sm font-semibold text-gray-700">Annual Returns</p>
-          </div>
-            <p className={`text-lg font-bold ${filingStatus.annual_returns === 'Filed' ? 'text-green-700' : 'text-red-700'}`}>
+          <div className="p-5 rounded-xl" style={{ background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.1) 100%)', border: '2px solid rgba(59, 130, 246, 0.3)' }}>
+            <div className="flex items-center gap-2 mb-3">
+              <FiFileText className="w-5 h-5" style={{ color: '#3B82F6' }} />
+              <p className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>Annual Returns</p>
+            </div>
+            <p className="text-xl font-bold" style={{ color: filingStatus.annual_returns === 'Filed' ? '#10B981' : '#EF4444' }}>
               {filingStatus.annual_returns || 'Unknown'}
             </p>
           </div>
@@ -267,32 +263,32 @@ const ComplianceDashboard = ({ dataSource = 'live' }) => {
       </div>
 
       {/* Audit Status */}
-      <div className="bg-white rounded-xl shadow-sm p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Audit Status</h3>
+      <div className="card p-6">
+        <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Audit Status</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div className="p-4 bg-purple-50 rounded-lg">
-            <p className="text-sm text-gray-600 mb-1">Last Audit Date</p>
-            <p className="text-lg font-bold text-gray-900">{auditStatus.last_audit_date || 'N/A'}</p>
+          <div className="p-5 rounded-xl" style={{ background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(99, 102, 241, 0.1) 100%)', border: '1px solid rgba(139, 92, 246, 0.3)' }}>
+            <p className="text-sm mb-2" style={{ color: 'var(--text-muted)' }}>Last Audit Date</p>
+            <p className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{auditStatus.last_audit_date || 'N/A'}</p>
           </div>
-          <div className="p-4 bg-purple-50 rounded-lg">
-            <p className="text-sm text-gray-600 mb-1">Next Audit Due</p>
-            <p className="text-lg font-bold text-gray-900">{auditStatus.next_audit_due || 'N/A'}</p>
-        </div>
-          <div className="p-4 bg-purple-50 rounded-lg">
-            <p className="text-sm text-gray-600 mb-1">Audit Findings</p>
-            <p className="text-lg font-bold text-gray-900">{auditStatus.audit_findings?.length || 0}</p>
-        </div>
+          <div className="p-5 rounded-xl" style={{ background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(99, 102, 241, 0.1) 100%)', border: '1px solid rgba(139, 92, 246, 0.3)' }}>
+            <p className="text-sm mb-2" style={{ color: 'var(--text-muted)' }}>Next Audit Due</p>
+            <p className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{auditStatus.next_audit_due || 'N/A'}</p>
+          </div>
+          <div className="p-5 rounded-xl" style={{ background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(99, 102, 241, 0.1) 100%)', border: '1px solid rgba(139, 92, 246, 0.3)' }}>
+            <p className="text-sm mb-2" style={{ color: 'var(--text-muted)' }}>Audit Findings</p>
+            <p className="text-lg font-bold" style={{ color: 'var(--text-primary)' }}>{auditStatus.audit_findings?.length || 0}</p>
+          </div>
         </div>
       </div>
 
       {/* Compliance Alerts */}
       {complianceAlerts.length > 0 && (
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Compliance Alerts</h3>
-          <div className="space-y-2">
+        <div className="card p-6">
+          <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Compliance Alerts</h3>
+          <div className="space-y-3">
             {complianceAlerts.map((alert, idx) => (
-              <div key={idx} className="p-3 bg-yellow-50 border-l-4 border-yellow-500 rounded">
-                <p className="text-sm text-gray-700">{alert}</p>
+              <div key={idx} className="p-4 rounded-xl" style={{ background: 'rgba(245, 158, 11, 0.1)', borderLeft: '4px solid #F59E0B' }}>
+                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{alert}</p>
               </div>
             ))}
           </div>

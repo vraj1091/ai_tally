@@ -7,7 +7,6 @@ import { FiActivity, FiTrendingUp, FiAlertCircle, FiRefreshCw, FiClock, FiUsers 
 import RupeeIcon from '../common/RupeeIcon';
 import { tallyApi } from '../../api/tallyApi';
 import toast from 'react-hot-toast';
-import { validateChartData, validateNumeric, validateArrayData } from '../../utils/chartDataValidator';
 import { fetchDashboardData } from '../../utils/dashboardHelper';
 
 const RealtimeOperationsDashboard = ({ dataSource = 'live' }) => {
@@ -19,7 +18,6 @@ const RealtimeOperationsDashboard = ({ dataSource = 'live' }) => {
   useEffect(() => {
     loadCompanies();
   }, [dataSource]);
-
 
   const loadCompanies = async () => {
     try {
@@ -56,7 +54,6 @@ const RealtimeOperationsDashboard = ({ dataSource = 'live' }) => {
   useEffect(() => {
     if (selectedCompany && companies.length > 0) {
       loadRealtimeData();
-      // Auto-refresh every 30 seconds
       const interval = setInterval(() => {
         if (selectedCompany && companies.length > 0) {
           loadRealtimeData();
@@ -106,8 +103,8 @@ const RealtimeOperationsDashboard = ({ dataSource = 'live' }) => {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-cyan-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-600 font-medium">Loading Real-time Operations...</p>
+          <div className="w-16 h-16 rounded-full border-4 animate-spin mx-auto" style={{ borderColor: 'var(--border-color)', borderTopColor: 'var(--primary)' }} />
+          <p className="mt-4 font-medium" style={{ color: 'var(--text-secondary)' }}>Loading Real-time Operations...</p>
         </div>
       </div>
     );
@@ -115,10 +112,10 @@ const RealtimeOperationsDashboard = ({ dataSource = 'live' }) => {
 
   if (!realtimeData) {
     return (
-      <div className="bg-white rounded-xl shadow-sm p-12 text-center">
-        <FiAlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-xl font-semibold text-gray-900 mb-2">No Data Available</h3>
-        <p className="text-gray-600">Please connect to Tally or select a company with data</p>
+      <div className="card p-12 text-center">
+        <FiAlertCircle className="w-16 h-16 mx-auto mb-4" style={{ color: 'var(--text-muted)' }} />
+        <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>No Data Available</h3>
+        <p style={{ color: 'var(--text-secondary)' }}>Please connect to Tally or select a company with data</p>
       </div>
     );
   }
@@ -132,7 +129,6 @@ const RealtimeOperationsDashboard = ({ dataSource = 'live' }) => {
   const operationalKPIs = realtimeData.operational_kpis || realtimeData.current_status || {};
   const activitySummary = realtimeData.activity_summary || realtimeData.today_summary || {};
 
-  // Activity timeline data
   const activityData = [
     { time: '9 AM', transactions: liveMetrics.transactions_today * 0.2 },
     { time: '12 PM', transactions: liveMetrics.transactions_today * 0.4 },
@@ -145,14 +141,14 @@ const RealtimeOperationsDashboard = ({ dataSource = 'live' }) => {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Real-time Operations</h2>
-          <p className="text-gray-600 mt-1">Live Activity Monitoring & Operational Metrics</p>
+          <h2 className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>Real-time Operations</h2>
+          <p className="mt-1" style={{ color: 'var(--text-secondary)' }}>Live Activity Monitoring & Operational Metrics</p>
         </div>
         <div className="flex items-center gap-3">
           <select
             value={selectedCompany}
             onChange={(e) => setSelectedCompany(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-transparent"
+            className="input-neon"
           >
             {companies.map((company, idx) => (
               <option key={idx} value={company.name}>{company.name}</option>
@@ -160,7 +156,7 @@ const RealtimeOperationsDashboard = ({ dataSource = 'live' }) => {
           </select>
           <button
             onClick={loadRealtimeData}
-            className="px-4 py-2 bg-cyan-500 text-white rounded-lg hover:bg-cyan-600 flex items-center gap-2"
+            className="btn-primary flex items-center gap-2"
           >
             <FiRefreshCw className="w-4 h-4" />
             Refresh
@@ -170,7 +166,7 @@ const RealtimeOperationsDashboard = ({ dataSource = 'live' }) => {
 
       {/* Live Metrics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-gradient-to-br from-cyan-500 to-cyan-600 rounded-xl shadow-lg p-6 text-white">
+        <div className="card p-6 text-white" style={{ background: 'linear-gradient(135deg, #06B6D4 0%, #0EA5E9 100%)', boxShadow: '0 8px 32px rgba(6, 182, 212, 0.3)' }}>
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-medium opacity-90">
               {realtimeData.is_estimated ? 'Avg Daily Transactions' : 'Transactions Today'}
@@ -180,14 +176,12 @@ const RealtimeOperationsDashboard = ({ dataSource = 'live' }) => {
           <p className="text-4xl font-bold mb-2">{liveMetrics.transactions_today || 0}</p>
           <p className="text-sm opacity-75">
             {realtimeData.is_estimated 
-              ? (realtimeData.data_source === 'backup' 
-                  ? 'Average daily transactions (from backup data)' 
-                  : 'No transactions yet today')
+              ? (realtimeData.data_source === 'backup' ? 'From backup data' : 'No transactions yet') 
               : "Today's activity"}
           </p>
         </div>
 
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white">
+        <div className="card p-6 text-white" style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', boxShadow: '0 8px 32px rgba(16, 185, 129, 0.3)' }}>
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-medium opacity-90">
               {realtimeData.is_estimated ? 'Avg Daily Revenue' : 'Revenue Today'}
@@ -197,14 +191,12 @@ const RealtimeOperationsDashboard = ({ dataSource = 'live' }) => {
           <p className="text-4xl font-bold mb-2">{formatCurrency(liveMetrics.revenue_today)}</p>
           <p className="text-sm opacity-75">
             {realtimeData.is_estimated 
-              ? (realtimeData.data_source === 'backup' 
-                  ? 'Average daily revenue (from backup data)' 
-                  : 'Estimated (no transactions yet today)')
+              ? (realtimeData.data_source === 'backup' ? 'From backup data' : 'Estimated') 
               : "Today's revenue"}
           </p>
         </div>
 
-        <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg p-6 text-white">
+        <div className="card p-6 text-white" style={{ background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)', boxShadow: '0 8px 32px rgba(245, 158, 11, 0.3)' }}>
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-medium opacity-90">Pending Invoices</p>
             <FiClock className="w-6 h-6 opacity-75" />
@@ -213,7 +205,7 @@ const RealtimeOperationsDashboard = ({ dataSource = 'live' }) => {
           <p className="text-sm opacity-75">Awaiting payment</p>
         </div>
 
-        <div className="bg-gradient-to-br from-red-500 to-red-600 rounded-xl shadow-lg p-6 text-white">
+        <div className="card p-6 text-white" style={{ background: 'linear-gradient(135deg, #EF4444 0%, #DC2626 100%)', boxShadow: '0 8px 32px rgba(239, 68, 68, 0.3)' }}>
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-medium opacity-90">Pending Payments</p>
             <RupeeIcon className="w-6 h-6 opacity-75" />
@@ -224,13 +216,13 @@ const RealtimeOperationsDashboard = ({ dataSource = 'live' }) => {
       </div>
 
       {/* Activity Timeline */}
-      <div className="bg-white rounded-xl shadow-sm p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Activity Timeline (Today)</h3>
+      <div className="card p-6">
+        <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Activity Timeline (Today)</h3>
         <ResponsiveContainer width="100%" height={300}>
           <AreaChart data={activityData}>
-            <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis dataKey="time" />
-            <YAxis />
+            <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
+            <XAxis dataKey="time" tick={{ fill: 'var(--text-muted)', fontSize: 12 }} />
+            <YAxis tick={{ fill: 'var(--text-muted)', fontSize: 12 }} />
             <Tooltip 
               contentStyle={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)' }}
               labelStyle={{ color: 'var(--text-primary)' }}
@@ -243,67 +235,73 @@ const RealtimeOperationsDashboard = ({ dataSource = 'live' }) => {
 
       {/* Operational KPIs */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Operational KPIs</h3>
+        <div className="card p-6">
+          <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Operational KPIs</h3>
           <div className="space-y-4">
-            <div className="p-4 bg-blue-50 rounded-lg">
+            <div className="p-5 rounded-xl" style={{ background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(37, 99, 235, 0.1) 100%)', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-gray-700">Cash Position</p>
-                <p className="text-2xl font-bold text-blue-700">{formatCurrency(operationalKPIs.cash_position)}</p>
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>Cash Position</p>
+                <p className="text-2xl font-bold" style={{ color: '#3B82F6' }}>{formatCurrency(operationalKPIs.cash_position)}</p>
               </div>
             </div>
-            <div className="p-4 bg-green-50 rounded-lg">
+            <div className="p-5 rounded-xl" style={{ background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(5, 150, 105, 0.1) 100%)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-gray-700">Accounts Receivable</p>
-                <p className="text-2xl font-bold text-green-700">{formatCurrency(operationalKPIs.accounts_receivable)}</p>
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>Accounts Receivable</p>
+                <p className="text-2xl font-bold" style={{ color: '#10B981' }}>{formatCurrency(operationalKPIs.accounts_receivable)}</p>
               </div>
             </div>
-            <div className="p-4 bg-red-50 rounded-lg">
+            <div className="p-5 rounded-xl" style={{ background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.15) 0%, rgba(220, 38, 38, 0.1) 100%)', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-gray-700">Accounts Payable</p>
-                <p className="text-2xl font-bold text-red-700">{formatCurrency(operationalKPIs.accounts_payable)}</p>
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>Accounts Payable</p>
+                <p className="text-2xl font-bold" style={{ color: '#EF4444' }}>{formatCurrency(operationalKPIs.accounts_payable)}</p>
               </div>
             </div>
-            <div className="p-4 bg-purple-50 rounded-lg">
+            <div className="p-5 rounded-xl" style={{ background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.15) 0%, rgba(99, 102, 241, 0.1) 100%)', border: '1px solid rgba(139, 92, 246, 0.3)' }}>
               <div className="flex items-center justify-between">
-                <p className="text-sm font-semibold text-gray-700">Inventory Value</p>
-                <p className="text-2xl font-bold text-purple-700">{formatCurrency(operationalKPIs.inventory_value)}</p>
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>Inventory Value</p>
+                <p className="text-2xl font-bold" style={{ color: '#8B5CF6' }}>{formatCurrency(operationalKPIs.inventory_value)}</p>
               </div>
             </div>
           </div>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Activity Summary</h3>
+        <div className="card p-6">
+          <h3 className="text-lg font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Activity Summary</h3>
           <div className="space-y-4">
-            <div className="p-4 bg-gray-50 rounded-lg">
+            <div className="p-5 rounded-xl" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)' }}>
               <div className="flex items-center gap-3">
-                <FiActivity className="w-5 h-5 text-gray-600" />
-                <div>
-                  <p className="text-sm font-semibold text-gray-700">Recent Transactions</p>
-                  <p className="text-2xl font-bold text-gray-900">{activitySummary.recent_transactions || 0}</p>
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'var(--primary)' }}>
+                  <FiActivity className="w-5 h-5 text-white" />
                 </div>
-        </div>
-      </div>
-            <div className="p-4 bg-gray-50 rounded-lg">
-              <div className="flex items-center gap-3">
-                <FiUsers className="w-5 h-5 text-gray-600" />
                 <div>
-                  <p className="text-sm font-semibold text-gray-700">Active Customers</p>
-                  <p className="text-2xl font-bold text-gray-900">{activitySummary.active_customers || 0}</p>
-          </div>
-          </div>
-          </div>
-            <div className="p-4 bg-gray-50 rounded-lg">
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>Recent Transactions</p>
+                  <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{activitySummary.recent_transactions || 0}</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-5 rounded-xl" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)' }}>
               <div className="flex items-center gap-3">
-                <RupeeIcon className="w-5 h-5 text-gray-600" />
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'var(--primary)' }}>
+                  <FiUsers className="w-5 h-5 text-white" />
+                </div>
                 <div>
-                  <p className="text-sm font-semibold text-gray-700">Active Vendors</p>
-                  <p className="text-2xl font-bold text-gray-900">{activitySummary.active_vendors || 0}</p>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>Active Customers</p>
+                  <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{activitySummary.active_customers || 0}</p>
+                </div>
+              </div>
+            </div>
+            <div className="p-5 rounded-xl" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)' }}>
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'var(--primary)' }}>
+                  <RupeeIcon className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <p className="text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>Active Vendors</p>
+                  <p className="text-2xl font-bold" style={{ color: 'var(--text-primary)' }}>{activitySummary.active_vendors || 0}</p>
+                </div>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
-        </div>
         </div>
       </div>
     </div>
@@ -311,4 +309,3 @@ const RealtimeOperationsDashboard = ({ dataSource = 'live' }) => {
 };
 
 export default RealtimeOperationsDashboard;
-
