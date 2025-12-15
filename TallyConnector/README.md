@@ -1,87 +1,76 @@
-# 🔌 Tally Connector - WebSocket Bridge
+# TallyDash Pro Connector
 
-This connector bridges your **local Tally ERP** to the **cloud backend** via WebSocket.
+A user-friendly desktop application to connect your local Tally ERP to TallyDash Pro cloud.
 
-## Architecture
+## Features
 
-```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│  Browser App    │────▶│   EC2 Backend   │◀────│ TallyConnector  │
-│  (Frontend)     │     │   (WebSocket)   │     │ (This Script)   │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
-                                                        │
-                                                        ▼
-                                                ┌─────────────────┐
-                                                │   Tally ERP     │
-                                                │ (localhost:9000)│
-                                                └─────────────────┘
-```
+- ✅ **One-Time Setup** - Configure once, auto-connects every time
+- ✅ **User-Friendly GUI** - No command line required
+- ✅ **Auto-Reconnect** - Automatically reconnects if connection drops
+- ✅ **Status Indicators** - Visual status for server and Tally connection
+- ✅ **Activity Log** - See what's happening in real-time
+- ✅ **Secure** - Your Tally data stays on your computer
 
-## Prerequisites
+## Quick Start
 
-1. **Tally ERP** running on your local PC
-2. **Tally Gateway Server** enabled (port 9000)
-3. **Python 3.8+** installed
+### Option 1: Run with Python (Recommended)
 
-## Setup
+1. **Install Python** (if not already installed)
+   - Download from [python.org](https://www.python.org/downloads/)
+   - During installation, check "Add Python to PATH"
 
-### Step 1: Install Dependencies
+2. **Double-click `RunConnector.bat`**
+   - This will install dependencies and start the connector
 
-```bash
-cd TallyConnector
-pip install -r requirements.txt
-```
+### Option 2: Build Standalone EXE
 
-### Step 2: Enable Tally Gateway Server
+1. Double-click `build_exe.bat`
+2. Wait for the build to complete
+3. Find `TallyDashProConnector.exe` in the `dist` folder
+4. Copy the EXE anywhere and run it!
 
-In Tally:
-1. Press `F12` (Configure)
-2. Go to **Advanced Configuration**
-3. Set **Enable ODBC Server** to `Yes`
-4. Set **Port** to `9000`
+## Requirements
 
-### Step 3: Run the Connector
+- Windows 10/11
+- Tally ERP 9 or TallyPrime running with ODBC Server enabled
+- Internet connection
 
-```bash
-python tally_connector.py
-```
+## How to Enable Tally ODBC Server
 
-## Configuration
+1. Open Tally
+2. Press **F12** (Configure)
+3. Go to **Advanced Configuration**
+4. Set **Enable ODBC Server** to **Yes**
+5. Note the port (default: 9000)
 
-Edit `tally_connector.py` to change:
+## Settings
 
-```python
-BACKEND_URL = "ws://107.21.87.222:8000"  # Your EC2 backend
-TALLY_URL = "http://localhost:9000"       # Local Tally Gateway
-```
-
-## Usage
-
-1. Start Tally ERP on your PC
-2. Run `python tally_connector.py`
-3. Open the web app in browser
-4. The app will automatically use live Tally data!
+| Setting | Description | Default |
+|---------|-------------|---------|
+| Server URL | TallyDash Pro server address | 107.21.87.222 |
+| Tally Host | Your Tally computer | localhost |
+| Tally Port | Tally ODBC port | 9000 |
+| Auto-connect | Connect automatically on startup | Yes |
 
 ## Troubleshooting
 
 ### "Cannot connect to Tally"
 - Make sure Tally is running
-- Enable Gateway Server in Tally (F12 → Advanced Configuration)
-- Check if port 9000 is not blocked
+- Enable ODBC Server in Tally (F12 > Advanced Configuration)
+- Check the port number matches
 
-### "Connection closed"
+### "Connection error"
 - Check your internet connection
-- Verify the backend URL is correct
-- The connector will auto-reconnect
+- Verify the server URL is correct
+- Try clicking "Connect" again
 
-### "WebSocket error"
-- Check if EC2 security group allows port 8000
-- Verify backend is running: `http://107.21.87.222/health`
+### Logs
+Logs are saved to: `C:\Users\<YourName>\TallyDashPro\connector.log`
 
-## Security Note
+## Support
 
-This connector runs on your local PC and connects to:
-- **Tally** on `localhost:9000` (local only)
-- **Backend** via WebSocket (encrypted in transit)
+For help, contact support or visit our documentation.
 
-Your Tally data is transmitted securely to the backend for processing.
+---
+
+Made with ❤️ for Indian businesses
