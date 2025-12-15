@@ -34,8 +34,9 @@ class Config:
     # ===== OLLAMA CONFIGURATION (CPU Mode) =====
     # Use host.docker.internal on Docker, or localhost on bare metal
     OLLAMA_BASE_URL = os.getenv("OLLAMA_BASE_URL", "http://host.docker.internal:11434")
-    # Use phi4:14b - requires ~20GB RAM (server has 32GB)
-    OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "phi4:14b")
+    # Use mistral:7b - requires ~8GB RAM (better for CPU-only mode)
+    # Alternatives: llama3.2:3b (3GB), phi3:mini (4GB), mistral:7b (8GB), phi4:14b (20GB)
+    OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "mistral:7b")
     OLLAMA_TEMPERATURE = 0.3
     OLLAMA_TOP_P = 0.9
     OLLAMA_TOP_K = 40

@@ -17,8 +17,9 @@ services:
       - TALLY_REMOTE_ENABLED=${TALLY_REMOTE_ENABLED:-True}
       # Ollama runs on host, accessible via host.docker.internal
       - OLLAMA_BASE_URL=${OLLAMA_BASE_URL:-http://host.docker.internal:11434}
-      # Use phi4:14b (requires ~20GB RAM, user has 32GB)
-      - OLLAMA_MODEL=${OLLAMA_MODEL:-phi4:14b}
+      # Use mistral:7b (requires ~8GB RAM - better for CPU-only mode)
+      # Alternatives: llama3.2:3b (3GB), phi3:mini (4GB), mistral:7b (8GB)
+      - OLLAMA_MODEL=${OLLAMA_MODEL:-mistral:7b}
       # Use PostgreSQL for production (recommended) or SQLite for development
       # PostgreSQL: postgresql://tally_user:YourPassword@host.docker.internal:5432/ai_tally
       # SQLite: sqlite:////app/data/database.db

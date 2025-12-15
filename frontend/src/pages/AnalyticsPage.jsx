@@ -169,7 +169,7 @@ const AnalyticsPage = () => {
 
   const handleRefresh = async () => {
     setRefreshing(true);
-    toast.info('Refreshing data from Tally...', { autoClose: 2000 });
+    toast('Refreshing data from Tally...', { icon: '🔄' });
     
     try {
       if (view === 'single' && selectedCompany) {
@@ -521,8 +521,7 @@ const AnalyticsPage = () => {
   };
 
   const renderMultiCompanyView = () => {
-    if (multiCompanyData.length === 0) {
-      fetchMultiCompanyAnalytics();
+    if (loading) {
       return (
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
@@ -533,12 +532,52 @@ const AnalyticsPage = () => {
       );
     }
 
+    if (error) {
+      return (
+        <Card className="border-yellow-200 bg-yellow-50">
+          <div className="text-center py-8">
+            <AlertCircle className="w-12 h-12 text-yellow-500 mx-auto mb-4" />
+            <p className="text-yellow-700 font-medium">Multi-Company Analytics</p>
+            <p className="text-yellow-600 text-sm mt-2">
+              This feature requires multiple companies. Currently showing single company mode.
+            </p>
+            <button
+              onClick={() => setView('single')}
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              Switch to Single Company
+            </button>
+          </div>
+        </Card>
+      );
+    }
+
+    if (!multiCompanyData || multiCompanyData.length === 0) {
+      return (
+        <Card className="border-blue-200 bg-blue-50">
+          <div className="text-center py-8">
+            <AlertCircle className="w-12 h-12 text-blue-500 mx-auto mb-4" />
+            <p className="text-blue-700 font-medium">No Multi-Company Data Available</p>
+            <p className="text-blue-600 text-sm mt-2">
+              Upload backup files for multiple companies to see comparison analytics.
+            </p>
+            <button
+              onClick={() => setView('single')}
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+            >
+              View Single Company Analytics
+            </button>
+          </div>
+        </Card>
+      );
+    }
+
     const comparisonData = multiCompanyData.map(company => ({
-      name: company.company_name,
-      revenue: company.total_revenue || 0,
-      expense: company.total_expense || 0,
-      profit: company.net_profit || 0,
-      healthScore: company.health_score || 0
+      name: String(company.company_name || 'Unknown'),
+      revenue: Number(company.total_revenue) || 0,
+      expense: Number(company.total_expense) || 0,
+      profit: Number(company.net_profit) || 0,
+      healthScore: Number(company.health_score) || 0
     }));
 
     return (
