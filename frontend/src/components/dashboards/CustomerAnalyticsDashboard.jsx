@@ -218,7 +218,12 @@ const CustomerAnalyticsDashboard = ({ dataSource = 'live' }) => {
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} tick={{ fontSize: 10 }} />
               <YAxis tickFormatter={(val) => formatCurrency(val)} />
-              <Tooltip formatter={(val) => formatCurrency(val)} />
+              <Tooltip 
+                formatter={(val) => formatCurrency(val)} 
+                contentStyle={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)' }}
+                labelStyle={{ color: 'var(--text-primary)' }}
+                itemStyle={{ color: 'var(--text-secondary)' }}
+              />
               <Bar dataKey="value" fill="#4ade80" radius={[8, 8, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>

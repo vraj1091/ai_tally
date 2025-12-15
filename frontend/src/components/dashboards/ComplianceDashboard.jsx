@@ -222,7 +222,11 @@ const ComplianceDashboard = ({ dataSource = 'live' }) => {
               <PolarAngleAxis dataKey="requirement" />
               <PolarRadiusAxis angle={90} domain={[0, 100]} />
               <Radar name="Compliance" dataKey="score" stroke="#6366f1" fill="#6366f1" fillOpacity={0.6} />
-              <Tooltip />
+              <Tooltip 
+                contentStyle={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)' }}
+                labelStyle={{ color: 'var(--text-primary)' }}
+                itemStyle={{ color: 'var(--text-secondary)' }}
+              />
             </RadarChart>
           </ResponsiveContainer>
         </div>

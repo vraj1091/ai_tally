@@ -234,7 +234,12 @@ const BalanceSheetDashboard = ({ dataSource = 'live' }) => {
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip formatter={(val) => formatCurrency(val)} />
+              <Tooltip 
+                formatter={(val) => formatCurrency(val)} 
+                contentStyle={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)' }}
+                labelStyle={{ color: 'var(--text-primary)' }}
+                itemStyle={{ color: 'var(--text-secondary)' }}
+              />
             </PieChart>
           </ResponsiveContainer>
         </div>
@@ -257,7 +262,12 @@ const BalanceSheetDashboard = ({ dataSource = 'live' }) => {
                   <Cell key={`cell-${index}`} fill={COLORS[(index + 3) % COLORS.length]} />
                 ))}
               </Pie>
-              <Tooltip formatter={(val) => formatCurrency(val)} />
+              <Tooltip 
+                formatter={(val) => formatCurrency(val)} 
+                contentStyle={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)' }}
+                labelStyle={{ color: 'var(--text-primary)' }}
+                itemStyle={{ color: 'var(--text-secondary)' }}
+              />
             </PieChart>
           </ResponsiveContainer>
         </div>

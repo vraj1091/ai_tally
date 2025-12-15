@@ -234,7 +234,12 @@ const BudgetActualDashboard = ({ dataSource = 'live' }) => {
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="category" />
               <YAxis tickFormatter={(val) => formatCurrency(val)} />
-              <Tooltip formatter={(val) => formatCurrency(val)} />
+              <Tooltip 
+                formatter={(val) => formatCurrency(val)} 
+                contentStyle={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)' }}
+                labelStyle={{ color: 'var(--text-primary)' }}
+                itemStyle={{ color: 'var(--text-secondary)' }}
+              />
               <Legend />
               <Bar dataKey="budget" fill="#f97316" name="Budget" radius={[8, 8, 0, 0]} />
               <Bar dataKey="actual" fill="#10b981" name="Actual" radius={[8, 8, 0, 0]} />
@@ -249,7 +254,12 @@ const BudgetActualDashboard = ({ dataSource = 'live' }) => {
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
               <XAxis dataKey="month" />
               <YAxis tickFormatter={(val) => formatCurrency(val)} />
-              <Tooltip formatter={(val) => formatCurrency(val)} />
+              <Tooltip 
+                formatter={(val) => formatCurrency(val)} 
+                contentStyle={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)' }}
+                labelStyle={{ color: 'var(--text-primary)' }}
+                itemStyle={{ color: 'var(--text-secondary)' }}
+              />
               <Legend />
               <Area type="monotone" dataKey="revenue" stackId="1" stroke="#10b981" fill="#10b981" fillOpacity={0.6} name="Revenue" />
               <Area type="monotone" dataKey="expense" stackId="2" stroke="#ef4444" fill="#ef4444" fillOpacity={0.6} name="Expenses" />

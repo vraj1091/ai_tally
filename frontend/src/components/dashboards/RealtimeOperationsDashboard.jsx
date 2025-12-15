@@ -231,7 +231,11 @@ const RealtimeOperationsDashboard = ({ dataSource = 'live' }) => {
             <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis dataKey="time" />
             <YAxis />
-            <Tooltip />
+            <Tooltip 
+              contentStyle={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)' }}
+              labelStyle={{ color: 'var(--text-primary)' }}
+              itemStyle={{ color: 'var(--text-secondary)' }}
+            />
             <Area type="monotone" dataKey="transactions" stroke="#06b6d4" fill="#06b6d4" fillOpacity={0.6} />
           </AreaChart>
         </ResponsiveContainer>

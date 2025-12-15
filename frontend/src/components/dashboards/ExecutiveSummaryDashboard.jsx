@@ -223,7 +223,12 @@ const ExecutiveSummaryDashboard = ({ dataSource = 'live' }) => {
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis dataKey="category" />
             <YAxis tickFormatter={(val) => formatCurrency(val)} />
-              <Tooltip formatter={(val) => formatCurrency(val)} />
+              <Tooltip 
+                formatter={(val) => formatCurrency(val)} 
+                contentStyle={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)' }}
+                labelStyle={{ color: 'var(--text-primary)' }}
+                itemStyle={{ color: 'var(--text-secondary)' }}
+              />
               <Bar dataKey="value" fill="#8b5cf6" radius={[8, 8, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>

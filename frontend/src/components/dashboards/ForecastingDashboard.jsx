@@ -204,7 +204,12 @@ const ForecastingDashboard = ({ dataSource = 'live' }) => {
               <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
             <XAxis dataKey="period" />
             <YAxis tickFormatter={(val) => formatCurrency(val)} />
-              <Tooltip formatter={(val) => formatCurrency(val)} />
+              <Tooltip 
+                formatter={(val) => formatCurrency(val)} 
+                contentStyle={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)' }}
+                labelStyle={{ color: 'var(--text-primary)' }}
+                itemStyle={{ color: 'var(--text-secondary)' }}
+              />
             <Legend />
             <Area type="monotone" dataKey="revenue" stroke="#10b981" fill="#10b981" fillOpacity={0.6} name="Revenue" />
           </AreaChart>

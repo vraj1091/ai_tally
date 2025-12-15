@@ -67,11 +67,11 @@ const CEODashboardEnhanced = ({ dataSource = 'live' }) => {
   const CustomTooltip = ({ active, payload, label }) => {
     if (active && payload?.length) {
       return (
-        <div className="card px-4 py-3 shadow-lg" style={{ minWidth: 180 }}>
+        <div className="card px-4 py-3 shadow-lg" style={{ minWidth: 180, background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)' }}>
           <p className="font-bold text-sm mb-2" style={{ color: 'var(--text-primary)' }}>{label}</p>
           {payload.map((p, i) => (
             <div key={i} className="flex items-center justify-between gap-4 py-1">
-              <span className="flex items-center gap-2 text-xs">
+              <span className="flex items-center gap-2 text-xs" style={{ color: 'var(--text-secondary)' }}>
                 <span className="w-2 h-2 rounded-full" style={{ background: p.color }} />
                 {p.name}
               </span>
