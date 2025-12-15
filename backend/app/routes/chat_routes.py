@@ -267,79 +267,79 @@ async def chat(query: ChatQuery, db: Session = Depends(get_db)):
                     companies = connector.get_companies()
                     
                     if companies:
-                    for company_data in companies[:3]:  # Limit to first 3 companies
-                        try:
-                            # Extract company name from dict or string
-                            company_name = company_data.get('name') if isinstance(company_data, dict) else company_data
-                            if not company_name:
+                        for company_data in companies[:3]:  # Limit to first 3 companies
+                            try:
+                                # Extract company name from dict or string
+                                company_name = company_data.get('name') if isinstance(company_data, dict) else company_data
+                                if not company_name:
+                                    continue
+                                
+                                # Get ledgers for this company
+                                ledgers = connector.get_ledgers(company_name)
+                                
+                                # Get financial summary
+                                financial_summary = connector.get_financial_summary(company_name)
+                                
+                                tally_context += f"\n\n=== LIVE TALLY DATA ===\n"
+                                tally_context += f"Company: {company_name}\n"
+                                tally_context += f"Data Source: LIVE (Real-time from Tally)\n"
+                                tally_context += f"Total Ledgers: {len(ledgers)}\n"
+                                
+                                # Add financial summary
+                                if financial_summary:
+                                    tally_context += f"\n--- Financial Summary ---\n"
+                                    tally_context += f"Total Revenue: ₹{abs(financial_summary.get('total_revenue', 0)):,.2f}\n"
+                                    tally_context += f"Total Expenses: ₹{abs(financial_summary.get('total_expense', 0)):,.2f}\n"
+                                    tally_context += f"Net Profit: ₹{financial_summary.get('net_profit', 0):,.2f}\n"
+                                    tally_context += f"Total Assets: ₹{abs(financial_summary.get('total_assets', 0)):,.2f}\n"
+                                    tally_context += f"Total Liabilities: ₹{abs(financial_summary.get('total_liabilities', 0)):,.2f}\n"
+                                    tally_context += f"Total Debtors (Receivable): ₹{abs(financial_summary.get('total_debtors', 0)):,.2f}\n"
+                                    tally_context += f"Total Creditors (Payable): ₹{abs(financial_summary.get('total_creditors', 0)):,.2f}\n"
+                                
+                                # Add ledger details - categorize them
+                                if ledgers:
+                                    # Group ledgers by parent
+                                    debtors = [l for l in ledgers if l.get('parent', '').lower() == 'sundry debtors']
+                                    creditors = [l for l in ledgers if l.get('parent', '').lower() == 'sundry creditors']
+                                    sales = [l for l in ledgers if 'sales' in l.get('parent', '').lower() or 'income' in l.get('parent', '').lower()]
+                                    expenses = [l for l in ledgers if l.get('is_expense', False)]
+                                    
+                                    if debtors:
+                                        tally_context += f"\n--- Top Customers/Debtors ---\n"
+                                        sorted_debtors = sorted(debtors, key=lambda x: abs(x.get('closing_balance', 0)), reverse=True)[:10]
+                                        for l in sorted_debtors:
+                                            balance = l.get('closing_balance', 0)
+                                            tally_context += f"- {l.get('name')}: ₹{abs(balance):,.2f}\n"
+                                    
+                                    if creditors:
+                                        tally_context += f"\n--- Top Suppliers/Creditors ---\n"
+                                        sorted_creditors = sorted(creditors, key=lambda x: abs(x.get('closing_balance', 0)), reverse=True)[:10]
+                                        for l in sorted_creditors:
+                                            balance = l.get('closing_balance', 0)
+                                            tally_context += f"- {l.get('name')}: ₹{abs(balance):,.2f}\n"
+                                    
+                                    if sales:
+                                        tally_context += f"\n--- Sales/Income Accounts ---\n"
+                                        for l in sales[:10]:
+                                            balance = l.get('closing_balance', 0)
+                                            tally_context += f"- {l.get('name')}: ₹{abs(balance):,.2f}\n"
+                                    
+                                    if expenses:
+                                        tally_context += f"\n--- Expense Accounts ---\n"
+                                        sorted_expenses = sorted(expenses, key=lambda x: abs(x.get('closing_balance', 0)), reverse=True)[:10]
+                                        for l in sorted_expenses:
+                                            balance = l.get('closing_balance', 0)
+                                            tally_context += f"- {l.get('name')}: ₹{abs(balance):,.2f}\n"
+                                
+                                tally_sources.append({
+                                    "content": f"Live Company: {company_name}, Ledgers: {len(ledgers)}",
+                                    "metadata": {"source_type": "tally_live", "company": company_name}
+                                })
+                                data_source = "live"
+                                logger.info(f"✅ Loaded LIVE context for {company_name}: {len(ledgers)} ledgers")
+                            except Exception as e:
+                                logger.warning(f"Error fetching live data for {company_name}: {e}")
                                 continue
-                            
-                            # Get ledgers for this company
-                            ledgers = connector.get_ledgers(company_name)
-                            
-                            # Get financial summary
-                            financial_summary = connector.get_financial_summary(company_name)
-                            
-                            tally_context += f"\n\n=== LIVE TALLY DATA ===\n"
-                            tally_context += f"Company: {company_name}\n"
-                            tally_context += f"Data Source: LIVE (Real-time from Tally)\n"
-                            tally_context += f"Total Ledgers: {len(ledgers)}\n"
-                            
-                            # Add financial summary
-                            if financial_summary:
-                                tally_context += f"\n--- Financial Summary ---\n"
-                                tally_context += f"Total Revenue: ₹{abs(financial_summary.get('total_revenue', 0)):,.2f}\n"
-                                tally_context += f"Total Expenses: ₹{abs(financial_summary.get('total_expense', 0)):,.2f}\n"
-                                tally_context += f"Net Profit: ₹{financial_summary.get('net_profit', 0):,.2f}\n"
-                                tally_context += f"Total Assets: ₹{abs(financial_summary.get('total_assets', 0)):,.2f}\n"
-                                tally_context += f"Total Liabilities: ₹{abs(financial_summary.get('total_liabilities', 0)):,.2f}\n"
-                                tally_context += f"Total Debtors (Receivable): ₹{abs(financial_summary.get('total_debtors', 0)):,.2f}\n"
-                                tally_context += f"Total Creditors (Payable): ₹{abs(financial_summary.get('total_creditors', 0)):,.2f}\n"
-                            
-                            # Add ledger details - categorize them
-                            if ledgers:
-                                # Group ledgers by parent
-                                debtors = [l for l in ledgers if l.get('parent', '').lower() == 'sundry debtors']
-                                creditors = [l for l in ledgers if l.get('parent', '').lower() == 'sundry creditors']
-                                sales = [l for l in ledgers if 'sales' in l.get('parent', '').lower() or 'income' in l.get('parent', '').lower()]
-                                expenses = [l for l in ledgers if l.get('is_expense', False)]
-                                
-                                if debtors:
-                                    tally_context += f"\n--- Top Customers/Debtors ---\n"
-                                    sorted_debtors = sorted(debtors, key=lambda x: abs(x.get('closing_balance', 0)), reverse=True)[:10]
-                                    for l in sorted_debtors:
-                                        balance = l.get('closing_balance', 0)
-                                        tally_context += f"- {l.get('name')}: ₹{abs(balance):,.2f}\n"
-                                
-                                if creditors:
-                                    tally_context += f"\n--- Top Suppliers/Creditors ---\n"
-                                    sorted_creditors = sorted(creditors, key=lambda x: abs(x.get('closing_balance', 0)), reverse=True)[:10]
-                                    for l in sorted_creditors:
-                                        balance = l.get('closing_balance', 0)
-                                        tally_context += f"- {l.get('name')}: ₹{abs(balance):,.2f}\n"
-                                
-                                if sales:
-                                    tally_context += f"\n--- Sales/Income Accounts ---\n"
-                                    for l in sales[:10]:
-                                        balance = l.get('closing_balance', 0)
-                                        tally_context += f"- {l.get('name')}: ₹{abs(balance):,.2f}\n"
-                                
-                                if expenses:
-                                    tally_context += f"\n--- Expense Accounts ---\n"
-                                    sorted_expenses = sorted(expenses, key=lambda x: abs(x.get('closing_balance', 0)), reverse=True)[:10]
-                                    for l in sorted_expenses:
-                                        balance = l.get('closing_balance', 0)
-                                        tally_context += f"- {l.get('name')}: ₹{abs(balance):,.2f}\n"
-                            
-                            tally_sources.append({
-                                "content": f"Live Company: {company_name}, Ledgers: {len(ledgers)}",
-                                "metadata": {"source_type": "tally_live", "company": company_name}
-                            })
-                            data_source = "live"
-                            logger.info(f"✅ Loaded LIVE context for {company_name}: {len(ledgers)} ledgers")
-                        except Exception as e:
-                            logger.warning(f"Error fetching live data for {company_name}: {e}")
-                            continue
         except Exception as e:
             logger.warning(f"Could not fetch live Tally data: {e}")
         
