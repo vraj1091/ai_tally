@@ -8,6 +8,8 @@ import { FiTrendingUp, FiTrendingDown, FiRefreshCw, FiShoppingCart, FiUsers, FiT
 import { tallyApi } from '../../api/tallyApi';
 import toast from 'react-hot-toast';
 import { fetchDashboardData } from '../../utils/dashboardHelper';
+import { hasRealData, getSafeValue } from '../../utils/dataValidator';
+import EmptyDataState from '../common/EmptyDataState';
 
 const CHART_COLORS = ['#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
 
@@ -87,62 +89,62 @@ const SalesDashboard = ({ dataSource = 'live' }) => {
     );
   }
 
+  // Check if we have real data
+  if (!salesData || !hasRealData(salesData, ['total_sales', 'total_revenue', 'revenue'])) {
+    return (
+      <EmptyDataState 
+        title="No Sales Data Available"
+        message="Connect to Tally or upload a backup file to view sales analytics"
+        onRefresh={loadSalesData}
+        dataSource={dataSource}
+      />
+    );
+  }
+
   const data = salesData || {};
   const summary = data.sales_summary || {};
   const topCustomers = data.top_customers || [];
   const topProducts = data.top_products || [];
   
-  const totalSales = summary.total_sales || 5000000;
-  const totalOrders = summary.total_orders || 1250;
-  const avgOrderValue = summary.average_order_value || totalSales / totalOrders;
-  const customerCount = summary.customer_count || topCustomers.length || 85;
+  const totalSales = getSafeValue(summary.total_sales || summary.revenue || summary.total_revenue);
+  const totalOrders = getSafeValue(summary.total_orders || summary.order_count);
+  const avgOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
+  const customerCount = getSafeValue(summary.customer_count || topCustomers.length);
 
-  // Monthly Sales Trend with multiple metrics
-  const monthlySalesData = [
-    { month: 'Jan', sales: totalSales * 0.07, orders: 85, target: totalSales * 0.08, growth: 5 },
-    { month: 'Feb', sales: totalSales * 0.08, orders: 98, target: totalSales * 0.08, growth: 12 },
-    { month: 'Mar', sales: totalSales * 0.09, orders: 112, target: totalSales * 0.09, growth: 15 },
-    { month: 'Apr', sales: totalSales * 0.08, orders: 95, target: totalSales * 0.08, growth: 8 },
-    { month: 'May', sales: totalSales * 0.09, orders: 108, target: totalSales * 0.09, growth: 14 },
-    { month: 'Jun', sales: totalSales * 0.10, orders: 125, target: totalSales * 0.10, growth: 18 },
-    { month: 'Jul', sales: totalSales * 0.08, orders: 98, target: totalSales * 0.09, growth: 10 },
-    { month: 'Aug', sales: totalSales * 0.09, orders: 110, target: totalSales * 0.09, growth: 12 },
-    { month: 'Sep', sales: totalSales * 0.08, orders: 95, target: totalSales * 0.08, growth: 9 },
-    { month: 'Oct', sales: totalSales * 0.09, orders: 115, target: totalSales * 0.09, growth: 16 },
-    { month: 'Nov', sales: totalSales * 0.08, orders: 102, target: totalSales * 0.08, growth: 11 },
-    { month: 'Dec', sales: totalSales * 0.07, orders: 87, target: totalSales * 0.07, growth: 6 },
-  ];
+  // Use real monthly data from backend if available, otherwise show basic distribution
+  const monthlySalesData = data.monthly_sales_trend || data.monthly_trend || (totalSales > 0 ? [
+    { month: 'Jan', sales: totalSales * 0.07, orders: Math.floor(totalOrders * 0.07), target: totalSales * 0.08 },
+    { month: 'Feb', sales: totalSales * 0.08, orders: Math.floor(totalOrders * 0.08), target: totalSales * 0.08 },
+    { month: 'Mar', sales: totalSales * 0.09, orders: Math.floor(totalOrders * 0.09), target: totalSales * 0.09 },
+    { month: 'Apr', sales: totalSales * 0.08, orders: Math.floor(totalOrders * 0.08), target: totalSales * 0.08 },
+    { month: 'May', sales: totalSales * 0.09, orders: Math.floor(totalOrders * 0.09), target: totalSales * 0.09 },
+    { month: 'Jun', sales: totalSales * 0.10, orders: Math.floor(totalOrders * 0.10), target: totalSales * 0.10 },
+    { month: 'Jul', sales: totalSales * 0.08, orders: Math.floor(totalOrders * 0.08), target: totalSales * 0.09 },
+    { month: 'Aug', sales: totalSales * 0.09, orders: Math.floor(totalOrders * 0.09), target: totalSales * 0.09 },
+    { month: 'Sep', sales: totalSales * 0.08, orders: Math.floor(totalOrders * 0.08), target: totalSales * 0.08 },
+    { month: 'Oct', sales: totalSales * 0.09, orders: Math.floor(totalOrders * 0.09), target: totalSales * 0.09 },
+    { month: 'Nov', sales: totalSales * 0.08, orders: Math.floor(totalOrders * 0.08), target: totalSales * 0.08 },
+    { month: 'Dec', sales: totalSales * 0.07, orders: Math.floor(totalOrders * 0.07), target: totalSales * 0.07 },
+  ] : []);
 
-  // Sales Funnel
-  const funnelData = [
-    { name: 'Leads', value: 1000, fill: '#0EA5E9' },
-    { name: 'Qualified', value: 650, fill: '#10B981' },
-    { name: 'Proposals', value: 420, fill: '#F59E0B' },
-    { name: 'Negotiations', value: 280, fill: '#8B5CF6' },
-    { name: 'Closed Won', value: 180, fill: '#06B6D4' },
-  ];
+  // Sales Funnel - use real data from backend if available
+  const funnelData = data.sales_funnel || (totalOrders > 0 ? [
+    { name: 'Leads', value: Math.floor(totalOrders * 5.6), fill: '#0EA5E9' },
+    { name: 'Qualified', value: Math.floor(totalOrders * 3.6), fill: '#10B981' },
+    { name: 'Proposals', value: Math.floor(totalOrders * 2.3), fill: '#F59E0B' },
+    { name: 'Negotiations', value: Math.floor(totalOrders * 1.6), fill: '#8B5CF6' },
+    { name: 'Closed Won', value: totalOrders, fill: '#06B6D4' },
+  ] : []);
 
-  // Product Performance Radar
-  const productRadarData = [
-    { metric: 'Revenue', A: 85, B: 70, C: 60 },
-    { metric: 'Volume', A: 75, B: 80, C: 65 },
-    { metric: 'Margin', A: 90, B: 65, C: 75 },
-    { metric: 'Growth', A: 70, B: 85, C: 80 },
-    { metric: 'Retention', A: 80, B: 75, C: 70 },
-  ];
+  // Product Performance Radar - use real data if available
+  const productRadarData = data.product_performance_radar || [];
 
-  // Top Customers
+  // Top Customers - only use real data
   const customerData = topCustomers.length > 0 ? topCustomers.slice(0, 5).map((c, i) => ({
-    name: c.name || `Customer ${i+1}`,
-    value: c.total_sales || c.amount || totalSales * (0.2 - i * 0.03),
-    fill: CHART_COLORS[i]
-  })) : [
-    { name: 'Acme Corp', value: totalSales * 0.22, fill: '#0EA5E9' },
-    { name: 'Global Tech', value: totalSales * 0.18, fill: '#10B981' },
-    { name: 'Prime Industries', value: totalSales * 0.15, fill: '#F59E0B' },
-    { name: 'Metro Services', value: totalSales * 0.12, fill: '#8B5CF6' },
-    { name: 'Alpha Solutions', value: totalSales * 0.10, fill: '#EF4444' },
-  ];
+    name: c.name || c.customer_name || c.ledger_name || 'Unknown',
+    value: c.total_sales || c.amount || c.sales || 0,
+    fill: CHART_COLORS[i % CHART_COLORS.length]
+  })) : [];
 
   return (
     <div className="p-6 space-y-6">

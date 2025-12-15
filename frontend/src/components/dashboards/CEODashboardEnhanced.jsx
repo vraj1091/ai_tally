@@ -13,6 +13,7 @@ import { tallyApi } from '../../api/tallyApi';
 import toast from 'react-hot-toast';
 import { prepareRevenueExpenseData } from '../../utils/chartDataValidator';
 import { fetchDashboardData } from '../../utils/dashboardHelper';
+import { hasRealData } from '../../utils/dataValidator';
 
 const CHART_COLORS = ['#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
 
@@ -97,7 +98,10 @@ const CEODashboardEnhanced = ({ dataSource = 'live' }) => {
     );
   }
 
-  if (!ceoData) return <EmptyDataState title="No CEO Dashboard Data" message="Please connect to Tally or upload backup data" onRefresh={loadCEOData} dataSource={dataSource} />;
+  // Check if we have actual data
+  if (!ceoData || !hasRealData(ceoData, ['total_revenue', 'revenue', 'net_profit', 'profit'])) {
+    return <EmptyDataState title="No CEO Dashboard Data" message="Please connect to Tally or upload backup data" onRefresh={loadCEOData} dataSource={dataSource} />;
+  }
 
   const execSummary = ceoData.executive_summary || {};
   const keyMetrics = ceoData.key_metrics || {};
@@ -105,12 +109,12 @@ const CEODashboardEnhanced = ({ dataSource = 'live' }) => {
   const topExpenses = prepareRevenueExpenseData(ceoData.top_5_expense_categories || []);
   
   const revenue = execSummary.total_revenue || 0;
-  const expenses = execSummary.total_expenses || 0;
-  const profit = execSummary.net_profit || revenue - expenses;
+  const expenses = execSummary.total_expenses || execSummary.total_expense || 0;
+  const profit = execSummary.net_profit || (revenue - expenses);
   const margin = revenue > 0 ? (profit / revenue * 100) : 0;
   
-  // Advanced Performance Data with multiple metrics
-  const performanceData = [
+  // Use real monthly data from backend if available
+  const performanceData = ceoData.monthly_revenue_trend || ceoData.monthly_performance || (revenue > 0 ? [
     { month: 'Jan', revenue: revenue * 0.07, expenses: expenses * 0.08, profit: profit * 0.06, target: revenue * 0.08 },
     { month: 'Feb', revenue: revenue * 0.08, expenses: expenses * 0.07, profit: profit * 0.09, target: revenue * 0.08 },
     { month: 'Mar', revenue: revenue * 0.09, expenses: expenses * 0.08, profit: profit * 0.10, target: revenue * 0.09 },
@@ -123,7 +127,7 @@ const CEODashboardEnhanced = ({ dataSource = 'live' }) => {
     { month: 'Oct', revenue: revenue * 0.09, expenses: expenses * 0.08, profit: profit * 0.10, target: revenue * 0.09 },
     { month: 'Nov', revenue: revenue * 0.08, expenses: expenses * 0.09, profit: profit * 0.07, target: revenue * 0.08 },
     { month: 'Dec', revenue: revenue * 0.07, expenses: expenses * 0.09, profit: profit * 0.05, target: revenue * 0.07 },
-  ];
+  ] : []);
 
   // Radial gauge data for KPIs
   const kpiGaugeData = [
