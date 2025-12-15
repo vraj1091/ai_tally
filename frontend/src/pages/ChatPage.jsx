@@ -5,7 +5,7 @@ import toast from 'react-hot-toast'
 import MessageBubble from '../components/chat/MessageBubble'
 import { 
   FiMessageCircle, FiDatabase, FiSend, FiCpu, FiZap, FiTrash2,
-  FiSparkles, FiCommand, FiCornerDownLeft, FiRefreshCw
+  FiStar, FiCommand, FiCornerDownLeft, FiRefreshCw
 } from 'react-icons/fi'
 
 const quickPrompts = [
@@ -139,7 +139,7 @@ export default function ChatPage() {
                 {msg.type === 'ai' && (
                   <div className="flex items-center gap-2 mb-3 pb-3 border-b border-white/10">
                     <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
-                      <FiSparkles className="w-3 h-3" />
+                      <FiStar className="w-3 h-3" />
                     </div>
                     <span className="text-white/50 text-xs font-medium">AI Response</span>
                   </div>
