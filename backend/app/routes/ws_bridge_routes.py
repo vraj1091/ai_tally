@@ -332,32 +332,59 @@ async def get_companies_via_bridge(user_token: str):
             import re
             
             xml_data = response['response']
+            logger.info(f"Bridge: Raw companies XML (first 500 chars): {xml_data[:500] if xml_data else 'EMPTY'}")
+            
             # Sanitize XML
             xml_data = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', xml_data)
             
             root = ET.fromstring(xml_data)
             
             # Find company names in various Tally XML formats
+            # Pattern 1: <COMPANY NAME="...">
             for company in root.findall('.//COMPANY'):
                 name = company.get('NAME') or company.text
                 if name:
                     companies.append({'name': name.strip()})
             
-            # Also try COMPANYNAME elements
+            # Pattern 2: <COMPANYNAME>...</COMPANYNAME>
             for company in root.findall('.//COMPANYNAME'):
                 name = company.text
                 if name:
                     companies.append({'name': name.strip()})
             
-            # Try SVCURRENTCOMPANY
+            # Pattern 3: <SVCURRENTCOMPANY>...</SVCURRENTCOMPANY>
             for company in root.findall('.//SVCURRENTCOMPANY'):
                 name = company.text
                 if name:
                     companies.append({'name': name.strip()})
             
+            # Pattern 4: <TALLYMESSAGE><COMPANY>...</COMPANY></TALLYMESSAGE>
+            for tallymsg in root.findall('.//TALLYMESSAGE'):
+                for company in tallymsg.findall('COMPANY'):
+                    name = company.get('NAME') or company.text
+                    if name:
+                        companies.append({'name': name.strip()})
+            
+            # Pattern 5: Search all elements with NAME attribute
+            if not companies:
+                for elem in root.iter():
+                    if 'COMPANY' in elem.tag.upper():
+                        name = elem.get('NAME') or elem.text
+                        if name:
+                            companies.append({'name': name.strip()})
+            
+            # Pattern 6: Regex fallback for NAME attribute
+            if not companies:
+                name_matches = re.findall(r'NAME="([^"]+)"', xml_data)
+                for name in name_matches[:10]:  # Limit to 10
+                    if name and len(name) > 1:
+                        companies.append({'name': name.strip()})
+            
             logger.info(f"Bridge: Parsed {len(companies)} companies from Tally")
         except Exception as e:
             logger.error(f"Error parsing companies XML: {e}")
+            import traceback
+            logger.error(f"Traceback: {traceback.format_exc()}")
     
     return {
         'success': True,
