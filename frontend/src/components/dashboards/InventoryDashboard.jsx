@@ -8,6 +8,8 @@ import { FiTrendingUp, FiTrendingDown, FiRefreshCw, FiBox, FiPackage, FiAlertTri
 import { tallyApi } from '../../api/tallyApi';
 import toast from 'react-hot-toast';
 import { fetchDashboardData } from '../../utils/dashboardHelper';
+import { hasRealData } from '../../utils/dataValidator';
+import EmptyDataState from '../common/EmptyDataState';
 
 const CHART_COLORS = ['#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
 
@@ -87,14 +89,26 @@ const InventoryDashboard = ({ dataSource = 'live' }) => {
     );
   }
 
+  // Check if we have real data
+  if (!inventoryData || !hasRealData(inventoryData, ['total_value', 'total_items', 'stock_value', 'inventory_value'])) {
+    return (
+      <EmptyDataState 
+        title="No Inventory Data"
+        message="Connect to Tally or upload a backup file to view inventory analysis"
+        onRefresh={loadInventoryData}
+        dataSource={dataSource}
+      />
+    );
+  }
+
   const data = inventoryData || {};
   const summary = data.inventory_summary || {};
   
-  const totalValue = summary.total_value || 2500000;
-  const totalItems = summary.total_items || 1250;
-  const lowStockItems = summary.low_stock_items || 45;
-  const outOfStock = summary.out_of_stock || 12;
-  const turnoverRate = summary.turnover_rate || 4.2;
+  const totalValue = summary.total_value || 0;
+  const totalItems = summary.total_items || 0;
+  const lowStockItems = summary.low_stock_items || 0;
+  const outOfStock = summary.out_of_stock || 0;
+  const turnoverRate = summary.turnover_rate || 0;
 
   // Stock Level Distribution
   const stockDistribution = [

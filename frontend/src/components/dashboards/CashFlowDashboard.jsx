@@ -8,6 +8,8 @@ import { FiTrendingUp, FiTrendingDown, FiRefreshCw, FiDollarSign, FiArrowUp, FiA
 import { tallyApi } from '../../api/tallyApi';
 import toast from 'react-hot-toast';
 import { fetchDashboardData } from '../../utils/dashboardHelper';
+import { hasRealData } from '../../utils/dataValidator';
+import EmptyDataState from '../common/EmptyDataState';
 
 const CHART_COLORS = ['#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
 
@@ -82,12 +84,24 @@ const CashFlowDashboard = ({ dataSource = 'live' }) => {
     );
   }
 
+  // Check if we have real data
+  if (!cashFlowData || !hasRealData(cashFlowData, ['opening_balance', 'operating_cash_flow', 'total_inflow', 'total_outflow'])) {
+    return (
+      <EmptyDataState 
+        title="No Cash Flow Data"
+        message="Connect to Tally or upload a backup file to view cash flow analysis"
+        onRefresh={loadData}
+        dataSource={dataSource}
+      />
+    );
+  }
+
   const data = cashFlowData || {};
-  const openingBalance = data.opening_balance || 800000;
-  const operatingCF = data.operating_cash_flow || 350000;
-  const investingCF = data.investing_cash_flow || -120000;
-  const financingCF = data.financing_cash_flow || 80000;
-  const closingBalance = openingBalance + operatingCF + investingCF + financingCF;
+  const openingBalance = data.opening_balance || 0;
+  const operatingCF = data.operating_cash_flow || 0;
+  const investingCF = data.investing_cash_flow || 0;
+  const financingCF = data.financing_cash_flow || 0;
+  const closingBalance = data.closing_balance || (openingBalance + operatingCF + investingCF + financingCF);
   const netCashFlow = operatingCF + investingCF + financingCF;
 
   const waterfallData = [

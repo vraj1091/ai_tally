@@ -7,6 +7,8 @@ import { FiTrendingUp, FiTrendingDown, FiRefreshCw, FiDollarSign, FiPercent, FiT
 import { tallyApi } from '../../api/tallyApi';
 import toast from 'react-hot-toast';
 import { fetchDashboardData } from '../../utils/dashboardHelper';
+import { hasRealData } from '../../utils/dataValidator';
+import EmptyDataState from '../common/EmptyDataState';
 
 const CHART_COLORS = ['#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
 
@@ -81,17 +83,29 @@ const ProfitLossDashboard = ({ dataSource = 'live' }) => {
     );
   }
 
+  // Check if we have real data
+  if (!pnlData || !hasRealData(pnlData, ['total_revenue', 'revenue', 'net_profit', 'profit'])) {
+    return (
+      <EmptyDataState 
+        title="No Profit & Loss Data"
+        message="Connect to Tally or upload a backup file to view P&L statement"
+        onRefresh={loadData}
+        dataSource={dataSource}
+      />
+    );
+  }
+
   const data = pnlData || {};
-  const revenue = data.total_revenue || 5000000;
-  const costOfGoods = data.cost_of_goods || revenue * 0.45;
+  const revenue = data.total_revenue || 0;
+  const costOfGoods = data.cost_of_goods || data.cogs || 0;
   const grossProfit = revenue - costOfGoods;
-  const operatingExpenses = data.operating_expenses || revenue * 0.25;
+  const operatingExpenses = data.operating_expenses || 0;
   const operatingProfit = grossProfit - operatingExpenses;
-  const otherIncome = data.other_income || revenue * 0.02;
-  const otherExpenses = data.other_expenses || revenue * 0.03;
-  const netProfit = operatingProfit + otherIncome - otherExpenses;
-  const grossMargin = (grossProfit / revenue * 100);
-  const netMargin = (netProfit / revenue * 100);
+  const otherIncome = data.other_income || 0;
+  const otherExpenses = data.other_expenses || 0;
+  const netProfit = data.net_profit || (operatingProfit + otherIncome - otherExpenses);
+  const grossMargin = revenue > 0 ? (grossProfit / revenue * 100) : 0;
+  const netMargin = revenue > 0 ? (netProfit / revenue * 100) : 0;
 
   const monthlyData = [
     { month: 'Jan', revenue: revenue * 0.07, expenses: (costOfGoods + operatingExpenses) * 0.08, profit: netProfit * 0.06 },

@@ -8,6 +8,8 @@ import { FiTrendingUp, FiTrendingDown, FiRefreshCw, FiDollarSign, FiPieChart, Fi
 import { tallyApi } from '../../api/tallyApi';
 import toast from 'react-hot-toast';
 import { fetchDashboardData } from '../../utils/dashboardHelper';
+import { hasRealData } from '../../utils/dataValidator';
+import EmptyDataState from '../common/EmptyDataState';
 
 const CHART_COLORS = ['#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
 
@@ -87,15 +89,27 @@ const CFODashboard = ({ dataSource = 'live' }) => {
     );
   }
 
+  // Check if we have real data
+  if (!cfoData || !hasRealData(cfoData, ['total_assets', 'total_liabilities', 'net_worth', 'revenue'])) {
+    return (
+      <EmptyDataState 
+        title="No CFO Dashboard Data"
+        message="Connect to Tally or upload a backup file to view financial analytics"
+        onRefresh={loadCFOData}
+        dataSource={dataSource}
+      />
+    );
+  }
+
   const data = cfoData || {};
   const summary = data.financial_summary || {};
   const ratios = data.financial_ratios || {};
   const cashFlow = data.cash_flow_analysis || {};
   const workingCapital = data.working_capital || {};
 
-  const totalAssets = summary.total_assets || 1000000;
-  const totalLiabilities = summary.total_liabilities || 600000;
-  const netWorth = summary.net_worth || totalAssets - totalLiabilities;
+  const totalAssets = summary.total_assets || 0;
+  const totalLiabilities = summary.total_liabilities || 0;
+  const netWorth = summary.net_worth || (totalAssets - totalLiabilities);
 
   // Financial Ratios with Gauge Data
   const ratioGaugeData = [

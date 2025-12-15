@@ -10,6 +10,7 @@ import toast from 'react-hot-toast';
 import { validateChartData, validateNumeric } from '../../utils/chartDataValidator';
 import { fetchDashboardData } from '../../utils/dashboardHelper';
 import CustomTooltip from '../common/CustomTooltip';
+import { hasRealData } from '../../utils/dataValidator';
 
 const COLORS = ['#8b5cf6', '#10b981', '#3b82f6', '#f59e0b', '#ef4444'];
 
@@ -117,7 +118,8 @@ const ExecutiveSummaryDashboard = ({ dataSource = 'live' }) => {
     );
   }
 
-  if (!execData) {
+  // Check if we have real data
+  if (!execData || !hasRealData(execData, ['total_revenue', 'revenue', 'net_profit', 'profit', 'total_assets'])) {
     return (
       <div className="card p-12 text-center">
         <FiAlertCircle className="w-16 h-16 mx-auto mb-4" style={{ color: 'var(--text-muted)' }} />

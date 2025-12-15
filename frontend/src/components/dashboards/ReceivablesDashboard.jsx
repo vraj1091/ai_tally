@@ -7,6 +7,8 @@ import { FiTrendingUp, FiTrendingDown, FiRefreshCw, FiCreditCard, FiUsers, FiClo
 import { tallyApi } from '../../api/tallyApi';
 import toast from 'react-hot-toast';
 import { fetchDashboardData } from '../../utils/dashboardHelper';
+import { hasRealData } from '../../utils/dataValidator';
+import EmptyDataState from '../common/EmptyDataState';
 
 const CHART_COLORS = ['#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#0EA5E9', '#06B6D4'];
 
@@ -81,13 +83,25 @@ const ReceivablesDashboard = ({ dataSource = 'live' }) => {
     );
   }
 
+  // Check if we have real data
+  if (!receivablesData || !hasRealData(receivablesData, ['total_receivables', 'receivables', 'debtors'])) {
+    return (
+      <EmptyDataState 
+        title="No Receivables Data"
+        message="Connect to Tally or upload a backup file to view receivables analysis"
+        onRefresh={loadData}
+        dataSource={dataSource}
+      />
+    );
+  }
+
   const data = receivablesData || {};
-  const totalReceivables = data.total_receivables || 1500000;
-  const currentReceivables = data.current || totalReceivables * 0.4;
-  const overdue30 = data.overdue_30 || totalReceivables * 0.25;
-  const overdue60 = data.overdue_60 || totalReceivables * 0.2;
-  const overdue90 = data.overdue_90 || totalReceivables * 0.15;
-  const customersCount = data.customers_count || 45;
+  const totalReceivables = data.total_receivables || 0;
+  const currentReceivables = data.current || 0;
+  const overdue30 = data.overdue_30 || 0;
+  const overdue60 = data.overdue_60 || 0;
+  const overdue90 = data.overdue_90 || 0;
+  const customersCount = data.customers_count || 0;
 
   const agingData = [
     { name: 'Current', value: currentReceivables, fill: '#10B981' },
