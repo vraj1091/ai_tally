@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
-import authApi from '../api/authApi'  // Fixed import path for your structure
+import { FiMail, FiLock, FiUser, FiArrowRight, FiZap, FiCheck } from 'react-icons/fi'
 
 const RegisterPage = () => {
   const [email, setEmail] = useState('')
@@ -28,8 +28,6 @@ const RegisterPage = () => {
     setLoading(true)
 
     try {
-      // For now, use local storage for demo purposes
-      // In production, this would call the backend API
       const user = {
         email,
         username,
@@ -37,234 +35,196 @@ const RegisterPage = () => {
         createdAt: new Date().toISOString()
       }
 
-      // Store user data
       localStorage.setItem('user', JSON.stringify(user))
       localStorage.setItem('token', 'demo-token-' + Date.now())
       localStorage.setItem('isAuthenticated', 'true')
 
-      // Clear any previous errors
-      setError('')
-      
-      // Show success and navigate
-      console.log('✅ Registration successful!', user)
-      
-      // Navigate to dashboard
       setTimeout(() => {
         navigate('/dashboard')
       }, 300)
     } catch (err) {
-      console.error('❌ Registration error:', err)
       setError(err.message || 'An error occurred during registration')
     } finally {
       setLoading(false)
     }
   }
 
+  const benefits = [
+    'AI-powered financial insights',
+    'Real-time Tally ERP sync',
+    '20+ specialized dashboards',
+    'Smart document analysis',
+  ]
+
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-      padding: '20px'
-    }}>
-      <div style={{
-        background: 'white',
-        padding: '40px',
-        borderRadius: '12px',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
-        width: '100%',
-        maxWidth: '400px'
-      }}>
-        <div style={{ textAlign: 'center', marginBottom: '30px' }}>
-          <h1 style={{ 
-            fontSize: '32px', 
-            fontWeight: 'bold', 
-            color: '#333',
-            marginBottom: '8px'
-          }}>
-            Create Account
-          </h1>
-          <p style={{ color: '#666', fontSize: '14px' }}>
-            Join TallyDash Pro - AI-Powered Analytics
+    <div className="min-h-screen bg-[#050505] flex relative overflow-hidden">
+      {/* Animated Background */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-1/3 right-1/4 w-[700px] h-[700px] bg-[#BF00FF]/10 rounded-full blur-[150px] animate-float" />
+        <div className="absolute bottom-1/3 left-1/4 w-[500px] h-[500px] bg-[#00F5FF]/10 rounded-full blur-[150px] animate-float" style={{ animationDelay: '3s' }} />
+        <div className="absolute inset-0 bg-grid-pattern opacity-20" />
+      </div>
+
+      {/* Left Panel - Form */}
+      <div className="flex-1 flex items-center justify-center px-6 py-12">
+        <div className="w-full max-w-md">
+          {/* Mobile Logo */}
+          <div className="lg:hidden flex items-center justify-center gap-3 mb-12">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-[#00F5FF] to-[#BF00FF] flex items-center justify-center">
+              <FiZap className="w-6 h-6 text-white" />
+            </div>
+            <h1 className="text-2xl font-black text-gradient">TallyDash Pro</h1>
+          </div>
+
+          {/* Form Card */}
+          <div className="glass-card p-8">
+            <div className="text-center mb-8">
+              <h2 className="text-2xl font-bold mb-2">Create Your Account</h2>
+              <p className="text-white/50">Start your journey with AI-powered analytics</p>
+            </div>
+
+            {error && (
+              <div className="mb-6 p-4 rounded-xl bg-[#FF6B00]/10 border border-[#FF6B00]/30 text-[#FF6B00] text-sm">
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-5">
+              <div>
+                <label className="block text-sm font-medium text-white/70 mb-2">Email Address</label>
+                <div className="relative">
+                  <FiMail className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 w-5 h-5" />
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@company.com"
+                    required
+                    className="input-neon pl-12"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-white/70 mb-2">Username</label>
+                <div className="relative">
+                  <FiUser className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 w-5 h-5" />
+                  <input
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    placeholder="johndoe"
+                    required
+                    className="input-neon pl-12"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-white/70 mb-2">Password</label>
+                <div className="relative">
+                  <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 w-5 h-5" />
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    required
+                    minLength={6}
+                    className="input-neon pl-12"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-white/70 mb-2">Confirm Password</label>
+                <div className="relative">
+                  <FiLock className="absolute left-4 top-1/2 -translate-y-1/2 text-white/30 w-5 h-5" />
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="••••••••"
+                    required
+                    className="input-neon pl-12"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="btn-neon w-full flex items-center justify-center gap-2 py-4 disabled:opacity-50"
+              >
+                {loading ? (
+                  <>
+                    <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Creating account...
+                  </>
+                ) : (
+                  <>
+                    Create Account <FiArrowRight className="w-5 h-5" />
+                  </>
+                )}
+              </button>
+            </form>
+
+            <div className="mt-8 text-center">
+              <p className="text-white/40 text-sm">
+                Already have an account?{' '}
+                <Link to="/login" className="text-[#00F5FF] font-semibold hover:underline">
+                  Sign In
+                </Link>
+              </p>
+            </div>
+          </div>
+
+          {/* Footer */}
+          <p className="text-center text-white/30 text-xs mt-8">
+            © 2024 TallyDash Pro. AI-Powered Financial Analytics.
           </p>
         </div>
+      </div>
 
-        {error && (
-          <div style={{
-            padding: '12px',
-            marginBottom: '20px',
-            backgroundColor: '#fee',
-            border: '1px solid #fcc',
-            borderRadius: '6px',
-            color: '#c33'
-          }}>
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit}>
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{
-              display: 'block',
-              marginBottom: '8px',
-              fontSize: '14px',
-              fontWeight: '500',
-              color: '#333'
-            }}>
-              Email
-            </label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="your@email.com"
-              required
-              style={{
-                width: '100%',
-                padding: '12px',
-                border: '1px solid #ddd',
-                borderRadius: '6px',
-                fontSize: '14px',
-                boxSizing: 'border-box',
-                outline: 'none'
-              }}
-              onFocus={(e) => e.target.style.borderColor = '#667eea'}
-              onBlur={(e) => e.target.style.borderColor = '#ddd'}
-            />
+      {/* Right Panel - Branding */}
+      <div className="hidden lg:flex flex-1 flex-col justify-center px-16 relative">
+        <div className="max-w-lg">
+          {/* Logo */}
+          <div className="flex items-center gap-4 mb-12">
+            <div className="relative">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#BF00FF] to-[#FF00E5] flex items-center justify-center shadow-2xl animate-pulse-glow">
+                <FiZap className="w-8 h-8 text-white" />
+              </div>
+              <div className="absolute -inset-2 rounded-3xl bg-gradient-to-br from-[#BF00FF] to-[#FF00E5] opacity-30 blur-xl -z-10" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-black text-gradient-pink">TallyDash Pro</h1>
+              <p className="text-white/40">AI-Powered Analytics</p>
+            </div>
           </div>
 
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{
-              display: 'block',
-              marginBottom: '8px',
-              fontSize: '14px',
-              fontWeight: '500',
-              color: '#333'
-            }}>
-              Username
-            </label>
-            <input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="johndoe"
-              required
-              style={{
-                width: '100%',
-                padding: '12px',
-                border: '1px solid #ddd',
-                borderRadius: '6px',
-                fontSize: '14px',
-                boxSizing: 'border-box',
-                outline: 'none'
-              }}
-              onFocus={(e) => e.target.style.borderColor = '#667eea'}
-              onBlur={(e) => e.target.style.borderColor = '#ddd'}
-            />
+          {/* Tagline */}
+          <h2 className="text-5xl font-black leading-tight mb-6">
+            Join Thousands <br />
+            of <span className="text-gradient-pink">Smart</span> <br />
+            Businesses
+          </h2>
+          <p className="text-white/50 text-lg mb-12 leading-relaxed">
+            Create your free account and unlock the full power of AI-driven financial analytics 
+            for your Tally ERP data.
+          </p>
+
+          {/* Benefits */}
+          <div className="space-y-4">
+            {benefits.map((b, i) => (
+              <div key={i} className="flex items-center gap-4 text-white/70">
+                <div className="w-8 h-8 rounded-lg bg-[#00FF88]/20 flex items-center justify-center">
+                  <FiCheck className="w-4 h-4 text-[#00FF88]" />
+                </div>
+                <span>{b}</span>
+              </div>
+            ))}
           </div>
-
-          <div style={{ marginBottom: '16px' }}>
-            <label style={{
-              display: 'block',
-              marginBottom: '8px',
-              fontSize: '14px',
-              fontWeight: '500',
-              color: '#333'
-            }}>
-              Password
-            </label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-              minLength={6}
-              style={{
-                width: '100%',
-                padding: '12px',
-                border: '1px solid #ddd',
-                borderRadius: '6px',
-                fontSize: '14px',
-                boxSizing: 'border-box',
-                outline: 'none'
-              }}
-              onFocus={(e) => e.target.style.borderColor = '#667eea'}
-              onBlur={(e) => e.target.style.borderColor = '#ddd'}
-            />
-          </div>
-
-          <div style={{ marginBottom: '24px' }}>
-            <label style={{
-              display: 'block',
-              marginBottom: '8px',
-              fontSize: '14px',
-              fontWeight: '500',
-              color: '#333'
-            }}>
-              Confirm Password
-            </label>
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="••••••••"
-              required
-              style={{
-                width: '100%',
-                padding: '12px',
-                border: '1px solid #ddd',
-                borderRadius: '6px',
-                fontSize: '14px',
-                boxSizing: 'border-box',
-                outline: 'none'
-              }}
-              onFocus={(e) => e.target.style.borderColor = '#667eea'}
-              onBlur={(e) => e.target.style.borderColor = '#ddd'}
-            />
-          </div>
-
-          <button
-            type="submit"
-            disabled={loading}
-            style={{
-              width: '100%',
-              padding: '12px',
-              backgroundColor: loading ? '#ccc' : '#667eea',
-              color: 'white',
-              border: 'none',
-              borderRadius: '6px',
-              fontSize: '16px',
-              fontWeight: '600',
-              cursor: loading ? 'not-allowed' : 'pointer',
-              transition: 'background-color 0.3s'
-            }}
-            onMouseOver={(e) => !loading && (e.target.style.backgroundColor = '#5568d3')}
-            onMouseOut={(e) => !loading && (e.target.style.backgroundColor = '#667eea')}
-          >
-            {loading ? 'Creating Account...' : 'Create Account'}
-          </button>
-        </form>
-
-        <div style={{
-          marginTop: '24px',
-          textAlign: 'center',
-          fontSize: '14px',
-          color: '#666'
-        }}>
-          Already have an account?{' '}
-          <Link 
-            to="/login" 
-            style={{ 
-              color: '#667eea', 
-              textDecoration: 'none',
-              fontWeight: '600'
-            }}
-          >
-            Sign In
-          </Link>
         </div>
       </div>
     </div>

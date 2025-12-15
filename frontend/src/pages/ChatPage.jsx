@@ -2,19 +2,18 @@ import React, { useEffect, useState, useRef } from 'react'
 import useChatStore from '../store/chatStore'
 import { chatApi } from '../api/chatApi'
 import toast from 'react-hot-toast'
-import MessageBubble from '../components/chat/MessageBubble'
 import { 
   FiMessageCircle, FiDatabase, FiSend, FiCpu, FiZap, FiTrash2,
-  FiStar, FiCommand, FiCornerDownLeft, FiRefreshCw
+  FiCommand, FiCornerDownLeft, FiUser, FiCircle
 } from 'react-icons/fi'
 
 const quickPrompts = [
-  { label: 'Revenue Summary', prompt: 'What is my total revenue this year?' },
-  { label: 'Top Customers', prompt: 'Show my top 10 customers by balance' },
-  { label: 'Expense Breakdown', prompt: 'What are my major expense categories?' },
-  { label: 'Profit Analysis', prompt: 'Calculate my profit margin and trends' },
-  { label: 'Outstanding Dues', prompt: 'List all outstanding receivables' },
-  { label: 'Cash Position', prompt: 'What is my current cash position?' },
+  { label: 'Revenue Summary', prompt: 'What is my total revenue this year?', icon: '📊' },
+  { label: 'Top Customers', prompt: 'Show my top 10 customers by balance', icon: '👥' },
+  { label: 'Expense Breakdown', prompt: 'What are my major expense categories?', icon: '💰' },
+  { label: 'Profit Analysis', prompt: 'Calculate my profit margin and trends', icon: '📈' },
+  { label: 'Outstanding Dues', prompt: 'List all outstanding receivables', icon: '📋' },
+  { label: 'Cash Position', prompt: 'What is my current cash position?', icon: '💵' },
 ]
 
 export default function ChatPage() {
@@ -31,7 +30,7 @@ export default function ChatPage() {
   useEffect(() => {
     setMessages([{
       type: 'system',
-      content: `Hey there! 👋 I'm your AI financial assistant powered by Phi4:14b. I can analyze your Tally data, answer questions about your finances, and help you make better business decisions. What would you like to know?`
+      content: `Welcome! 👋 I'm your AI-powered financial assistant running on Phi4:14b. I can analyze your Tally data, answer complex financial queries, and help you make data-driven decisions. What would you like to explore today?`
     }])
     inputRef.current?.focus()
   }, [])
@@ -71,27 +70,27 @@ export default function ChatPage() {
   }
 
   const clearChat = () => {
-    setMessages([{ type: 'system', content: '🧹 Chat cleared. How can I help you today?' }])
-    toast.success('Chat cleared')
+    setMessages([{ type: 'system', content: '🧹 Chat cleared. Ready to answer your questions!' }])
+    toast.success('Chat history cleared')
   }
 
   return (
-    <div className="flex flex-col h-full bg-[#0F0F0F] text-white">
+    <div className="flex flex-col h-[calc(100vh-64px)] lg:h-screen">
       {/* Header */}
-      <header className="flex-shrink-0 px-6 py-4 border-b border-white/10 backdrop-blur-xl bg-black/50">
-        <div className="max-w-4xl mx-auto flex items-center justify-between">
+      <header className="flex-shrink-0 px-6 py-4 border-b border-white/5 bg-[#0a0a0a]/50 backdrop-blur-2xl">
+        <div className="max-w-5xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="relative">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-purple-500/30">
-                <FiCpu className="w-6 h-6" />
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#00F5FF] to-[#BF00FF] flex items-center justify-center shadow-lg animate-pulse-glow">
+                <FiCpu className="w-7 h-7 text-white" />
               </div>
-              <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-[#0F0F0F] animate-pulse" />
+              <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-[#00FF88] rounded-full border-2 border-[#050505] animate-pulse" />
             </div>
             <div>
-              <h1 className="text-xl font-bold">AI Assistant</h1>
+              <h1 className="text-xl font-bold text-gradient">AI Financial Assistant</h1>
               <p className="text-white/40 text-sm flex items-center gap-2">
-                <FiZap className="w-3 h-3 text-amber-400" />
-                Phi4:14b • Ready
+                <FiZap className="w-3 h-3 text-[#00FF88]" />
+                Phi4:14b Model • Online
               </p>
             </div>
           </div>
@@ -101,14 +100,18 @@ export default function ChatPage() {
             <div className="flex p-1 bg-white/5 rounded-xl border border-white/10">
               <button onClick={() => setMode('data')}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
-                  mode === 'data' ? 'bg-white text-black' : 'text-white/60 hover:text-white'
+                  mode === 'data' 
+                    ? 'bg-gradient-to-r from-[#00F5FF] to-[#BF00FF] text-white shadow-lg' 
+                    : 'text-white/50 hover:text-white'
                 }`}>
                 <FiDatabase className="w-4 h-4" />
                 Data Mode
               </button>
               <button onClick={() => setMode('general')}
                 className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
-                  mode === 'general' ? 'bg-white text-black' : 'text-white/60 hover:text-white'
+                  mode === 'general' 
+                    ? 'bg-gradient-to-r from-[#00F5FF] to-[#BF00FF] text-white shadow-lg' 
+                    : 'text-white/50 hover:text-white'
                 }`}>
                 <FiMessageCircle className="w-4 h-4" />
                 General
@@ -116,7 +119,7 @@ export default function ChatPage() {
             </div>
 
             <button onClick={clearChat}
-              className="p-3 text-white/40 hover:text-white hover:bg-white/10 rounded-xl transition-all"
+              className="p-3 text-white/40 hover:text-[#FF6B00] hover:bg-[#FF6B00]/10 rounded-xl transition-all"
               title="Clear chat">
               <FiTrash2 className="w-5 h-5" />
             </button>
@@ -124,33 +127,52 @@ export default function ChatPage() {
         </div>
       </header>
 
-      {/* Messages */}
+      {/* Messages Container */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
+        <div className="max-w-5xl mx-auto px-6 py-8 space-y-6">
           {messages.map((msg, i) => (
-            <div key={i} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div key={i} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'} animate-fade-up`}>
               <div className={`max-w-[85%] ${
                 msg.type === 'user' 
-                  ? 'bg-gradient-to-br from-violet-500 to-purple-600 rounded-3xl rounded-br-lg' 
+                  ? 'bg-gradient-to-br from-[#00F5FF] to-[#BF00FF] rounded-3xl rounded-br-lg shadow-lg' 
                   : msg.type === 'system'
-                  ? 'bg-white/5 border border-white/10 rounded-3xl'
-                  : 'bg-white/10 backdrop-blur-xl border border-white/10 rounded-3xl rounded-bl-lg'
-              } px-5 py-4`}>
+                  ? 'glass-card rounded-3xl'
+                  : 'glass-card rounded-3xl rounded-bl-lg'
+              } px-6 py-4`}>
+                
+                {/* AI Response Header */}
                 {msg.type === 'ai' && (
-                  <div className="flex items-center gap-2 mb-3 pb-3 border-b border-white/10">
-                    <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
-                      <FiStar className="w-3 h-3" />
+                  <div className="flex items-center gap-3 mb-4 pb-3 border-b border-white/10">
+                    <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-[#BF00FF] to-[#FF00E5] flex items-center justify-center">
+                      <FiCpu className="w-4 h-4 text-white" />
                     </div>
-                    <span className="text-white/50 text-xs font-medium">AI Response</span>
+                    <div>
+                      <span className="text-white/80 text-sm font-semibold">AI Response</span>
+                      <span className="text-white/30 text-xs ml-2">Phi4:14b</span>
+                    </div>
                   </div>
                 )}
+                
+                {/* User Message Header */}
+                {msg.type === 'user' && (
+                  <div className="flex items-center gap-2 mb-2">
+                    <FiUser className="w-4 h-4 text-white/80" />
+                    <span className="text-white/80 text-xs font-medium">You</span>
+                  </div>
+                )}
+                
+                {/* Message Content */}
                 <p className="text-white/90 whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                
+                {/* Data Sources */}
                 {msg.tally_sources?.length > 0 && (
-                  <div className="mt-4 pt-3 border-t border-white/10">
-                    <p className="text-white/40 text-xs uppercase tracking-wider mb-2">Data Sources</p>
+                  <div className="mt-5 pt-4 border-t border-white/10">
+                    <p className="text-white/40 text-xs uppercase tracking-wider mb-3 flex items-center gap-2">
+                      <FiDatabase className="w-3 h-3" /> Data Sources
+                    </p>
                     <div className="flex flex-wrap gap-2">
                       {msg.tally_sources.map((s, j) => (
-                        <span key={j} className="px-2 py-1 bg-white/5 rounded-lg text-xs text-white/60">
+                        <span key={j} className="stat-badge">
                           {s.company || s.metadata?.company || 'Tally Data'}
                         </span>
                       ))}
@@ -161,34 +183,40 @@ export default function ChatPage() {
             </div>
           ))}
 
+          {/* Loading Animation */}
           {loading && (
-            <div className="flex justify-start">
-              <div className="bg-white/10 backdrop-blur-xl border border-white/10 rounded-3xl rounded-bl-lg px-5 py-4">
-                <div className="flex items-center gap-3">
-                  <div className="flex gap-1">
+            <div className="flex justify-start animate-fade-up">
+              <div className="glass-card rounded-3xl rounded-bl-lg px-6 py-5">
+                <div className="flex items-center gap-4">
+                  <div className="flex gap-1.5">
                     {[0, 150, 300].map((delay) => (
-                      <span key={delay} className="w-2 h-2 bg-violet-500 rounded-full animate-bounce" style={{ animationDelay: `${delay}ms` }} />
+                      <span key={delay} 
+                        className="w-3 h-3 bg-gradient-to-r from-[#00F5FF] to-[#BF00FF] rounded-full animate-bounce" 
+                        style={{ animationDelay: `${delay}ms` }} 
+                      />
                     ))}
                   </div>
-                  <span className="text-white/50 text-sm">Thinking...</span>
+                  <span className="text-white/50 text-sm font-medium">Processing your request...</span>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Quick Prompts - show when few messages */}
+          {/* Quick Prompts - Show when few messages */}
           {messages.length <= 1 && !loading && (
-            <div className="pt-8">
-              <p className="text-white/40 text-sm mb-4 flex items-center gap-2">
+            <div className="pt-8 animate-fade-up stagger-2">
+              <p className="text-white/40 text-sm mb-5 flex items-center gap-2">
                 <FiCommand className="w-4 h-4" />
-                Quick prompts
+                Quick Prompts — Click to start
               </p>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {quickPrompts.map((p, i) => (
                   <button key={i} onClick={() => handleQuickPrompt(p.prompt)}
-                    className="p-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-2xl text-left transition-all group">
-                    <p className="font-medium text-white/80 group-hover:text-white transition-colors">{p.label}</p>
-                    <p className="text-white/40 text-sm mt-1 truncate">{p.prompt}</p>
+                    className="glass-card p-5 text-left group hover:border-[#00F5FF]/30"
+                    style={{ animationDelay: `${0.1 + i * 0.05}s` }}>
+                    <span className="text-2xl mb-3 block">{p.icon}</span>
+                    <p className="font-semibold text-white/90 group-hover:text-gradient transition-all mb-1">{p.label}</p>
+                    <p className="text-white/40 text-sm truncate">{p.prompt}</p>
                   </button>
                 ))}
               </div>
@@ -199,9 +227,9 @@ export default function ChatPage() {
         </div>
       </div>
 
-      {/* Input */}
-      <div className="flex-shrink-0 px-6 py-5 border-t border-white/10 backdrop-blur-xl bg-black/50">
-        <form onSubmit={handleSend} className="max-w-4xl mx-auto">
+      {/* Input Area */}
+      <div className="flex-shrink-0 px-6 py-6 border-t border-white/5 bg-[#0a0a0a]/50 backdrop-blur-2xl">
+        <form onSubmit={handleSend} className="max-w-5xl mx-auto">
           <div className="relative">
             <input
               ref={inputRef}
@@ -209,24 +237,22 @@ export default function ChatPage() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder={mode === 'data' ? 'Ask about your financial data...' : 'Ask me anything...'}
-              className="w-full px-6 py-4 pr-14 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-white/30 focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 transition-all"
+              className="input-neon w-full pr-16 py-5"
               disabled={loading}
             />
             <button type="submit" disabled={loading || !input.trim()}
-              className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center hover:shadow-lg hover:shadow-purple-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
-              <FiSend className="w-4 h-4" />
+              className="absolute right-3 top-1/2 -translate-y-1/2 w-12 h-12 bg-gradient-to-br from-[#00F5FF] to-[#BF00FF] rounded-xl flex items-center justify-center disabled:opacity-40 disabled:cursor-not-allowed transition-all hover:shadow-lg hover:shadow-[#00F5FF]/30">
+              <FiSend className="w-5 h-5 text-white" />
             </button>
           </div>
-          <div className="flex items-center justify-between mt-3 px-1 text-xs text-white/30">
+          
+          <div className="flex items-center justify-between mt-4 px-1 text-xs text-white/30">
             <span className="flex items-center gap-2">
-              {mode === 'data' ? (
-                <><FiDatabase className="w-3 h-3" /> Analyzing your Tally & document data</>
-              ) : (
-                <><FiMessageCircle className="w-3 h-3" /> General knowledge mode</>
-              )}
+              <FiCircle className="w-2 h-2 fill-current text-[#00FF88]" />
+              {mode === 'data' ? 'Analyzing Tally & document data' : 'General knowledge mode'}
             </span>
             <span className="flex items-center gap-2">
-              <FiCornerDownLeft className="w-3 h-3" /> Enter to send
+              <FiCornerDownLeft className="w-3 h-3" /> Press Enter to send
             </span>
           </div>
         </form>

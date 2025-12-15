@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import { 
   FiMessageCircle, FiBarChart2, FiFileText, FiDatabase, FiSettings, FiRefreshCw,
   FiTrendingUp, FiActivity, FiZap, FiServer, FiCloud, FiArrowRight, FiCheck,
-  FiX, FiClock, FiCpu, FiHardDrive, FiGrid
+  FiX, FiCpu, FiHardDrive, FiGrid, FiPlay, FiExternalLink
 } from 'react-icons/fi'
 import Modal from '../components/common/Modal'
 import ConnectionSetup from '../components/tally/ConnectionSetup'
@@ -71,7 +71,7 @@ export default function Dashboard() {
       } catch (e) {}
 
       setCompanies(all)
-      if (isConn) toast.success('Connected!')
+      if (isConn) toast.success('Connected to Tally!')
     } catch (e) {
       setConnected(false)
     } finally {
@@ -83,7 +83,7 @@ export default function Dashboard() {
     setRefreshing(true)
     try {
       await checkTallyConnection()
-      toast.success('Refreshed!')
+      toast.success('Data refreshed!')
     } finally {
       setRefreshing(false)
     }
@@ -97,179 +97,193 @@ export default function Dashboard() {
   }
 
   const features = [
-    { icon: FiMessageCircle, title: 'AI Assistant', desc: 'Chat with your data using Phi4', link: '/chat', color: 'from-violet-500 to-purple-600' },
-    { icon: FiBarChart2, title: 'Analytics', desc: 'Financial insights & forecasts', link: '/analytics', color: 'from-emerald-500 to-teal-600' },
-    { icon: FiGrid, title: 'Dashboards', desc: '20 specialized dashboards', link: '/dashboards', color: 'from-orange-500 to-red-500' },
-    { icon: FiDatabase, title: 'Tally Explorer', desc: 'Browse your Tally data', link: '/tally', color: 'from-blue-500 to-indigo-600' },
-    { icon: FiFileText, title: 'Documents', desc: 'Upload & analyze files', link: '/documents', color: 'from-pink-500 to-rose-600' },
-    { icon: FiSettings, title: 'Settings', desc: 'Configure your workspace', link: '/settings', color: 'from-slate-500 to-slate-700' }
+    { icon: FiMessageCircle, title: 'AI Assistant', desc: 'Chat with your financial data using Phi4 AI model', link: '/chat', gradient: 'from-[#00F5FF] to-[#0066FF]' },
+    { icon: FiBarChart2, title: 'Analytics', desc: 'Deep insights, forecasts & financial intelligence', link: '/analytics', gradient: 'from-[#00FF88] to-[#00F5FF]' },
+    { icon: FiGrid, title: 'Dashboards', desc: '20+ specialized business dashboards', link: '/dashboards', gradient: 'from-[#BF00FF] to-[#FF00E5]' },
+    { icon: FiDatabase, title: 'Tally Explorer', desc: 'Browse and search your Tally data', link: '/tally', gradient: 'from-[#FF6B00] to-[#FF00E5]' },
+    { icon: FiFileText, title: 'Documents', desc: 'Upload & analyze bills, invoices & reports', link: '/documents', gradient: 'from-[#FF00E5] to-[#BF00FF]' },
+    { icon: FiSettings, title: 'Settings', desc: 'Configure connections & preferences', link: '/settings', gradient: 'from-[#0066FF] to-[#00F5FF]' }
+  ]
+
+  const stats = [
+    { label: 'Companies', value: companies.length, icon: FiDatabase, color: '#00F5FF' },
+    { label: 'Status', value: connected ? 'Online' : 'Offline', icon: FiActivity, color: connected ? '#00FF88' : '#FF6B00' },
+    { label: 'AI Model', value: 'Phi4:14b', icon: FiCpu, color: '#BF00FF' },
+    { label: 'System', value: systemHealth?.status === 'healthy' ? 'Healthy' : '...', icon: FiServer, color: '#FF00E5' }
   ]
 
   return (
-    <div className="min-h-screen bg-[#0F0F0F] text-white overflow-hidden">
-      {/* Ambient Background */}
-      <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-purple-600/20 rounded-full blur-[150px]" />
-        <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-blue-600/15 rounded-full blur-[150px]" />
-        <div className="absolute top-1/2 right-0 w-[400px] h-[400px] bg-rose-600/10 rounded-full blur-[150px]" />
+    <div className="min-h-screen p-6 lg:p-10">
+      {/* Header Section */}
+      <header className="mb-12 animate-fade-up">
+        <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div>
+            <p className="text-white/40 text-sm font-medium uppercase tracking-widest mb-2">
+              {time.toLocaleDateString('en-IN', { weekday: 'long', month: 'long', day: 'numeric' })}
+            </p>
+            <h1 className="text-4xl lg:text-5xl font-black">
+              {getGreeting()}, <span className="text-gradient">{user?.username || 'User'}</span>
+            </h1>
+            <p className="text-white/50 mt-2 text-lg">Welcome back to your AI-powered analytics dashboard</p>
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <button onClick={handleRefresh} disabled={refreshing}
+              className="btn-ghost flex items-center gap-2 disabled:opacity-50">
+              <FiRefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
+              {refreshing ? 'Syncing...' : 'Refresh'}
+            </button>
+            <button onClick={() => setShowConnectionModal(true)} className="btn-neon flex items-center gap-2">
+              <FiSettings className="w-4 h-4" />
+              Configure
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* Connection Status Banner */}
+      <div className={`glass-card p-6 mb-10 animate-fade-up stagger-1 ${connected ? 'border-[#00FF88]/30' : 'border-[#FF6B00]/30'}`} style={{ borderWidth: '1px' }}>
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${connected ? 'bg-[#00FF88]/20' : 'bg-[#FF6B00]/20'}`}>
+              {connected ? <FiCheck className="w-7 h-7 text-[#00FF88]" /> : <FiX className="w-7 h-7 text-[#FF6B00]" />}
+            </div>
+            <div>
+              <h3 className="text-xl font-bold">{connected ? 'Tally Connected' : 'Tally Disconnected'}</h3>
+              <p className="text-white/50">
+                {connected 
+                  ? `${companies.filter(c => c.source === 'live').length} live companies • ${companies.filter(c => c.source === 'backup').length} backup`
+                  : 'Connect to Tally or upload a backup file to get started'}
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-3">
+            <button onClick={() => setShowConnectionModal(true)} className="btn-ghost text-sm">
+              {connected ? 'Manage Connection' : 'Setup Connection'}
+            </button>
+            <Link to="/documents" className="btn-ghost text-sm flex items-center gap-2">
+              <FiFileText className="w-4 h-4" /> Upload Backup
+            </Link>
+          </div>
+        </div>
       </div>
 
-      <div className="relative max-w-7xl mx-auto px-6 py-8">
-        {/* Header */}
-        <header className="flex items-center justify-between mb-12">
-          <div>
-            <p className="text-white/50 text-sm font-medium uppercase tracking-wider">{time.toLocaleDateString('en-IN', { weekday: 'long', month: 'short', day: 'numeric' })}</p>
-            <h1 className="text-5xl font-black mt-2">
-              {getGreeting()}, <span className="bg-gradient-to-r from-violet-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">{user?.username || 'User'}</span>
-            </h1>
+      {/* Stats Grid */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+        {stats.map((stat, i) => (
+          <div key={i} className="glass-card p-5 animate-fade-up" style={{ animationDelay: `${0.1 + i * 0.05}s` }}>
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ backgroundColor: `${stat.color}20` }}>
+                <stat.icon className="w-5 h-5" style={{ color: stat.color }} />
+              </div>
+              <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: stat.color }} />
+            </div>
+            <p className="text-white/40 text-xs uppercase tracking-wider font-medium">{stat.label}</p>
+            <p className="text-2xl font-bold mt-1">{loading ? '...' : stat.value}</p>
           </div>
-          <button onClick={() => setShowConnectionModal(true)}
-            className="group flex items-center gap-3 px-5 py-3 bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl hover:bg-white/10 transition-all">
-            <FiSettings className="w-5 h-5 text-white/60 group-hover:rotate-90 transition-transform duration-500" />
-            <span className="font-medium text-white/80">Configure</span>
-          </button>
-        </header>
+        ))}
+      </div>
 
-        {/* Connection Status */}
-        <div className={`mb-10 p-6 rounded-3xl backdrop-blur-xl border ${connected ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-amber-500/10 border-amber-500/30'}`}>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center ${connected ? 'bg-emerald-500/20' : 'bg-amber-500/20'}`}>
-                {connected ? <FiCheck className="w-7 h-7 text-emerald-400" /> : <FiX className="w-7 h-7 text-amber-400" />}
-              </div>
-              <div>
-                <h3 className="text-xl font-bold">{connected ? 'Tally Connected' : 'Tally Disconnected'}</h3>
-                <p className="text-white/50 text-sm mt-0.5">
-                  {connected 
-                    ? `${companies.filter(c => c.source === 'live').length} live + ${companies.filter(c => c.source === 'backup').length} backup`
-                    : 'Connect to Tally or upload backup'}
-                </p>
-              </div>
-            </div>
-            <div className="flex gap-3">
-              <button onClick={handleRefresh} disabled={refreshing}
-                className="px-5 py-2.5 bg-white/10 rounded-xl font-medium hover:bg-white/20 transition-all flex items-center gap-2 disabled:opacity-50">
-                <FiRefreshCw className={`w-4 h-4 ${refreshing ? 'animate-spin' : ''}`} />
-                {refreshing ? 'Syncing...' : 'Sync'}
-              </button>
-              <button onClick={() => setShowConnectionModal(true)}
-                className="px-5 py-2.5 bg-white/10 rounded-xl font-medium hover:bg-white/20 transition-all">
-                Settings
-              </button>
-            </div>
-          </div>
+      {/* Feature Cards Grid */}
+      <section className="mb-10">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-2xl font-bold">Quick Access</h2>
+          <span className="stat-badge">6 Features</span>
         </div>
-
-        {/* Stats Row */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
-          {[
-            { label: 'Companies', value: companies.length, icon: FiDatabase, color: 'text-blue-400' },
-            { label: 'Status', value: connected ? 'Online' : 'Offline', icon: FiActivity, color: connected ? 'text-emerald-400' : 'text-amber-400' },
-            { label: 'AI Model', value: 'Phi4:14b', icon: FiCpu, color: 'text-purple-400' },
-            { label: 'System', value: systemHealth?.status === 'healthy' ? 'Healthy' : 'Checking', icon: FiServer, color: 'text-cyan-400' }
-          ].map((stat, i) => (
-            <div key={i} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-5">
-              <div className="flex items-center justify-between mb-3">
-                <stat.icon className={`w-5 h-5 ${stat.color}`} />
-                <div className={`w-2 h-2 rounded-full ${stat.color.replace('text-', 'bg-')} animate-pulse`} />
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
+          {features.map((f, i) => (
+            <Link key={i} to={f.link} className="group animate-fade-up" style={{ animationDelay: `${0.2 + i * 0.05}s` }}>
+              <div className="glass-card p-6 h-full relative overflow-hidden">
+                {/* Gradient Orb */}
+                <div className={`absolute -top-16 -right-16 w-40 h-40 rounded-full bg-gradient-to-br ${f.gradient} opacity-10 group-hover:opacity-25 blur-2xl transition-opacity duration-700`} />
+                
+                {/* Icon */}
+                <div className={`relative w-14 h-14 rounded-2xl bg-gradient-to-br ${f.gradient} flex items-center justify-center mb-5 shadow-lg group-hover:scale-110 transition-transform duration-500`}>
+                  <f.icon className="w-7 h-7 text-white" />
+                </div>
+                
+                {/* Content */}
+                <h3 className="text-xl font-bold mb-2 group-hover:text-gradient transition-all">{f.title}</h3>
+                <p className="text-white/50 text-sm mb-5 leading-relaxed">{f.desc}</p>
+                
+                {/* Action */}
+                <div className="flex items-center text-sm font-medium text-white/40 group-hover:text-[#00F5FF] transition-colors">
+                  <FiPlay className="w-4 h-4 mr-2" />
+                  Open
+                  <FiArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-2 transition-transform" />
+                </div>
               </div>
-              <p className="text-white/50 text-xs uppercase tracking-wider">{stat.label}</p>
-              <p className="text-2xl font-bold mt-1">{loading ? '...' : stat.value}</p>
-            </div>
+            </Link>
           ))}
         </div>
+      </section>
 
-        {/* Features Grid */}
-        <section className="mb-10">
-          <h2 className="text-2xl font-bold mb-6">Quick Access</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {features.map((f, i) => (
-              <Link key={i} to={f.link} className="group">
-                <div className="relative h-full bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-6 overflow-hidden hover:border-white/20 transition-all duration-500">
-                  <div className={`absolute -top-10 -right-10 w-32 h-32 rounded-full bg-gradient-to-br ${f.color} opacity-10 group-hover:opacity-20 blur-2xl transition-opacity duration-500`} />
-                  <div className={`relative w-14 h-14 rounded-2xl bg-gradient-to-br ${f.color} flex items-center justify-center mb-5 shadow-lg group-hover:scale-110 transition-transform duration-500`}>
-                    <f.icon className="w-7 h-7 text-white" />
+      {/* Companies Section */}
+      {companies.length > 0 && (
+        <section className="animate-fade-up" style={{ animationDelay: '0.5s' }}>
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-2xl font-bold">Your Companies</h2>
+            <Link to="/tally" className="flex items-center gap-2 text-white/50 hover:text-[#00F5FF] text-sm transition-colors">
+              View All <FiExternalLink className="w-4 h-4" />
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {companies.slice(0, 6).map((c, i) => (
+              <Link key={i} to={`/analytics?company=${encodeURIComponent(c.name)}`}
+                className="glass-card p-5 group">
+                <div className="flex items-center gap-4">
+                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${c.source === 'live' ? 'bg-[#00FF88]/20' : 'bg-[#FF6B00]/20'}`}>
+                    {c.source === 'live' ? <FiCloud className="w-6 h-6 text-[#00FF88]" /> : <FiHardDrive className="w-6 h-6 text-[#FF6B00]" />}
                   </div>
-                  <h3 className="text-xl font-bold mb-2 group-hover:text-white transition-colors">{f.title}</h3>
-                  <p className="text-white/50 text-sm mb-4">{f.desc}</p>
-                  <div className="flex items-center text-sm font-medium text-white/40 group-hover:text-white/80 transition-colors">
-                    Open <FiArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  <div className="flex-1 min-w-0">
+                    <h4 className="font-bold truncate group-hover:text-gradient transition-all">{c.name}</h4>
+                    <p className="text-white/40 text-sm">{c.source === 'live' ? 'Live Connection' : 'Backup Data'}</p>
+                  </div>
+                  <div className={`px-3 py-1 rounded-full text-xs font-bold ${c.source === 'live' ? 'bg-[#00FF88]/20 text-[#00FF88] border border-[#00FF88]/30' : 'bg-[#FF6B00]/20 text-[#FF6B00] border border-[#FF6B00]/30'}`}>
+                    {c.source === 'live' ? 'LIVE' : 'BACKUP'}
                   </div>
                 </div>
               </Link>
             ))}
           </div>
         </section>
+      )}
 
-        {/* Companies */}
-        {companies.length > 0 && (
-          <section>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-2xl font-bold">Your Companies</h2>
-              <Link to="/tally" className="text-white/50 hover:text-white text-sm flex items-center gap-1">
-                View All <FiArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {companies.slice(0, 6).map((c, i) => (
-                <Link key={i} to={`/analytics?company=${encodeURIComponent(c.name)}`}
-                  className="group bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-5 hover:border-white/20 hover:bg-white/10 transition-all">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${c.source === 'live' ? 'bg-emerald-500/20' : 'bg-amber-500/20'}`}>
-                      {c.source === 'live' ? <FiCloud className="w-6 h-6 text-emerald-400" /> : <FiHardDrive className="w-6 h-6 text-amber-400" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-bold truncate group-hover:text-white transition-colors">{c.name}</h4>
-                      <p className="text-white/40 text-sm">{c.source === 'live' ? 'Live Connection' : 'Backup Data'}</p>
-                    </div>
-                    <div className={`px-3 py-1 rounded-full text-xs font-semibold ${c.source === 'live' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
-                      {c.source === 'live' ? 'Live' : 'Backup'}
-                    </div>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* Empty State */}
-        {companies.length === 0 && !loading && (
-          <div className="text-center py-16 bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl">
-            <div className="w-20 h-20 mx-auto mb-6 rounded-3xl bg-amber-500/20 flex items-center justify-center">
-              <FiDatabase className="w-10 h-10 text-amber-400" />
-            </div>
-            <h3 className="text-2xl font-bold mb-2">No Companies Found</h3>
-            <p className="text-white/50 mb-6">Connect to Tally or upload a backup file</p>
-            <div className="flex gap-4 justify-center">
-              <button onClick={() => setShowConnectionModal(true)}
-                className="px-6 py-3 bg-white text-slate-900 rounded-xl font-semibold hover:bg-white/90 transition-all">
-                Setup Connection
-              </button>
-              <Link to="/documents"
-                className="px-6 py-3 bg-white/10 rounded-xl font-semibold hover:bg-white/20 transition-all">
-                Upload Backup
-              </Link>
-            </div>
+      {/* Empty State */}
+      {companies.length === 0 && !loading && (
+        <div className="glass-card p-12 text-center animate-fade-up">
+          <div className="w-24 h-24 mx-auto mb-6 rounded-3xl bg-gradient-to-br from-[#FF6B00] to-[#FF00E5] flex items-center justify-center">
+            <FiDatabase className="w-12 h-12 text-white" />
           </div>
-        )}
+          <h3 className="text-2xl font-bold mb-3">No Companies Found</h3>
+          <p className="text-white/50 mb-8 max-w-md mx-auto">Connect to Tally ERP or upload a backup file to start analyzing your financial data</p>
+          <div className="flex gap-4 justify-center">
+            <button onClick={() => setShowConnectionModal(true)} className="btn-neon">
+              Setup Tally Connection
+            </button>
+            <Link to="/documents" className="btn-ghost">
+              Upload Backup File
+            </Link>
+          </div>
+        </div>
+      )}
 
-        {/* Footer Stats */}
-        {systemHealth && (
-          <footer className="mt-12 pt-8 border-t border-white/10">
-            <div className="flex flex-wrap items-center justify-between gap-4 text-sm text-white/30">
-              <div className="flex items-center gap-6">
-                <span className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                  DB: {systemHealth.database_status || 'Connected'}
-                </span>
-                <span>CPU: {systemHealth.system?.cpu_percent || 0}%</span>
-                <span>RAM: {systemHealth.system?.memory_percent || 0}%</span>
-              </div>
-              <span>TallyDash Pro v{systemHealth.version || '2.0.0'}</span>
+      {/* System Footer */}
+      {systemHealth && (
+        <footer className="mt-12 pt-8 border-t border-white/5">
+          <div className="flex flex-wrap items-center justify-between gap-4 text-sm text-white/30">
+            <div className="flex items-center gap-6">
+              <span className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[#00FF88] animate-pulse" />
+                DB: {systemHealth.database_status || 'Connected'}
+              </span>
+              <span>CPU: {systemHealth.system?.cpu_percent || 0}%</span>
+              <span>RAM: {systemHealth.system?.memory_percent || 0}%</span>
             </div>
-          </footer>
-        )}
-      </div>
+            <span className="text-gradient font-semibold">TallyDash Pro v{systemHealth.version || '2.0.0'}</span>
+          </div>
+        </footer>
+      )}
 
       <Modal isOpen={showConnectionModal} onClose={() => setShowConnectionModal(false)} title="Configure Connection">
         <ConnectionSetup />
