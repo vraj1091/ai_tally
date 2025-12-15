@@ -340,8 +340,8 @@ async def chat(query: ChatQuery, db: Session = Depends(get_db)):
                             except Exception as e:
                                 logger.warning(f"Error fetching live data for {company_name}: {e}")
                                 continue
-        except Exception as e:
-            logger.warning(f"Could not fetch live Tally data: {e}")
+            except Exception as e:
+                logger.warning(f"Could not fetch live Tally data: {e}")
         
         # ===== STEP 2: Also check backup data =====
         try:
