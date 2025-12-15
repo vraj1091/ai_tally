@@ -499,10 +499,30 @@ class TallyConnectorApp:
         elif msg_type == "get_companies":
             self.root.after(0, lambda: self.log_message("📥 Fetching companies from Tally..."))
             
+            # Use TallyPrime/ERP9 compatible XML format
             response = await self.send_to_tally("""<ENVELOPE>
-                <HEADER><VERSION>1</VERSION><TALLYREQUEST>Export</TALLYREQUEST><TYPE>Data</TYPE><ID>List of Companies</ID></HEADER>
-                <BODY><DESC><STATICVARIABLES><SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT></STATICVARIABLES></DESC></BODY>
-            </ENVELOPE>""")
+<HEADER>
+<VERSION>1</VERSION>
+<TALLYREQUEST>Export</TALLYREQUEST>
+<TYPE>Collection</TYPE>
+<ID>CompanyCollection</ID>
+</HEADER>
+<BODY>
+<DESC>
+<STATICVARIABLES>
+<SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT>
+</STATICVARIABLES>
+<TDL>
+<TDLMESSAGE>
+<COLLECTION NAME="CompanyCollection" ISMODIFY="No">
+<TYPE>Company</TYPE>
+<FETCH>NAME</FETCH>
+</COLLECTION>
+</TDLMESSAGE>
+</TDL>
+</DESC>
+</BODY>
+</ENVELOPE>""")
             
             await websocket.send(json.dumps({
                 "type": "companies_response",

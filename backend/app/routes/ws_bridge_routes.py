@@ -332,7 +332,7 @@ async def get_companies_via_bridge(user_token: str):
             import re
             
             xml_data = response['response']
-            logger.info(f"Bridge: Raw companies XML (first 500 chars): {xml_data[:500] if xml_data else 'EMPTY'}")
+            logger.info(f"Bridge: Raw companies XML (first 1000 chars): {xml_data[:1000] if xml_data else 'EMPTY'}")
             
             # Sanitize XML
             xml_data = re.sub(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]', '', xml_data)
@@ -340,43 +340,60 @@ async def get_companies_via_bridge(user_token: str):
             root = ET.fromstring(xml_data)
             
             # Find company names in various Tally XML formats
-            # Pattern 1: <COMPANY NAME="...">
+            # Pattern 1: <COMPANY NAME="..."> (Collection format)
             for company in root.findall('.//COMPANY'):
                 name = company.get('NAME') or company.text
-                if name:
+                if name and name.strip():
                     companies.append({'name': name.strip()})
             
-            # Pattern 2: <COMPANYNAME>...</COMPANYNAME>
-            for company in root.findall('.//COMPANYNAME'):
-                name = company.text
-                if name:
-                    companies.append({'name': name.strip()})
+            # Pattern 2: <NAME>...</NAME> inside COMPANY or COLLECTION
+            if not companies:
+                for name_elem in root.findall('.//NAME'):
+                    name = name_elem.text
+                    if name and name.strip():
+                        companies.append({'name': name.strip()})
             
-            # Pattern 3: <SVCURRENTCOMPANY>...</SVCURRENTCOMPANY>
-            for company in root.findall('.//SVCURRENTCOMPANY'):
-                name = company.text
-                if name:
-                    companies.append({'name': name.strip()})
-            
-            # Pattern 4: <TALLYMESSAGE><COMPANY>...</COMPANY></TALLYMESSAGE>
-            for tallymsg in root.findall('.//TALLYMESSAGE'):
-                for company in tallymsg.findall('COMPANY'):
-                    name = company.get('NAME') or company.text
+            # Pattern 3: <COMPANYNAME>...</COMPANYNAME>
+            if not companies:
+                for company in root.findall('.//COMPANYNAME'):
+                    name = company.text
                     if name:
                         companies.append({'name': name.strip()})
             
-            # Pattern 5: Search all elements with NAME attribute
+            # Pattern 4: <SVCURRENTCOMPANY>...</SVCURRENTCOMPANY>
             if not companies:
-                for elem in root.iter():
-                    if 'COMPANY' in elem.tag.upper():
-                        name = elem.get('NAME') or elem.text
+                for company in root.findall('.//SVCURRENTCOMPANY'):
+                    name = company.text
+                    if name:
+                        companies.append({'name': name.strip()})
+            
+            # Pattern 5: <TALLYMESSAGE><COMPANY>...</COMPANY></TALLYMESSAGE>
+            if not companies:
+                for tallymsg in root.findall('.//TALLYMESSAGE'):
+                    for company in tallymsg.findall('COMPANY'):
+                        name = company.get('NAME') or company.text
                         if name:
                             companies.append({'name': name.strip()})
             
-            # Pattern 6: Regex fallback for NAME attribute
+            # Pattern 6: Search all elements with NAME attribute containing Company
             if not companies:
-                name_matches = re.findall(r'NAME="([^"]+)"', xml_data)
-                for name in name_matches[:10]:  # Limit to 10
+                for elem in root.iter():
+                    if 'COMPANY' in elem.tag.upper() or elem.tag.upper() == 'NAME':
+                        name = elem.get('NAME') or elem.text
+                        if name and name.strip():
+                            companies.append({'name': name.strip()})
+            
+            # Pattern 7: Regex fallback for COMPANY NAME attribute
+            if not companies:
+                name_matches = re.findall(r'<COMPANY[^>]*NAME="([^"]+)"', xml_data, re.IGNORECASE)
+                for name in name_matches:
+                    if name and len(name) > 1:
+                        companies.append({'name': name.strip()})
+            
+            # Pattern 8: Regex fallback for any NAME tags
+            if not companies:
+                name_matches = re.findall(r'<NAME>([^<]+)</NAME>', xml_data)
+                for name in name_matches:
                     if name and len(name) > 1:
                         companies.append({'name': name.strip()})
             
