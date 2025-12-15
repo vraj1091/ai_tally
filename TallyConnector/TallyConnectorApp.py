@@ -28,15 +28,37 @@ log_dir = Path.home() / "TallyDashPro"
 log_dir.mkdir(exist_ok=True)
 log_file = log_dir / "connector.log"
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(log_file),
-        logging.StreamHandler()
-    ]
-)
+# Create logger
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
+# File handler (UTF-8 for emojis)
+file_handler = logging.FileHandler(log_file, encoding='utf-8')
+file_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+logger.addHandler(file_handler)
+
+# Console handler (safe encoding for Windows)
+class SafeStreamHandler(logging.StreamHandler):
+    def emit(self, record):
+        try:
+            msg = self.format(record)
+            # Replace emojis with ASCII equivalents for console
+            replacements = {
+                '✅': '[OK]', '❌': '[ERROR]', '⚠️': '[WARN]',
+                '📥': '[IN]', '📤': '[OUT]', '🔗': '[LINK]',
+                '🧪': '[TEST]', '💾': '[SAVE]', '🔌': '[PLUG]',
+                '📡': '[SIGNAL]', '🔄': '[SYNC]'
+            }
+            for emoji, text in replacements.items():
+                msg = msg.replace(emoji, text)
+            self.stream.write(msg + self.terminator)
+            self.flush()
+        except Exception:
+            self.handleError(record)
+
+console_handler = SafeStreamHandler()
+console_handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+logger.addHandler(console_handler)
 
 # Config file path
 CONFIG_FILE = log_dir / "config.json"
