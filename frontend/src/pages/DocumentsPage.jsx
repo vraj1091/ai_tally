@@ -1,9 +1,8 @@
 import React, { useEffect, useState } from 'react'
 import { documentApi } from '../api/documentApi'
 import { googleDriveApi } from '../api/googleDriveApi'
-import Button from '../components/common/Button'
-import Card from '../components/common/Card'
 import toast from 'react-hot-toast'
+import { FiUpload, FiFile, FiTrash2, FiCloud, FiFolder, FiExternalLink, FiDatabase, FiRefreshCw } from 'react-icons/fi'
 
 export default function DocumentsPage() {
   const [localDocuments, setLocalDocuments] = useState([])
@@ -31,39 +30,16 @@ export default function DocumentsPage() {
   }
 
   const extractGoogleDriveId = (url) => {
-    /**
-     * Extract file/folder ID from various Google Drive URL formats:
-     * - https://drive.google.com/file/d/FILE_ID/view
-     * - https://drive.google.com/open?id=FILE_ID
-     * - https://drive.google.com/drive/folders/FOLDER_ID
-     * - https://drive.google.com/drive/u/0/folders/FOLDER_ID
-     * - Direct ID
-     */
     if (!url) return null
-    
-    // If it's already an ID (no slashes), return it
     if (!url.includes('/') && !url.includes('?')) {
       return { id: url, type: 'unknown' }
     }
-    
-    // File pattern: /file/d/FILE_ID/
     const fileMatch = url.match(/\/file\/d\/([^\/\?]+)/)
-    if (fileMatch) {
-      return { id: fileMatch[1], type: 'file' }
-    }
-    
-    // Folder pattern: /folders/FOLDER_ID
+    if (fileMatch) return { id: fileMatch[1], type: 'file' }
     const folderMatch = url.match(/\/folders\/([^\/\?]+)/)
-    if (folderMatch) {
-      return { id: folderMatch[1], type: 'folder' }
-    }
-    
-    // Open pattern: ?id=ID
+    if (folderMatch) return { id: folderMatch[1], type: 'folder' }
     const openMatch = url.match(/[?&]id=([^&]+)/)
-    if (openMatch) {
-      return { id: openMatch[1], type: 'unknown' }
-    }
-    
+    if (openMatch) return { id: openMatch[1], type: 'unknown' }
     return null
   }
 
@@ -71,27 +47,18 @@ export default function DocumentsPage() {
     setLoadingDrive(true)
     try {
       let extractedId = driveFolderId
-      
-      // If driveUrl is provided, extract ID from it
       if (driveUrl) {
         const extracted = extractGoogleDriveId(driveUrl)
         if (!extracted) {
-          toast.error('Invalid Google Drive URL. Please provide a valid folder or file link.')
+          toast.error('Invalid Google Drive URL')
           setLoadingDrive(false)
           return
         }
         extractedId = extracted.id
-        
-        if (extracted.type === 'file') {
-          toast.info('File URL detected - fetching single file')
-        } else if (extracted.type === 'folder') {
-          toast.info('Folder URL detected - fetching files from folder')
-        }
       }
-      
       const response = await googleDriveApi.listFiles(extractedId || null)
       setDriveFiles(response.files)
-      toast.success(`Loaded ${response.files.length} files from Google Drive`)
+      toast.success(`Loaded ${response.files.length} files`)
     } catch (error) {
       toast.error('Failed to load Google Drive files: ' + error.message)
     } finally {
@@ -121,6 +88,7 @@ export default function DocumentsPage() {
         toast.success(response.message)
         fetchLocalDocuments()
         fetchRagStats()
+        setFile(null)
       } else {
         toast.error('Upload failed')
       }
@@ -128,7 +96,6 @@ export default function DocumentsPage() {
       toast.error('Error uploading file: ' + error.message)
     } finally {
       setUploading(false)
-      setFile(null)
     }
   }
 
@@ -139,6 +106,7 @@ export default function DocumentsPage() {
         if (response.success) {
           toast.success(response.message)
           fetchLocalDocuments()
+          fetchRagStats()
         }
       }
     } catch (error) {
@@ -161,176 +129,276 @@ export default function DocumentsPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Documents</h1>
+    <div className="p-6 lg:p-8" style={{ background: 'var(--bg-primary)', minHeight: '100vh' }}>
+      <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center gap-4 mb-8">
+        <div>
+          <h1 className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>📄 Documents</h1>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>Upload and manage your documents for AI analysis</p>
+        </div>
         {ragStats && (
-          <div className="text-sm text-gray-600">
-            <span className="font-semibold">RAG Collections: {ragStats.total_collections}</span>
+          <div className="flex items-center gap-3 px-4 py-2 rounded-xl" style={{ background: 'var(--bg-surface)', border: '1px solid var(--border-color)' }}>
+            <FiDatabase className="w-5 h-5" style={{ color: 'var(--primary)' }} />
+            <div>
+              <div className="text-xs" style={{ color: 'var(--text-muted)' }}>RAG Collections</div>
+              <div className="text-lg font-bold" style={{ color: 'var(--primary)' }}>{ragStats.total_collections}</div>
+            </div>
           </div>
         )}
       </div>
 
       {/* RAG Statistics */}
       {ragStats && ragStats.collections && ragStats.collections.length > 0 && (
-        <Card title="📊 RAG Vector Database Status">
+        <div className="card p-6 mb-6 animate-fade-up">
+          <div className="flex items-center gap-3 mb-6">
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #3B82F6 0%, #2563EB 100%)' }}>
+              <FiDatabase className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>📊 RAG Vector Database Status</h2>
+              <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Document embeddings and vector storage</p>
+            </div>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {ragStats.collections.map((collection) => (
-              <div key={collection.name} className="bg-blue-50 p-4 rounded-lg">
-                <div className="text-sm font-semibold text-gray-700">{collection.name}</div>
-                <div className="text-2xl font-bold text-blue-600">{collection.document_count}</div>
-                <div className="text-xs text-gray-500">documents in vector DB</div>
+              <div key={collection.name} className="p-5 rounded-xl" style={{ background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(37, 99, 235, 0.05) 100%)', border: '1px solid rgba(59, 130, 246, 0.3)' }}>
+                <div className="text-sm font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>{collection.name}</div>
+                <div className="text-3xl font-bold" style={{ color: '#3B82F6' }}>{collection.document_count}</div>
+                <div className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>documents indexed</div>
               </div>
             ))}
           </div>
-        </Card>
+        </div>
       )}
 
       {/* Tab Navigation */}
-      <div className="border-b border-gray-200">
-        <nav className="-mb-px flex space-x-8">
-          <button
-            onClick={() => setActiveTab('local')}
-            className={`${
-              activeTab === 'local'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
-          >
-            📁 Local Uploads ({localDocuments.length})
-          </button>
-          <button
-            onClick={() => setActiveTab('drive')}
-            className={`${
-              activeTab === 'drive'
-                ? 'border-blue-500 text-blue-600'
-                : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-            } whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}
-          >
-            ☁️ Google Drive Links ({driveFiles.length})
-          </button>
-        </nav>
+      <div className="flex gap-2 mb-6" style={{ borderBottom: '2px solid var(--border-color)' }}>
+        <button
+          onClick={() => setActiveTab('local')}
+          className="px-6 py-3 font-medium transition-all"
+          style={{
+            color: activeTab === 'local' ? 'var(--primary)' : 'var(--text-muted)',
+            borderBottom: activeTab === 'local' ? '3px solid var(--primary)' : '3px solid transparent',
+            marginBottom: '-2px'
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <FiFolder className="w-4 h-4" />
+            Local Uploads ({localDocuments.length})
+          </div>
+        </button>
+        <button
+          onClick={() => setActiveTab('drive')}
+          className="px-6 py-3 font-medium transition-all"
+          style={{
+            color: activeTab === 'drive' ? 'var(--primary)' : 'var(--text-muted)',
+            borderBottom: activeTab === 'drive' ? '3px solid var(--primary)' : '3px solid transparent',
+            marginBottom: '-2px'
+          }}
+        >
+          <div className="flex items-center gap-2">
+            <FiCloud className="w-4 h-4" />
+            Google Drive Links ({driveFiles.length})
+          </div>
+        </button>
       </div>
 
       {/* Local Upload Section */}
       {activeTab === 'local' && (
         <>
-          <Card title="📤 Upload Document">
-            <div className="flex items-center space-x-4">
+          <div className="card p-6 mb-6 animate-fade-up">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #10B981 0%, #059669 100%)' }}>
+                <FiUpload className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>📤 Upload Document</h2>
+                <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Process and index your documents</p>
+              </div>
+            </div>
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
               <input 
                 type="file" 
                 onChange={handleFileChange} 
                 disabled={uploading} 
-                className="flex-1 border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-blue-500"
+                className="input-neon flex-1"
                 accept=".pdf,.docx,.txt,.md,.png,.jpg,.jpeg"
               />
-              <Button
+              <button
                 onClick={handleUpload}
                 disabled={!file || uploading}
-                loading={uploading}
+                className="btn-primary px-8 flex items-center justify-center gap-2"
+                style={{
+                  background: uploading ? 'var(--bg-secondary)' : 'linear-gradient(135deg, #10B981 0%, #059669 100%)',
+                  cursor: (!file || uploading) ? 'not-allowed' : 'pointer',
+                  opacity: (!file || uploading) ? 0.6 : 1
+                }}
               >
-                {uploading ? 'Uploading...' : 'Upload & Process'}
-              </Button>
+                {uploading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <FiUpload className="w-4 h-4" />
+                    Upload & Process
+                  </>
+                )}
+              </button>
             </div>
-            <p className="text-xs text-gray-500 mt-2">
-              Supported formats: PDF, DOCX, TXT, MD, Images (PNG, JPG, JPEG)
-            </p>
-          </Card>
+            <div className="flex items-center gap-2 mt-3 px-3 py-2 rounded-lg" style={{ background: 'var(--bg-tertiary)' }}>
+              <span className="text-xs" style={{ color: 'var(--text-muted)' }}>
+                ✓ Supported: PDF, DOCX, TXT, MD, Images (PNG, JPG, JPEG)
+              </span>
+            </div>
+          </div>
 
-          <Card title={`📄 Local Documents (${localDocuments.length})`}>
+          <div className="card p-6 animate-fade-up">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>📄 Local Documents</h2>
+              <span className="px-3 py-1 rounded-full text-sm font-medium" style={{ background: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}>
+                {localDocuments.length} files
+              </span>
+            </div>
             {localDocuments.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <p>No documents uploaded yet.</p>
-                <p className="text-sm mt-2">Upload a document above to get started.</p>
+              <div className="text-center py-16">
+                <FiFile className="w-16 h-16 mx-auto mb-4" style={{ color: 'var(--text-muted)' }} />
+                <p className="text-lg font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>No documents uploaded yet</p>
+                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Upload a document above to get started</p>
               </div>
             ) : (
-              <ul className="divide-y divide-gray-200">
+              <div className="space-y-3">
                 {localDocuments.map((doc, idx) => (
-                  <li key={idx} className="py-4 flex justify-between items-center hover:bg-gray-50 px-2 rounded">
-                    <div className="flex-1">
-                      <div className="font-medium text-gray-900">{doc.filename}</div>
-                      <div className="text-sm text-gray-500">
-                        {formatFileSize(doc.size)} • {formatDate(doc.modified)}
+                  <div key={idx} className="flex items-center justify-between p-4 rounded-xl hover:scale-[1.01] transition-all" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)' }}>
+                    <div className="flex items-center gap-4 flex-1">
+                      <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'var(--primary)' }}>
+                        <FiFile className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-medium" style={{ color: 'var(--text-primary)' }}>{doc.filename}</div>
+                        <div className="text-sm flex items-center gap-3 mt-1" style={{ color: 'var(--text-muted)' }}>
+                          <span>{formatFileSize(doc.size)}</span>
+                          <span>•</span>
+                          <span>{formatDate(doc.modified)}</span>
+                        </div>
                       </div>
                     </div>
                     <button
-                      className="ml-4 px-3 py-1 text-sm text-red-600 hover:text-red-800 hover:bg-red-50 rounded"
                       onClick={() => handleDelete(doc.filename)}
+                      className="p-2 rounded-lg hover:scale-110 transition-all"
+                      style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#EF4444' }}
                     >
-                      Delete
+                      <FiTrash2 className="w-4 h-4" />
                     </button>
-                  </li>
+                  </div>
                 ))}
-              </ul>
+              </div>
             )}
-          </Card>
+          </div>
         </>
       )}
 
       {/* Google Drive Section */}
       {activeTab === 'drive' && (
         <>
-          <Card title="☁️ Google Drive Integration">
+          <div className="card p-6 mb-6 animate-fade-up">
+            <div className="flex items-center gap-3 mb-6">
+              <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)' }}>
+                <FiCloud className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>☁️ Google Drive Integration</h2>
+                <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>Connect to your Google Drive folders</p>
+              </div>
+            </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Google Drive Folder ID (optional - leave empty for root)
+                <label className="block text-sm font-semibold mb-3" style={{ color: 'var(--text-primary)' }}>
+                  Google Drive Folder ID
                 </label>
-                <div className="flex items-center space-x-4">
+                <div className="flex flex-col sm:flex-row gap-4">
                   <input
                     type="text"
-                    className="flex-1 border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-blue-500"
-                    placeholder="Enter Google Drive folder ID"
+                    className="input-neon flex-1"
+                    placeholder="Enter folder ID or paste Drive URL"
                     value={driveFolderId}
                     onChange={(e) => setDriveFolderId(e.target.value)}
                   />
-                  <Button
+                  <button
                     onClick={fetchDriveFiles}
                     disabled={loadingDrive}
-                    loading={loadingDrive}
+                    className="btn-primary px-8 flex items-center justify-center gap-2"
+                    style={{
+                      background: loadingDrive ? 'var(--bg-secondary)' : 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)'
+                    }}
                   >
-                    {loadingDrive ? 'Loading...' : 'Fetch Files'}
-                  </Button>
+                    {loadingDrive ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        Loading...
+                      </>
+                    ) : (
+                      <>
+                        <FiRefreshCw className="w-4 h-4" />
+                        Fetch Files
+                      </>
+                    )}
+                  </button>
                 </div>
               </div>
-              <div className="text-xs text-gray-500">
-                <p>💡 To get a folder ID:</p>
-                <p>1. Open the folder in Google Drive</p>
-                <p>2. Copy the ID from the URL: drive.google.com/drive/folders/<strong>FOLDER_ID</strong></p>
+              <div className="rounded-xl p-4" style={{ background: 'linear-gradient(135deg, rgba(245, 158, 11, 0.1) 0%, rgba(217, 119, 6, 0.05) 100%)', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+                <div className="text-xs" style={{ color: 'var(--text-secondary)' }}>
+                  <p className="font-semibold mb-2">💡 How to get a folder ID:</p>
+                  <p>1. Open the folder in Google Drive</p>
+                  <p>2. Copy the ID from URL: <span className="font-mono" style={{ color: 'var(--primary)' }}>drive.google.com/drive/folders/[FOLDER_ID]</span></p>
+                </div>
               </div>
             </div>
-          </Card>
+          </div>
 
-          <Card title={`📁 Google Drive Files (${driveFiles.length})`}>
+          <div className="card p-6 animate-fade-up">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>📁 Google Drive Files</h2>
+              <span className="px-3 py-1 rounded-full text-sm font-medium" style={{ background: 'var(--bg-tertiary)', color: 'var(--text-secondary)' }}>
+                {driveFiles.length} files
+              </span>
+            </div>
             {driveFiles.length === 0 ? (
-              <div className="text-center py-8 text-gray-500">
-                <p>No Google Drive files loaded.</p>
-                <p className="text-sm mt-2">Enter a folder ID and click "Fetch Files" to see files.</p>
+              <div className="text-center py-16">
+                <FiCloud className="w-16 h-16 mx-auto mb-4" style={{ color: 'var(--text-muted)' }} />
+                <p className="text-lg font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>No Google Drive files loaded</p>
+                <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Enter a folder ID and click "Fetch Files" above</p>
               </div>
             ) : (
-              <ul className="divide-y divide-gray-200">
+              <div className="space-y-3">
                 {driveFiles.map((file) => (
-                  <li key={file.id} className="py-4 flex justify-between items-center hover:bg-gray-50 px-2 rounded">
-                    <div className="flex-1">
-                      <div className="font-medium text-gray-900">{file.name}</div>
-                      <div className="text-sm text-gray-500">
-                        {file.mimeType || 'Unknown type'}
+                  <div key={file.id} className="flex items-center justify-between p-4 rounded-xl hover:scale-[1.01] transition-all" style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)' }}>
+                    <div className="flex items-center gap-4 flex-1">
+                      <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: '#F59E0B' }}>
+                        <FiCloud className="w-5 h-5 text-white" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="font-medium" style={{ color: 'var(--text-primary)' }}>{file.name}</div>
+                        <div className="text-sm mt-1" style={{ color: 'var(--text-muted)' }}>
+                          {file.mimeType || 'Unknown type'}
+                        </div>
                       </div>
                     </div>
                     <button
                       onClick={() => openDriveLink(file.id)}
-                      className="ml-4 px-3 py-1 text-sm text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded"
+                      className="px-4 py-2 rounded-lg flex items-center gap-2 hover:scale-105 transition-all"
+                      style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3B82F6' }}
                     >
-                      Open in Drive →
+                      <span className="text-sm font-medium">Open</span>
+                      <FiExternalLink className="w-4 h-4" />
                     </button>
-                  </li>
+                  </div>
                 ))}
-              </ul>
+              </div>
             )}
-          </Card>
+          </div>
         </>
       )}
     </div>
   )
 }
-    
