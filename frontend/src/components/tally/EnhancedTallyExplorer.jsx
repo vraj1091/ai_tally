@@ -4,7 +4,8 @@ import toast from 'react-hot-toast';
 import {
   FiSearch, FiFilter, FiDownload, FiRefreshCw, FiEye,
   FiTrendingUp, FiTrendingDown, FiCalendar,
-  FiFileText, FiCheckCircle, FiAlertCircle, FiClock
+  FiFileText, FiCheckCircle, FiAlertCircle, FiClock,
+  FiUploadCloud, FiX, FiDatabase
 } from 'react-icons/fi';
 import RupeeIcon from '../common/RupeeIcon';
 import {
@@ -23,6 +24,12 @@ const EnhancedTallyExplorer = () => {
   const [view, setView] = useState('overview'); // overview, ledgers, vouchers, analytics
   const [dataSource, setDataSource] = useState('live'); // 'live' or 'backup'
   const [totalCounts, setTotalCounts] = useState({ ledgers: 0, vouchers: 0 });
+  
+  // Upload functionality
+  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [uploadFile, setUploadFile] = useState(null);
+  const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
   
   // Pagination
   const [ledgerPage, setLedgerPage] = useState(1);
@@ -148,55 +155,83 @@ const EnhancedTallyExplorer = () => {
             .sort((a, b) => Math.abs(b.closing_balance || b.opening_balance || 0) - Math.abs(a.closing_balance || a.opening_balance || 0));
           setAllLedgers(sortedLedgers);
           setTotalCounts(prev => ({ ...prev, ledgers: sortedLedgers.length }));
-        } catch (e) {
-          console.error('Ledger fetch error:', e);
-          setAllLedgers([]);
-        }
 
-        try {
-          const voucherResponse = await tallyApi.getVouchers(selectedCompany, null, null, null, null, false);
+          const voucherResponse = await tallyApi.getVouchers(selectedCompany, null, 1000);
           setAllVouchers(voucherResponse.vouchers || []);
           setTotalCounts(prev => ({ ...prev, vouchers: (voucherResponse.vouchers || []).length }));
+          toast.success(`Loaded ${sortedLedgers.length} ledgers & ${voucherResponse.vouchers?.length || 0} vouchers`);
         } catch (e) {
-          console.error('Voucher fetch error:', e);
+          console.error('Live fetch error:', e);
+          toast.error('Failed to load live data');
+          setAllLedgers([]);
           setAllVouchers([]);
         }
-        
-        toast.success(`Loaded data for ${selectedCompany}`);
       }
     } catch (error) {
       console.error('Fetch error:', error);
       toast.error('Failed to fetch company data');
-      setAllLedgers([]);
-      setAllVouchers([]);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleRefresh = async () => {
-    await fetchCompanyData();
+  const handleRefresh = () => {
+    setAllLedgers([]);
+    setAllVouchers([]);
+    fetchCompanyData();
   };
 
-  // Calculate analytics - memoized for performance
+  const handleFileUpload = async () => {
+    if (!uploadFile) {
+      toast.error('Please select a file first');
+      return;
+    }
+
+    setUploading(true);
+    setUploadProgress(0);
+
+    try {
+      const response = await tallyApi.uploadBackupFile(uploadFile, (percent) => {
+        setUploadProgress(percent);
+      });
+
+      if (response.success) {
+        toast.success(`✓ ${response.message || 'Backup uploaded successfully'}`);
+        setUploadFile(null);
+        setUploadProgress(0);
+        setShowUploadModal(false);
+        // Refresh companies list
+        fetchCompanies();
+      } else {
+        toast.error(response.message || 'Upload failed');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast.error(error.message || 'Error uploading backup file');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Analytics calculations
   const analytics = useMemo(() => {
     const totalDebit = allLedgers.reduce((sum, l) => {
       const bal = parseFloat(l.closing_balance || l.opening_balance || 0);
       return sum + (bal > 0 ? bal : 0);
     }, 0);
+
     const totalCredit = allLedgers.reduce((sum, l) => {
       const bal = parseFloat(l.closing_balance || l.opening_balance || 0);
       return sum + (bal < 0 ? Math.abs(bal) : 0);
     }, 0);
+
     const totalVouchers = allVouchers.length;
-    
-    // Voucher type distribution
+
     const voucherTypes = allVouchers.reduce((acc, v) => {
-      acc[v.voucher_type || 'Unknown'] = (acc[v.voucher_type || 'Unknown'] || 0) + 1;
+      acc[v.voucher_type] = (acc[v.voucher_type] || 0) + 1;
       return acc;
     }, {});
 
-    // Top ledgers by balance (already sorted from fetch)
     const topLedgers = allLedgers.slice(0, 10);
 
     return {
@@ -260,39 +295,39 @@ const EnhancedTallyExplorer = () => {
     const endItem = Math.min(currentPage * itemsPerPage, totalItems);
     
     return (
-      <div className="flex items-center justify-between px-4 py-3 bg-gray-50 border-t">
-        <div className="text-sm text-gray-600">
+      <div className="flex items-center justify-between px-6 py-4" style={{ background: 'var(--bg-secondary)', borderTop: '1px solid var(--border-color)' }}>
+        <div className="text-sm" style={{ color: 'var(--text-muted)' }}>
           Showing {startItem} - {endItem} of {totalItems.toLocaleString()} entries
         </div>
         <div className="flex items-center gap-2">
           <button
             onClick={() => onPageChange(1)}
             disabled={currentPage === 1}
-            className="px-3 py-1 rounded border bg-white hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-3 py-2 rounded-lg btn-ghost text-sm"
           >
             First
           </button>
           <button
             onClick={() => onPageChange(currentPage - 1)}
             disabled={currentPage === 1}
-            className="px-3 py-1 rounded border bg-white hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-3 py-2 rounded-lg btn-ghost text-sm"
           >
             Prev
           </button>
-          <span className="px-3 py-1 bg-blue-600 text-white rounded font-medium">
+          <span className="px-4 py-2 rounded-lg font-medium text-sm text-white" style={{ background: 'var(--primary)' }}>
             {currentPage} / {totalPages}
           </span>
           <button
             onClick={() => onPageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
-            className="px-3 py-1 rounded border bg-white hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-3 py-2 rounded-lg btn-ghost text-sm"
           >
             Next
           </button>
           <button
             onClick={() => onPageChange(totalPages)}
             disabled={currentPage === totalPages}
-            className="px-3 py-1 rounded border bg-white hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="px-3 py-2 rounded-lg btn-ghost text-sm"
           >
             Last
           </button>
@@ -327,85 +362,92 @@ const EnhancedTallyExplorer = () => {
     <div className="space-y-6">
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white">
-          <div className="flex items-center justify-between mb-2">
+        <div className="card p-6" style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', border: 'none' }}>
+          <div className="flex items-center justify-between mb-2 text-white">
             <RupeeIcon className="w-8 h-8" />
-            <span className="text-xs bg-white/20 px-2 py-1 rounded-full">Total Debit</span>
+            <span className="text-xs px-3 py-1 rounded-full" style={{ background: 'rgba(255,255,255,0.2)' }}>Total Debit</span>
           </div>
-          <p className="text-3xl font-bold">₹{(analytics.totalDebit / 10000000).toFixed(2)}Cr</p>
-          <p className="text-sm mt-2 opacity-90">{allLedgers.filter(l => parseFloat(l.closing_balance || l.opening_balance || 0) > 0).length} ledgers</p>
+          <p className="text-3xl font-bold text-white">₹{(analytics.totalDebit / 10000000).toFixed(2)}Cr</p>
+          <p className="text-sm mt-2 opacity-90 text-white">{allLedgers.filter(l => parseFloat(l.closing_balance || l.opening_balance || 0) > 0).length} ledgers</p>
         </div>
 
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white">
-          <div className="flex items-center justify-between mb-2">
+        <div className="card p-6" style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', border: 'none' }}>
+          <div className="flex items-center justify-between mb-2 text-white">
             <FiTrendingUp className="w-8 h-8" />
-            <span className="text-xs bg-white/20 px-2 py-1 rounded-full">Total Credit</span>
+            <span className="text-xs px-3 py-1 rounded-full" style={{ background: 'rgba(255,255,255,0.2)' }}>Total Credit</span>
           </div>
-          <p className="text-3xl font-bold">₹{(analytics.totalCredit / 10000000).toFixed(2)}Cr</p>
-          <p className="text-sm mt-2 opacity-90">{allLedgers.filter(l => parseFloat(l.closing_balance || l.opening_balance || 0) < 0).length} ledgers</p>
+          <p className="text-3xl font-bold text-white">₹{(analytics.totalCredit / 10000000).toFixed(2)}Cr</p>
+          <p className="text-sm mt-2 opacity-90 text-white">{allLedgers.filter(l => parseFloat(l.closing_balance || l.opening_balance || 0) < 0).length} ledgers</p>
         </div>
 
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
-          <div className="flex items-center justify-between mb-2">
+        <div className="card p-6" style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', border: 'none' }}>
+          <div className="flex items-center justify-between mb-2 text-white">
             <FiFileText className="w-8 h-8" />
-            <span className="text-xs bg-white/20 px-2 py-1 rounded-full">Vouchers</span>
+            <span className="text-xs px-3 py-1 rounded-full" style={{ background: 'rgba(255,255,255,0.2)' }}>Vouchers</span>
           </div>
-          <p className="text-3xl font-bold">{analytics.totalVouchers}</p>
-          <p className="text-sm mt-2 opacity-90">{Object.keys(analytics.voucherTypes).length} types</p>
+          <p className="text-3xl font-bold text-white">{analytics.totalVouchers}</p>
+          <p className="text-sm mt-2 opacity-90 text-white">{Object.keys(analytics.voucherTypes).length} types</p>
         </div>
 
-        <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg p-6 text-white">
-          <div className="flex items-center justify-between mb-2">
+        <div className="card p-6" style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', border: 'none' }}>
+          <div className="flex items-center justify-between mb-2 text-white">
             <FiCheckCircle className="w-8 h-8" />
-            <span className="text-xs bg-white/20 px-2 py-1 rounded-full">Total Ledgers</span>
+            <span className="text-xs px-3 py-1 rounded-full" style={{ background: 'rgba(255,255,255,0.2)' }}>Total Ledgers</span>
           </div>
-          <p className="text-3xl font-bold">{allLedgers.length}</p>
-          <p className="text-sm mt-2 opacity-90">Active accounts</p>
+          <p className="text-3xl font-bold text-white">{allLedgers.length}</p>
+          <p className="text-sm mt-2 opacity-90 text-white">Active accounts</p>
         </div>
       </div>
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Voucher Type Distribution */}
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          <h3 className="text-lg font-semibold mb-4">Voucher Type Distribution</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-              <Pie
-                data={Object.entries(analytics.voucherTypes).map(([type, count]) => ({ name: type, value: count }))}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                outerRadius={100}
-                fill="#8884d8"
-                dataKey="value"
-              >
-                {Object.entries(analytics.voucherTypes).map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip />
-            </PieChart>
-          </ResponsiveContainer>
+        <div className="card p-6">
+          <h3 className="text-xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>Voucher Type Distribution</h3>
+          {Object.keys(analytics.voucherTypes).length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={Object.entries(analytics.voucherTypes).map(([name, value]) => ({ name, value }))}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={(entry) => `${entry.name}: ${entry.value}`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {Object.keys(analytics.voucherTypes).map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-gray-500">No voucher data available</div>
+          )}
         </div>
 
-        {/* Top 10 Ledgers */}
-        <div className="bg-white rounded-xl shadow-lg p-6">
-          <h3 className="text-lg font-semibold mb-4">Top 10 Ledgers by Balance</h3>
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={analytics.topLedgers} layout="vertical">
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis type="number" tick={{ fontSize: 11 }} />
-              <YAxis type="category" dataKey="name" width={120} tick={{ fontSize: 10 }} />
-              <Tooltip />
-              <Bar dataKey="opening_balance" fill="#3b82f6">
-                {analytics.topLedgers.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={parseFloat(entry.opening_balance) >= 0 ? '#10b981' : '#ef4444'} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
+        {/* Top 10 Ledgers by Balance */}
+        <div className="card p-6">
+          <h3 className="text-xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>Top 10 Ledgers by Balance</h3>
+          {analytics.topLedgers.length > 0 ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={analytics.topLedgers.map(l => ({
+                name: l.name.length > 15 ? l.name.substring(0, 15) + '...' : l.name,
+                balance: Math.abs(parseFloat(l.closing_balance || l.opening_balance || 0))
+              }))}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
+                <YAxis />
+                <Tooltip formatter={(value) => `₹${value.toLocaleString('en-IN')}`} />
+                <Bar dataKey="balance" fill="#3b82f6" />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="h-[300px] flex items-center justify-center text-gray-500">No ledger data available</div>
+          )}
         </div>
       </div>
     </div>
@@ -413,80 +455,81 @@ const EnhancedTallyExplorer = () => {
 
   // Ledgers View
   const LedgersView = () => (
-    <div className="bg-white rounded-xl shadow-lg">
+    <div className="card">
       {/* Filters */}
-      <div className="p-4 border-b flex flex-wrap gap-3 items-center">
-        <div className="flex-1 min-w-[200px]">
+      <div className="p-6" style={{ borderBottom: '1px solid var(--border-color)' }}>
+        <div className="flex flex-wrap gap-4">
+          <div className="flex-1 min-w-[200px]">
+            <div className="relative">
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5" style={{ color: 'var(--text-muted)' }} />
+              <input
+                type="text"
+                placeholder="Search ledgers..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="input-neon pl-10 w-full"
+              />
+            </div>
+          </div>
           <input
-            type="text"
-            placeholder="Search ledgers..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            type="number"
+            placeholder="Min Amount"
+            value={amountRange.min}
+            onChange={(e) => setAmountRange({ ...amountRange, min: e.target.value })}
+            className="input-neon w-32"
           />
+          <input
+            type="number"
+            placeholder="Max Amount"
+            value={amountRange.max}
+            onChange={(e) => setAmountRange({ ...amountRange, max: e.target.value })}
+            className="input-neon w-32"
+          />
+          <button
+            onClick={() => exportToCSV(filteredLedgers, 'ledgers')}
+            className="btn-ghost flex items-center gap-2"
+          >
+            <FiDownload className="w-4 h-4" />
+            Export
+          </button>
         </div>
-        <input
-          type="number"
-          placeholder="Min amount"
-          value={amountRange.min}
-          onChange={(e) => setAmountRange({ ...amountRange, min: e.target.value })}
-          className="px-4 py-2 border rounded-lg w-32 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <input
-          type="number"
-          placeholder="Max amount"
-          value={amountRange.max}
-          onChange={(e) => setAmountRange({ ...amountRange, max: e.target.value })}
-          className="px-4 py-2 border rounded-lg w-32 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <button
-          onClick={() => exportToCSV(filteredLedgers, 'ledgers')}
-          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
-        >
-          <FiDownload className="w-4 h-4" />
-          Export
-        </button>
       </div>
 
-      {/* Ledgers Table */}
+      {/* Table */}
       <div className="overflow-x-auto">
         <table className="w-full">
-          <thead className="bg-gray-50 border-b">
+          <thead style={{ background: 'var(--bg-secondary)', borderBottom: '2px solid var(--border-color)' }}>
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Ledger Name</th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Group</th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Balance</th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-              <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+              <th className="px-6 py-4 text-left text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>Ledger Name</th>
+              <th className="px-6 py-4 text-left text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>Group</th>
+              <th className="px-6 py-4 text-right text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>Balance</th>
+              <th className="px-6 py-4 text-center text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>Type</th>
+              <th className="px-6 py-4 text-center text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>Actions</th>
             </tr>
           </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
+          <tbody>
             {paginatedLedgers.map((ledger, idx) => {
               const balance = parseFloat(ledger.closing_balance || ledger.opening_balance || 0);
+              const isDebit = balance >= 0;
               return (
-                <tr key={idx} className="hover:bg-gray-50 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap font-medium text-gray-900">{ledger.name}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{ledger.parent || 'N/A'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right">
-                    <span className={`font-semibold ${balance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      ₹{Math.abs(balance).toLocaleString('en-IN')}
+                <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }} className="hover:bg-secondary/50 transition-colors">
+                  <td className="px-6 py-4" style={{ color: 'var(--text-primary)' }}>{ledger.name}</td>
+                  <td className="px-6 py-4 text-sm" style={{ color: 'var(--text-muted)' }}>{ledger.parent || 'N/A'}</td>
+                  <td className="px-6 py-4 text-right font-semibold" style={{ color: isDebit ? '#10b981' : '#ef4444' }}>
+                    ₹{Math.abs(balance).toLocaleString('en-IN')}
+                  </td>
+                  <td className="px-6 py-4 text-center">
+                    <span className={`badge text-xs ${isDebit ? 'badge-green' : 'badge-red'}`}>
+                      {isDebit ? 'Debit' : 'Credit'}
                     </span>
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-center">
-                    <span className={`px-2 py-1 text-xs rounded-full ${
-                      balance >= 0 
-                        ? 'bg-green-100 text-green-700' 
-                        : 'bg-red-100 text-red-700'
-                    }`}>
-                      {balance >= 0 ? 'Debit' : 'Credit'}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-center">
+                  <td className="px-6 py-4 text-center">
                     <button
                       onClick={() => setSelectedLedger(ledger)}
-                      className="text-blue-600 hover:text-blue-800"
+                      className="btn-ghost-sm flex items-center gap-1 mx-auto"
                     >
-                      <FiEye className="w-5 h-5" />
+                      <FiEye className="w-4 h-4" />
+                      View
                     </button>
                   </td>
                 </tr>
@@ -495,6 +538,15 @@ const EnhancedTallyExplorer = () => {
           </tbody>
         </table>
       </div>
+
+      {paginatedLedgers.length === 0 && (
+        <div className="p-12 text-center">
+          <FiAlertCircle className="w-16 h-16 mx-auto mb-4" style={{ color: 'var(--text-muted)' }} />
+          <p className="font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>No ledgers found</p>
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Try adjusting your filters</p>
+        </div>
+      )}
+
       <Pagination
         currentPage={ledgerPage}
         totalPages={totalLedgerPages}
@@ -507,77 +559,94 @@ const EnhancedTallyExplorer = () => {
 
   // Vouchers View
   const VouchersView = () => (
-    <div className="bg-white rounded-xl shadow-lg">
+    <div className="card">
       {/* Filters */}
-      <div className="p-4 border-b flex flex-wrap gap-3 items-center">
-        <div className="flex-1 min-w-[200px]">
-          <input
-            type="text"
-            placeholder="Search vouchers..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-        <select
-          value={voucherType}
-          onChange={(e) => setVoucherType(e.target.value)}
-          className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="all">All Types</option>
-          {Object.keys(analytics.voucherTypes).map(type => (
-            <option key={type} value={type}>{type}</option>
-          ))}
-        </select>
-        <input
-          type="date"
-          value={dateRange.from}
-          onChange={(e) => setDateRange({ ...dateRange, from: e.target.value })}
-          className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <input
-          type="date"
-          value={dateRange.to}
-          onChange={(e) => setDateRange({ ...dateRange, to: e.target.value })}
-          className="px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <button
-          onClick={() => exportToCSV(filteredVouchers, 'vouchers')}
-          className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center gap-2"
-        >
-          <FiDownload className="w-4 h-4" />
-          Export
-        </button>
-      </div>
-
-      {/* Vouchers Grid */}
-      <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {paginatedVouchers.map((voucher, idx) => (
-          <div key={idx} className="border rounded-lg p-4 hover:shadow-lg transition-shadow">
-            <div className="flex items-start justify-between mb-3">
-              <div>
-                <h4 className="font-semibold text-gray-900">{voucher.voucher_number || 'N/A'}</h4>
-                <p className="text-sm text-gray-600">{voucher.voucher_type}</p>
-              </div>
-              <span className="px-2 py-1 text-xs rounded-full bg-blue-100 text-blue-700">
-                {voucher.date ? new Date(voucher.date).toLocaleDateString('en-IN') : 'N/A'}
-              </span>
-            </div>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Amount:</span>
-                <span className="font-semibold text-gray-900">₹{parseFloat(voucher.amount || 0).toLocaleString('en-IN')}</span>
-              </div>
-              {voucher.party_name && (
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Party:</span>
-                  <span className="font-medium text-gray-900 truncate max-w-[150px]">{voucher.party_name}</span>
-                </div>
-              )}
+      <div className="p-6" style={{ borderBottom: '1px solid var(--border-color)' }}>
+        <div className="flex flex-wrap gap-4">
+          <div className="flex-1 min-w-[200px]">
+            <div className="relative">
+              <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5" style={{ color: 'var(--text-muted)' }} />
+              <input
+                type="text"
+                placeholder="Search vouchers..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="input-neon pl-10 w-full"
+              />
             </div>
           </div>
-        ))}
+          <select
+            value={voucherType}
+            onChange={(e) => setVoucherType(e.target.value)}
+            className="input-neon"
+          >
+            <option value="all">All Types</option>
+            {Object.keys(analytics.voucherTypes).map(type => (
+              <option key={type} value={type}>{type}</option>
+            ))}
+          </select>
+          <input
+            type="date"
+            value={dateRange.from}
+            onChange={(e) => setDateRange({ ...dateRange, from: e.target.value })}
+            className="input-neon"
+          />
+          <input
+            type="date"
+            value={dateRange.to}
+            onChange={(e) => setDateRange({ ...dateRange, to: e.target.value })}
+            className="input-neon"
+          />
+          <button
+            onClick={() => exportToCSV(filteredVouchers, 'vouchers')}
+            className="btn-ghost flex items-center gap-2"
+          >
+            <FiDownload className="w-4 h-4" />
+            Export
+          </button>
+        </div>
       </div>
+
+      {/* Table */}
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead style={{ background: 'var(--bg-secondary)', borderBottom: '2px solid var(--border-color)' }}>
+            <tr>
+              <th className="px-6 py-4 text-left text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>Voucher #</th>
+              <th className="px-6 py-4 text-left text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>Type</th>
+              <th className="px-6 py-4 text-left text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>Date</th>
+              <th className="px-6 py-4 text-right text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>Amount</th>
+              <th className="px-6 py-4 text-left text-sm font-semibold" style={{ color: 'var(--text-secondary)' }}>Ledger</th>
+            </tr>
+          </thead>
+          <tbody>
+            {paginatedVouchers.map((voucher, idx) => (
+              <tr key={idx} style={{ borderBottom: '1px solid var(--border-color)' }} className="hover:bg-secondary/50 transition-colors">
+                <td className="px-6 py-4 font-medium" style={{ color: 'var(--text-primary)' }}>{voucher.voucher_number}</td>
+                <td className="px-6 py-4">
+                  <span className="badge badge-blue text-xs">{voucher.voucher_type}</span>
+                </td>
+                <td className="px-6 py-4 text-sm" style={{ color: 'var(--text-muted)' }}>
+                  {new Date(voucher.date).toLocaleDateString('en-IN')}
+                </td>
+                <td className="px-6 py-4 text-right font-semibold" style={{ color: 'var(--text-primary)' }}>
+                  ₹{Math.abs(parseFloat(voucher.amount || 0)).toLocaleString('en-IN')}
+                </td>
+                <td className="px-6 py-4 text-sm" style={{ color: 'var(--text-muted)' }}>{voucher.ledger_name || 'N/A'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      {paginatedVouchers.length === 0 && (
+        <div className="p-12 text-center">
+          <FiAlertCircle className="w-16 h-16 mx-auto mb-4" style={{ color: 'var(--text-muted)' }} />
+          <p className="font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>No vouchers found</p>
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Try adjusting your filters</p>
+        </div>
+      )}
+
       <Pagination
         currentPage={voucherPage}
         totalPages={totalVoucherPages}
@@ -588,35 +657,58 @@ const EnhancedTallyExplorer = () => {
     </div>
   );
 
-  if (loading && !allLedgers.length) {
+  if (companies.length === 0 && !loading) {
     return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading Tally data...</p>
+      <div className="space-y-6 animate-fade-up">
+        <div className="card p-12 text-center">
+          <div className="w-20 h-20 mx-auto mb-6 rounded-2xl flex items-center justify-center" style={{ background: 'var(--gradient-primary)' }}>
+            <FiDatabase className="w-10 h-10 text-white" />
+          </div>
+          <h3 className="text-2xl font-bold mb-2" style={{ color: 'var(--text-primary)' }}>No Companies Found</h3>
+          <p className="mb-6" style={{ color: 'var(--text-secondary)' }}>
+            Connect to Tally or upload a backup file to get started
+          </p>
+          <button
+            onClick={() => setShowUploadModal(true)}
+            className="btn-primary px-6 py-3 flex items-center gap-2 mx-auto"
+          >
+            <FiUploadCloud className="w-5 h-5" />
+            Upload Backup File
+          </button>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 animate-fade-up">
       {/* Header */}
-      <div className="bg-white rounded-xl shadow-lg p-6">
+      <div className="card p-6" style={{ border: '1px solid var(--border-color)' }}>
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Enhanced Tally Explorer</h1>
-            <p className="text-gray-600 mt-1">Advanced analytics and real-time insights</p>
+            <h1 className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>Enhanced Tally Explorer</h1>
+            <p className="mt-1" style={{ color: 'var(--text-secondary)' }}>Advanced analytics and real-time insights</p>
+            {selectedCompany && (
+              <div className="mt-3 flex items-center gap-2">
+                <span className="text-sm font-medium" style={{ color: 'var(--text-muted)' }}>Loaded data for {selectedCompany}</span>
+                <span className={`badge text-xs ${dataSource === 'live' ? 'badge-green' : 'badge-cyan'}`}>
+                  {dataSource === 'live' ? '🟢 Live' : '📁 Backup'}
+                </span>
+              </div>
+            )}
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
             <select
               value={selectedCompany}
               onChange={(e) => {
                 setSelectedCompany(e.target.value);
                 const company = companies.find(c => c.name === e.target.value);
                 setDataSource(company?.source || 'live');
+                setAllLedgers([]);
+                setAllVouchers([]);
               }}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="input-neon"
+              style={{ minWidth: '200px' }}
             >
               {companies.map((company, idx) => (
                 <option key={idx} value={company.name}>
@@ -624,17 +716,17 @@ const EnhancedTallyExplorer = () => {
                 </option>
               ))}
             </select>
-            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-              dataSource === 'live' 
-                ? 'bg-green-100 text-green-700' 
-                : 'bg-amber-100 text-amber-700'
-            }`}>
-              {dataSource === 'live' ? '🟢 Live' : '📁 Backup'}
-            </span>
+            <button
+              onClick={() => setShowUploadModal(true)}
+              className="btn-ghost flex items-center gap-2"
+            >
+              <FiUploadCloud className="w-4 h-4" />
+              Upload
+            </button>
             <button
               onClick={handleRefresh}
               disabled={loading}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center gap-2 disabled:opacity-50"
+              className="btn-primary flex items-center gap-2"
             >
               <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
               Refresh
@@ -644,16 +736,18 @@ const EnhancedTallyExplorer = () => {
       </div>
 
       {/* View Tabs */}
-      <div className="flex gap-2 bg-white rounded-xl shadow-lg p-2">
+      <div className="flex gap-2 card p-2">
         {['overview', 'ledgers', 'vouchers'].map((v) => (
           <button
             key={v}
             onClick={() => setView(v)}
-            className={`flex-1 px-4 py-2 rounded-lg font-medium capitalize transition-colors ${
-              view === v
-                ? 'bg-blue-600 text-white'
-                : 'text-gray-700 hover:bg-gray-100'
+            className={`flex-1 px-4 py-3 rounded-lg font-medium capitalize transition-all ${
+              view === v ? 'text-white' : ''
             }`}
+            style={{
+              background: view === v ? 'var(--gradient-primary)' : 'transparent',
+              color: view === v ? 'white' : 'var(--text-secondary)'
+            }}
           >
             {v}
           </button>
@@ -665,22 +759,116 @@ const EnhancedTallyExplorer = () => {
       {view === 'ledgers' && <LedgersView />}
       {view === 'vouchers' && <VouchersView />}
 
+      {/* Upload Modal */}
+      {showUploadModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => !uploading && setShowUploadModal(false)}>
+          <div className="card max-w-lg w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center" style={{ background: 'var(--gradient-primary)' }}>
+                  <FiUploadCloud className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold" style={{ color: 'var(--text-primary)' }}>Upload Backup File</h3>
+                  <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Supports .xml, .tbk, .zip files</p>
+                </div>
+              </div>
+              {!uploading && (
+                <button onClick={() => setShowUploadModal(false)} className="p-2 hover:bg-secondary rounded-lg transition-colors">
+                  <FiX className="w-5 h-5" style={{ color: 'var(--text-muted)' }} />
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-2" style={{ color: 'var(--text-secondary)' }}>
+                  Select File
+                </label>
+                <input
+                  type="file"
+                  accept=".xml,.tbk,.zip"
+                  onChange={(e) => setUploadFile(e.target.files?.[0])}
+                  disabled={uploading}
+                  className="input-neon w-full"
+                />
+              </div>
+
+              {uploadFile && (
+                <div className="p-4 rounded-lg" style={{ background: 'var(--bg-secondary)' }}>
+                  <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>{uploadFile.name}</p>
+                  <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+                    {(uploadFile.size / (1024 * 1024)).toFixed(2)} MB
+                  </p>
+                </div>
+              )}
+
+              {uploading && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span style={{ color: 'var(--text-secondary)' }}>Uploading...</span>
+                    <span className="font-semibold" style={{ color: 'var(--primary)' }}>{uploadProgress}%</span>
+                  </div>
+                  <div className="h-2 rounded-full overflow-hidden" style={{ background: 'var(--bg-tertiary)' }}>
+                    <div
+                      className="h-full transition-all duration-300"
+                      style={{
+                        width: `${uploadProgress}%`,
+                        background: 'var(--gradient-primary)'
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div className="flex gap-3">
+                <button
+                  onClick={handleFileUpload}
+                  disabled={!uploadFile || uploading}
+                  className="btn-primary flex-1 py-3 flex items-center justify-center gap-2"
+                >
+                  {uploading ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <FiUploadCloud className="w-5 h-5" />
+                      Upload & Process
+                    </>
+                  )}
+                </button>
+                {!uploading && (
+                  <button
+                    onClick={() => setShowUploadModal(false)}
+                    className="btn-ghost px-6 py-3"
+                  >
+                    Cancel
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Ledger Detail Modal */}
       {selectedLedger && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setSelectedLedger(null)}>
-          <div className="bg-white rounded-xl p-6 max-w-2xl w-full mx-4" onClick={(e) => e.stopPropagation()}>
-            <h3 className="text-2xl font-bold mb-4">{selectedLedger.name}</h3>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setSelectedLedger(null)}>
+          <div className="card max-w-2xl w-full p-6" onClick={(e) => e.stopPropagation()}>
+            <h3 className="text-2xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>{selectedLedger.name}</h3>
             <div className="space-y-3">
-              <div className="flex justify-between py-2 border-b">
-                <span className="text-gray-600">Group:</span>
-                <span className="font-semibold">{selectedLedger.parent || 'N/A'}</span>
+              <div className="flex justify-between py-3" style={{ borderBottom: '1px solid var(--border-color)' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Group:</span>
+                <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>{selectedLedger.parent || 'N/A'}</span>
               </div>
-              <div className="flex justify-between py-2 border-b">
-                <span className="text-gray-600">Opening Balance:</span>
-                <span className="font-semibold">₹{parseFloat(selectedLedger.opening_balance || 0).toLocaleString('en-IN')}</span>
+              <div className="flex justify-between py-3" style={{ borderBottom: '1px solid var(--border-color)' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Opening Balance:</span>
+                <span className="font-semibold" style={{ color: 'var(--text-primary)' }}>₹{parseFloat(selectedLedger.opening_balance || 0).toLocaleString('en-IN')}</span>
               </div>
-              <div className="flex justify-between py-2 border-b">
-                <span className="text-gray-600">Type:</span>
+              <div className="flex justify-between py-3" style={{ borderBottom: '1px solid var(--border-color)' }}>
+                <span style={{ color: 'var(--text-muted)' }}>Type:</span>
                 <span className={`font-semibold ${parseFloat(selectedLedger.opening_balance) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                   {parseFloat(selectedLedger.opening_balance) >= 0 ? 'Debit' : 'Credit'}
                 </span>
@@ -688,7 +876,7 @@ const EnhancedTallyExplorer = () => {
             </div>
             <button
               onClick={() => setSelectedLedger(null)}
-              className="mt-6 w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              className="mt-6 w-full btn-primary py-3"
             >
               Close
             </button>
@@ -700,4 +888,3 @@ const EnhancedTallyExplorer = () => {
 };
 
 export default EnhancedTallyExplorer;
-
