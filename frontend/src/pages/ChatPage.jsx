@@ -4,84 +4,49 @@ import { chatApi } from '../api/chatApi'
 import toast from 'react-hot-toast'
 import MessageBubble from '../components/chat/MessageBubble'
 import { 
-  FiMessageCircle, FiFileText, FiSend, FiCpu, FiDatabase, FiZap,
-  FiRefreshCw, FiTrash2, FiBookmark, FiInfo, FiChevronDown
+  FiMessageCircle, FiDatabase, FiSend, FiCpu, FiZap, FiTrash2,
+  FiSparkles, FiCommand, FiCornerDownLeft, FiRefreshCw
 } from 'react-icons/fi'
 
-const suggestedQuestions = [
-  { category: 'Financial', questions: [
-    "What is my total revenue this year?",
-    "Show me my top 10 customers by balance",
-    "What are my major expense categories?",
-    "Calculate my profit margin"
-  ]},
-  { category: 'Inventory', questions: [
-    "Which items have low stock?",
-    "What is my inventory turnover ratio?",
-    "Show me slow-moving items"
-  ]},
-  { category: 'Compliance', questions: [
-    "What is my GST liability?",
-    "Show pending TDS returns",
-    "Calculate my tax obligations"
-  ]}
-];
+const quickPrompts = [
+  { label: 'Revenue Summary', prompt: 'What is my total revenue this year?' },
+  { label: 'Top Customers', prompt: 'Show my top 10 customers by balance' },
+  { label: 'Expense Breakdown', prompt: 'What are my major expense categories?' },
+  { label: 'Profit Analysis', prompt: 'Calculate my profit margin and trends' },
+  { label: 'Outstanding Dues', prompt: 'List all outstanding receivables' },
+  { label: 'Cash Position', prompt: 'What is my current cash position?' },
+]
 
 export default function ChatPage() {
   const { messages, addMessage, setMessages, loading, setLoading } = useChatStore()
-  const [inputValue, setInputValue] = useState('')
-  const [chatMode, setChatMode] = useState('document')
-  const [showSuggestions, setShowSuggestions] = useState(true)
-  const messagesEndRef = useRef(null)
+  const [input, setInput] = useState('')
+  const [mode, setMode] = useState('data')
+  const endRef = useRef(null)
   const inputRef = useRef(null)
 
   useEffect(() => {
-    scrollToBottom()
+    endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
 
   useEffect(() => {
-    setMessages([
-      {
-        type: 'system',
-        content: `👋 Welcome to TallyDash AI! I'm powered by Phi4:14b and can help you analyze your Tally data, answer financial questions, and provide insights from your documents.`,
-        sources: []
-      }
-    ])
+    setMessages([{
+      type: 'system',
+      content: `Hey there! 👋 I'm your AI financial assistant powered by Phi4:14b. I can analyze your Tally data, answer questions about your finances, and help you make better business decisions. What would you like to know?`
+    }])
     inputRef.current?.focus()
   }, [])
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
-  }
-
-  const handleModeChange = (mode) => {
-    setChatMode(mode)
-    const modeMessages = {
-      general: '💬 General Chat mode activated. Ask me anything!',
-      document: '📊 Document & Tally mode activated. I can now access your financial data!'
-    }
-    
-    addMessage({
-      type: 'system',
-      content: modeMessages[mode],
-      sources: []
-    })
-    toast.success(`Switched to ${mode === 'general' ? 'General' : 'Data Analysis'} mode`)
-  }
-
-  const handleSendMessage = async (e) => {
+  const handleSend = async (e) => {
     e?.preventDefault()
-    if (!inputValue.trim() || loading) return
+    if (!input.trim() || loading) return
 
-    const query = inputValue
+    const query = input
     addMessage({ type: 'user', content: query })
-    setInputValue('')
-    setShowSuggestions(false)
+    setInput('')
     setLoading(true)
 
     try {
-      const collection = chatMode === 'general' ? 'general' : 'tally_combined'
-      const response = await chatApi.chat(query, '', collection, '')
+      const response = await chatApi.chat(query, '', mode === 'data' ? 'tally_combined' : 'general', '')
       
       if (response.success) {
         addMessage({
@@ -91,201 +56,178 @@ export default function ChatPage() {
           document_sources: response.document_sources || []
         })
       } else {
-        toast.error('Failed to get response')
-        addMessage({
-          type: 'system',
-          content: '❌ Sorry, I couldn\'t process your request. Please try again.',
-          sources: []
-        })
+        addMessage({ type: 'system', content: '❌ Failed to get response. Please try again.' })
       }
     } catch (error) {
-      console.error('Chat error:', error)
-      toast.error('Connection error')
-      addMessage({
-        type: 'system',
-        content: `⚠️ ${error.message || 'An error occurred. Please check if the AI server is running.'}`,
-        sources: []
-      })
+      addMessage({ type: 'system', content: `⚠️ ${error.message || 'Connection error. Is the AI server running?'}` })
     } finally {
       setLoading(false)
-      scrollToBottom()
     }
   }
 
-  const handleSuggestedQuestion = (question) => {
-    setInputValue(question)
+  const handleQuickPrompt = (prompt) => {
+    setInput(prompt)
     inputRef.current?.focus()
   }
 
-  const handleClearChat = () => {
-    setMessages([{
-      type: 'system',
-      content: '🗑️ Chat cleared. How can I help you today?',
-      sources: []
-    }])
-    setShowSuggestions(true)
+  const clearChat = () => {
+    setMessages([{ type: 'system', content: '🧹 Chat cleared. How can I help you today?' }])
     toast.success('Chat cleared')
   }
 
   return (
-    <div className="flex flex-col h-full bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      {/* Modern Header */}
-      <div className="bg-white/80 backdrop-blur-xl border-b border-slate-200 px-6 py-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/25">
-                <FiCpu className="w-6 h-6 text-white" />
+    <div className="flex flex-col h-full bg-[#0F0F0F] text-white">
+      {/* Header */}
+      <header className="flex-shrink-0 px-6 py-4 border-b border-white/10 backdrop-blur-xl bg-black/50">
+        <div className="max-w-4xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center shadow-lg shadow-purple-500/30">
+                <FiCpu className="w-6 h-6" />
               </div>
-              <div>
-                <h1 className="text-2xl font-bold text-slate-800">AI Assistant</h1>
-                <p className="text-slate-500 text-sm flex items-center gap-2">
-                  <span className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                  Powered by Phi4:14b
-                </p>
-              </div>
+              <span className="absolute -bottom-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-[#0F0F0F] animate-pulse" />
             </div>
-            
-            <button
-              onClick={handleClearChat}
-              className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-xl transition-colors"
-              title="Clear chat"
-            >
+            <div>
+              <h1 className="text-xl font-bold">AI Assistant</h1>
+              <p className="text-white/40 text-sm flex items-center gap-2">
+                <FiZap className="w-3 h-3 text-amber-400" />
+                Phi4:14b • Ready
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* Mode Toggle */}
+            <div className="flex p-1 bg-white/5 rounded-xl border border-white/10">
+              <button onClick={() => setMode('data')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+                  mode === 'data' ? 'bg-white text-black' : 'text-white/60 hover:text-white'
+                }`}>
+                <FiDatabase className="w-4 h-4" />
+                Data Mode
+              </button>
+              <button onClick={() => setMode('general')}
+                className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-2 ${
+                  mode === 'general' ? 'bg-white text-black' : 'text-white/60 hover:text-white'
+                }`}>
+                <FiMessageCircle className="w-4 h-4" />
+                General
+              </button>
+            </div>
+
+            <button onClick={clearChat}
+              className="p-3 text-white/40 hover:text-white hover:bg-white/10 rounded-xl transition-all"
+              title="Clear chat">
               <FiTrash2 className="w-5 h-5" />
             </button>
           </div>
-          
-          {/* Mode Selection */}
-          <div className="flex gap-2 p-1 bg-slate-100 rounded-xl">
-            <button
-              onClick={() => handleModeChange('document')}
-              className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all ${
-                chatMode === 'document'
-                  ? 'bg-white text-blue-600 shadow-md'
-                  : 'text-slate-600 hover:text-slate-800'
-              }`}
-            >
-              <FiDatabase className="w-4 h-4" />
-              <span>Tally & Documents</span>
-            </button>
-            
-            <button
-              onClick={() => handleModeChange('general')}
-              className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg font-medium transition-all ${
-                chatMode === 'general'
-                  ? 'bg-white text-blue-600 shadow-md'
-                  : 'text-slate-600 hover:text-slate-800'
-              }`}
-            >
-              <FiMessageCircle className="w-4 h-4" />
-              <span>General Chat</span>
-            </button>
-          </div>
         </div>
-      </div>
+      </header>
 
-      {/* Messages Area */}
+      {/* Messages */}
       <div className="flex-1 overflow-y-auto">
-        <div className="max-w-4xl mx-auto p-6 space-y-6">
-          {/* Messages */}
-          {messages.map((message, index) => (
-            <MessageBubble key={index} message={message} />
-          ))}
-          
-          {/* Loading State */}
-          {loading && (
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center flex-shrink-0">
-                <FiCpu className="w-5 h-5 text-white" />
+        <div className="max-w-4xl mx-auto px-6 py-8 space-y-6">
+          {messages.map((msg, i) => (
+            <div key={i} className={`flex ${msg.type === 'user' ? 'justify-end' : 'justify-start'}`}>
+              <div className={`max-w-[85%] ${
+                msg.type === 'user' 
+                  ? 'bg-gradient-to-br from-violet-500 to-purple-600 rounded-3xl rounded-br-lg' 
+                  : msg.type === 'system'
+                  ? 'bg-white/5 border border-white/10 rounded-3xl'
+                  : 'bg-white/10 backdrop-blur-xl border border-white/10 rounded-3xl rounded-bl-lg'
+              } px-5 py-4`}>
+                {msg.type === 'ai' && (
+                  <div className="flex items-center gap-2 mb-3 pb-3 border-b border-white/10">
+                    <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center">
+                      <FiSparkles className="w-3 h-3" />
+                    </div>
+                    <span className="text-white/50 text-xs font-medium">AI Response</span>
+                  </div>
+                )}
+                <p className="text-white/90 whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                {msg.tally_sources?.length > 0 && (
+                  <div className="mt-4 pt-3 border-t border-white/10">
+                    <p className="text-white/40 text-xs uppercase tracking-wider mb-2">Data Sources</p>
+                    <div className="flex flex-wrap gap-2">
+                      {msg.tally_sources.map((s, j) => (
+                        <span key={j} className="px-2 py-1 bg-white/5 rounded-lg text-xs text-white/60">
+                          {s.company || s.metadata?.company || 'Tally Data'}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-              <div className="flex-1 bg-white rounded-2xl rounded-tl-md p-4 shadow-sm border border-slate-100">
+            </div>
+          ))}
+
+          {loading && (
+            <div className="flex justify-start">
+              <div className="bg-white/10 backdrop-blur-xl border border-white/10 rounded-3xl rounded-bl-lg px-5 py-4">
                 <div className="flex items-center gap-3">
                   <div className="flex gap-1">
-                    <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                    <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                    <span className="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                    {[0, 150, 300].map((delay) => (
+                      <span key={delay} className="w-2 h-2 bg-violet-500 rounded-full animate-bounce" style={{ animationDelay: `${delay}ms` }} />
+                    ))}
                   </div>
-                  <span className="text-slate-500 text-sm">Analyzing your data...</span>
+                  <span className="text-white/50 text-sm">Thinking...</span>
                 </div>
               </div>
             </div>
           )}
-          
-          {/* Suggested Questions */}
-          {showSuggestions && messages.length <= 1 && !loading && (
-            <div className="pt-4">
-              <div className="flex items-center gap-2 mb-4 text-slate-500">
-                <FiZap className="w-4 h-4 text-amber-500" />
-                <span className="text-sm font-medium">Try asking</span>
-              </div>
-              <div className="grid gap-4">
-                {suggestedQuestions.map((category, catIndex) => (
-                  <div key={catIndex}>
-                    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">{category.category}</p>
-                    <div className="flex flex-wrap gap-2">
-                      {category.questions.map((question, qIndex) => (
-                        <button
-                          key={qIndex}
-                          onClick={() => handleSuggestedQuestion(question)}
-                          className="px-4 py-2 bg-white border border-slate-200 rounded-xl text-sm text-slate-600 hover:bg-slate-50 hover:border-blue-300 hover:text-blue-600 transition-all shadow-sm"
-                        >
-                          {question}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
+
+          {/* Quick Prompts - show when few messages */}
+          {messages.length <= 1 && !loading && (
+            <div className="pt-8">
+              <p className="text-white/40 text-sm mb-4 flex items-center gap-2">
+                <FiCommand className="w-4 h-4" />
+                Quick prompts
+              </p>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                {quickPrompts.map((p, i) => (
+                  <button key={i} onClick={() => handleQuickPrompt(p.prompt)}
+                    className="p-4 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-2xl text-left transition-all group">
+                    <p className="font-medium text-white/80 group-hover:text-white transition-colors">{p.label}</p>
+                    <p className="text-white/40 text-sm mt-1 truncate">{p.prompt}</p>
+                  </button>
                 ))}
               </div>
             </div>
           )}
-          
-          <div ref={messagesEndRef} />
+
+          <div ref={endRef} />
         </div>
       </div>
 
-      {/* Input Area */}
-      <div className="bg-white/80 backdrop-blur-xl border-t border-slate-200 p-4">
-        <form onSubmit={handleSendMessage} className="max-w-4xl mx-auto">
+      {/* Input */}
+      <div className="flex-shrink-0 px-6 py-5 border-t border-white/10 backdrop-blur-xl bg-black/50">
+        <form onSubmit={handleSend} className="max-w-4xl mx-auto">
           <div className="relative">
             <input
               ref={inputRef}
               type="text"
-              value={inputValue}
-              onChange={(e) => setInputValue(e.target.value)}
-              placeholder={
-                chatMode === 'general'
-                  ? 'Ask me anything...'
-                  : 'Ask about your financial data, ledgers, invoices...'
-              }
-              className="w-full px-5 py-4 pr-14 bg-white border border-slate-200 rounded-2xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent shadow-sm text-slate-700 placeholder-slate-400"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={mode === 'data' ? 'Ask about your financial data...' : 'Ask me anything...'}
+              className="w-full px-6 py-4 pr-14 bg-white/5 border border-white/10 rounded-2xl text-white placeholder-white/30 focus:outline-none focus:border-violet-500/50 focus:ring-2 focus:ring-violet-500/20 transition-all"
               disabled={loading}
             />
-            <button
-              type="submit"
-              disabled={loading || !inputValue.trim()}
-              className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl flex items-center justify-center hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-blue-500/25"
-            >
+            <button type="submit" disabled={loading || !input.trim()}
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 bg-gradient-to-br from-violet-500 to-purple-600 rounded-xl flex items-center justify-center hover:shadow-lg hover:shadow-purple-500/30 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
               <FiSend className="w-4 h-4" />
             </button>
           </div>
-          
-          <div className="flex items-center justify-between mt-3 px-1">
-            <p className="text-xs text-slate-400">
-              {chatMode === 'document' ? (
-                <span className="flex items-center gap-1">
-                  <FiInfo className="w-3 h-3" />
-                  Responses are based on your Tally data and uploaded documents
-                </span>
+          <div className="flex items-center justify-between mt-3 px-1 text-xs text-white/30">
+            <span className="flex items-center gap-2">
+              {mode === 'data' ? (
+                <><FiDatabase className="w-3 h-3" /> Analyzing your Tally & document data</>
               ) : (
-                <span className="flex items-center gap-1">
-                  <FiInfo className="w-3 h-3" />
-                  General knowledge responses - no data access
-                </span>
+                <><FiMessageCircle className="w-3 h-3" /> General knowledge mode</>
               )}
-            </p>
-            <p className="text-xs text-slate-400">
-              Press Enter to send
-            </p>
+            </span>
+            <span className="flex items-center gap-2">
+              <FiCornerDownLeft className="w-3 h-3" /> Enter to send
+            </span>
           </div>
         </form>
       </div>
