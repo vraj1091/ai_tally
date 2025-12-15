@@ -100,6 +100,8 @@ class TallyConnectorApp:
         self.running = True
         self.reconnect_attempts = 0
         self.max_reconnect_attempts = 10
+        self.connection_in_progress = False
+        self.last_connect_time = 0
         
         # Build UI
         self.create_ui()
@@ -332,16 +334,24 @@ class TallyConnectorApp:
     
     def toggle_connection(self):
         """Toggle connection state"""
+        import time
+        # Prevent accidental disconnect within 3 seconds of connecting
+        if self.connected and (time.time() - self.last_connect_time) < 3:
+            self.log_message("Connection just established. Wait a moment before disconnecting.")
+            return
+        
         if self.connected:
             self.disconnect()
-        else:
+        elif not self.connection_in_progress:
             self.connect()
     
     def connect(self):
         """Start connection to server"""
-        if self.connected:
+        import time
+        if self.connected or self.connection_in_progress:
             return
         
+        self.connection_in_progress = True
         self.log_message("Connecting to TallyDash Pro server...")
         self.server_status.config(text="● Connecting...", foreground="blue")
         
@@ -354,6 +364,7 @@ class TallyConnectorApp:
         self.log_message("Disconnecting...")
         self.running = False
         self.connected = False
+        self.connection_in_progress = False
         
         # Close websocket safely
         if self.websocket:
@@ -381,6 +392,10 @@ class TallyConnectorApp:
                 error_msg = str(e)
                 self.root.after(0, lambda msg=error_msg: self.log_message(f"Connection error: {msg}"))
             
+            # Reset connection state on disconnect/error
+            self.connected = False
+            self.connection_in_progress = False
+            
             if self.running:
                 self.reconnect_attempts += 1
                 if self.reconnect_attempts <= self.max_reconnect_attempts:
@@ -407,15 +422,18 @@ class TallyConnectorApp:
             ping_timeout=300,
             close_timeout=30
         ) as websocket:
+            import time
             self.websocket = websocket
             self.connected = True
+            self.connection_in_progress = False
+            self.last_connect_time = time.time()
             self.reconnect_attempts = 0
             
             # Test Tally connection
             tally_ok = await self.check_tally()
             
             self.root.after(0, lambda: self.update_status(True, tally_ok))
-            self.root.after(0, lambda: self.log_message("✅ Connected to TallyDash Pro!"))
+            self.root.after(0, lambda: self.log_message("[OK] Connected to TallyDash Pro!"))
             
             # Send ready message
             await websocket.send(json.dumps({
