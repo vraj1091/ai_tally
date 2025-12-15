@@ -378,13 +378,15 @@ class TallyConnectorApp:
             try:
                 loop.run_until_complete(self.websocket_handler())
             except Exception as e:
-                self.root.after(0, lambda: self.log_message(f"Connection error: {str(e)}"))
+                error_msg = str(e)
+                self.root.after(0, lambda msg=error_msg: self.log_message(f"Connection error: {msg}"))
             
             if self.running:
                 self.reconnect_attempts += 1
                 if self.reconnect_attempts <= self.max_reconnect_attempts:
                     wait_time = min(30, 5 * self.reconnect_attempts)
-                    self.root.after(0, lambda: self.log_message(f"Reconnecting in {wait_time}s... (attempt {self.reconnect_attempts})"))
+                    attempt = self.reconnect_attempts
+                    self.root.after(0, lambda w=wait_time, a=attempt: self.log_message(f"Reconnecting in {w}s... (attempt {a})"))
                     self.root.after(0, lambda: self.update_status(False))
                     loop.run_until_complete(asyncio.sleep(wait_time))
                 else:
