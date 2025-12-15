@@ -3,12 +3,13 @@ import {
   BarChart, Bar, LineChart, Line, PieChart, Pie,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell
 } from 'recharts';
-import { FiTrendingUp, FiActivity, FiAlertCircle, FiRefreshCw, FiUsers, FiTarget } from 'react-icons/fi';
+import { FiTrendingUp, FiActivity, FiAlertCircle, FiRefreshCw, FiTarget, FiDollarSign } from 'react-icons/fi';
 import RupeeIcon from '../common/RupeeIcon';
 import { tallyApi } from '../../api/tallyApi';
 import toast from 'react-hot-toast';
 import { validateChartData, validateNumeric } from '../../utils/chartDataValidator';
 import { fetchDashboardData } from '../../utils/dashboardHelper';
+import CustomTooltip from '../common/CustomTooltip';
 
 const COLORS = ['#8b5cf6', '#10b981', '#3b82f6', '#f59e0b', '#ef4444'];
 
@@ -73,13 +74,19 @@ const ExecutiveSummaryDashboard = ({ dataSource = 'live' }) => {
     try {
       const currentSource = dataSource || 'live';
       const response = await fetchDashboardData('executive-summary', selectedCompany, currentSource);
+      console.log('Executive Summary response:', response);
       setExecData(response.data.data);
+      
+      // Show a message if data is empty
+      if (response.data.data && Object.keys(response.data.data).length === 0) {
+        toast('No data available for this company yet', { icon: '📊' });
+      }
     } catch (error) {
       console.error('Error loading Executive Summary data:', error);
       if (error.response?.status === 401 && dataSource === 'live') {
         toast.error('Authentication required for live data. Please login or use backup data.');
       } else {
-        toast.error('Failed to load Executive Summary data');
+        toast.error('Failed to load Executive Summary data. Backend API may not be configured.');
       }
       setExecData(null);
     } finally {
@@ -88,21 +95,23 @@ const ExecutiveSummaryDashboard = ({ dataSource = 'live' }) => {
   };
 
   const formatCurrency = (value) => {
-    if (!value && value !== 0) return '₹0';
+    if (!value && value !== 0) return '₹0.00';
     const num = typeof value === 'string' ? parseFloat(value) : value;
-    if (isNaN(num)) return '₹0';
+    if (isNaN(num)) return '₹0.00';
     if (num >= 10000000) return `₹${(num / 10000000).toFixed(2)}Cr`;
     if (num >= 100000) return `₹${(num / 100000).toFixed(2)}L`;
     if (num >= 1000) return `₹${(num / 1000).toFixed(2)}K`;
     return `₹${num.toFixed(2)}`;
   };
 
+  const formatPercent = (value) => `${(value || 0).toFixed(1)}%`;
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
         <div className="text-center">
-          <div className="w-16 h-16 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
-          <p className="mt-4 text-gray-600 font-medium">Loading Executive Summary...</p>
+          <div className="w-16 h-16 rounded-full border-4 animate-spin mx-auto" style={{ borderColor: 'var(--border-color)', borderTopColor: 'var(--primary)' }} />
+          <p className="mt-4 font-medium" style={{ color: 'var(--text-secondary)' }}>Loading Executive Summary...</p>
         </div>
       </div>
     );
@@ -110,10 +119,18 @@ const ExecutiveSummaryDashboard = ({ dataSource = 'live' }) => {
 
   if (!execData) {
     return (
-      <div className="bg-white rounded-xl shadow-sm p-12 text-center">
-        <FiAlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-xl font-semibold text-gray-900 mb-2">No Data Available</h3>
-        <p className="text-gray-600">Please connect to Tally or select a company with data</p>
+      <div className="card p-12 text-center">
+        <FiAlertCircle className="w-16 h-16 mx-auto mb-4" style={{ color: 'var(--text-muted)' }} />
+        <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>No Data Available</h3>
+        <p style={{ color: 'var(--text-muted)' }}>
+          {dataSource === 'backup' 
+            ? 'Please upload a backup file to see data' 
+            : 'Please connect to Tally or select a company with data'}
+        </p>
+        <button onClick={loadExecData} className="btn-primary mt-4 px-6 py-2 flex items-center gap-2 mx-auto">
+          <FiRefreshCw className="w-4 h-4" />
+          Retry
+        </button>
       </div>
     );
   }
@@ -141,26 +158,21 @@ const ExecutiveSummaryDashboard = ({ dataSource = 'live' }) => {
 
   // Health score indicator
   const healthScore = keyHighlights.health_score || 0;
-  const getHealthColor = (score) => {
-    if (score >= 80) return 'text-green-600';
-    if (score >= 60) return 'text-yellow-600';
-    if (score >= 40) return 'text-orange-600';
-    return 'text-red-600';
-  };
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 p-6 animate-fade-up">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-gray-900">Executive Summary</h2>
-          <p className="text-gray-600 mt-1">High-Level Overview with Strategic KPIs</p>
+          <h2 className="text-3xl font-bold" style={{ color: 'var(--text-primary)' }}>Executive Summary</h2>
+          <p className="mt-1" style={{ color: 'var(--text-secondary)' }}>High-Level Overview with Strategic KPIs</p>
         </div>
         <div className="flex items-center gap-3">
           <select
             value={selectedCompany}
             onChange={(e) => setSelectedCompany(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+            className="input-neon"
+            style={{ minWidth: '200px' }}
           >
             {companies.map((company, idx) => (
               <option key={idx} value={company.name}>{company.name}</option>
@@ -168,9 +180,9 @@ const ExecutiveSummaryDashboard = ({ dataSource = 'live' }) => {
           </select>
           <button
             onClick={loadExecData}
-            className="px-4 py-2 bg-purple-500 text-white rounded-lg hover:bg-purple-600 flex items-center gap-2"
+            className="btn-primary flex items-center gap-2 px-4 py-2"
           >
-            <FiRefreshCw className="w-4 h-4" />
+            <FiRefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </button>
         </div>
@@ -178,7 +190,7 @@ const ExecutiveSummaryDashboard = ({ dataSource = 'live' }) => {
 
       {/* Key Highlights Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl shadow-lg p-6 text-white">
+        <div className="card p-6 text-white" style={{ background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)', border: 'none' }}>
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-medium opacity-90">Total Revenue</p>
             <RupeeIcon className="w-6 h-6 opacity-75" />
@@ -187,7 +199,7 @@ const ExecutiveSummaryDashboard = ({ dataSource = 'live' }) => {
           <p className="text-sm opacity-75">From operations</p>
         </div>
 
-        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-lg p-6 text-white">
+        <div className="card p-6 text-white" style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)', border: 'none' }}>
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-medium opacity-90">Net Profit</p>
             <FiTrendingUp className="w-6 h-6 opacity-75" />
@@ -196,7 +208,7 @@ const ExecutiveSummaryDashboard = ({ dataSource = 'live' }) => {
           <p className="text-sm opacity-75">After expenses</p>
         </div>
 
-        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl shadow-lg p-6 text-white">
+        <div className="card p-6 text-white" style={{ background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', border: 'none' }}>
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-medium opacity-90">Total Assets</p>
             <FiTarget className="w-6 h-6 opacity-75" />
@@ -205,7 +217,7 @@ const ExecutiveSummaryDashboard = ({ dataSource = 'live' }) => {
           <p className="text-sm opacity-75">Book value</p>
         </div>
 
-        <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl shadow-lg p-6 text-white">
+        <div className="card p-6 text-white" style={{ background: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)', border: 'none' }}>
           <div className="flex items-center justify-between mb-3">
             <p className="text-sm font-medium opacity-90">Health Score</p>
             <FiActivity className="w-6 h-6 opacity-75" />
@@ -216,104 +228,71 @@ const ExecutiveSummaryDashboard = ({ dataSource = 'live' }) => {
       </div>
 
       {/* Financial Overview Chart */}
-        <div className="bg-white rounded-xl shadow-sm p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Financial Overview</h3>
+      <div className="card p-6">
+        <h3 className="text-xl font-bold mb-4" style={{ color: 'var(--text-primary)' }}>Financial Overview</h3>
+        {financialData && financialData.length > 0 ? (
           <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={financialData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-            <XAxis dataKey="category" />
-            <YAxis tickFormatter={(val) => formatCurrency(val)} />
-              <Tooltip 
-                formatter={(val) => formatCurrency(val)} 
-                contentStyle={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '8px', color: 'var(--text-primary)' }}
-                labelStyle={{ color: 'var(--text-primary)' }}
-                itemStyle={{ color: 'var(--text-secondary)' }}
-              />
-              <Bar dataKey="value" fill="#8b5cf6" radius={[8, 8, 0, 0]} />
+            <BarChart data={financialData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--border-color)" />
+              <XAxis dataKey="category" tick={{ fill: 'var(--text-secondary)' }} />
+              <YAxis tickFormatter={(val) => formatCurrency(val)} tick={{ fill: 'var(--text-secondary)' }} />
+              <Tooltip content={<CustomTooltip formatCurrency={formatCurrency} formatPercent={formatPercent} />} />
+              <Legend wrapperStyle={{ color: 'var(--text-secondary)' }} />
+              <Bar dataKey="value" fill="#8b5cf6" radius={[8, 8, 0, 0]}>
+                {financialData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                ))}
+              </Bar>
             </BarChart>
           </ResponsiveContainer>
-        </div>
-
-      {/* Financial Snapshot & Operational Metrics */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Financial Snapshot</h3>
-          <div className="space-y-3">
-            <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-              <span className="text-sm font-medium text-gray-700">Revenue</span>
-              <span className="text-sm font-bold text-green-700">{formatCurrency(financialSnapshot.revenue)}</span>
-            </div>
-            <div className="flex items-center justify-between p-3 bg-red-50 rounded-lg">
-              <span className="text-sm font-medium text-gray-700">Expenses</span>
-              <span className="text-sm font-bold text-red-700">{formatCurrency(financialSnapshot.expenses)}</span>
-            </div>
-            <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-              <span className="text-sm font-medium text-gray-700">Profit</span>
-              <span className="text-sm font-bold text-blue-700">{formatCurrency(financialSnapshot.profit)}</span>
-            </div>
-            <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
-              <span className="text-sm font-medium text-gray-700">Profit Margin</span>
-              <span className="text-sm font-bold text-purple-700">{financialSnapshot.margin?.toFixed(1) || '0.0'}%</span>
-            </div>
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <span className="text-sm font-medium text-gray-700">Assets</span>
-              <span className="text-sm font-bold text-gray-700">{formatCurrency(financialSnapshot.assets)}</span>
-            </div>
-            <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-              <span className="text-sm font-medium text-gray-700">Liabilities</span>
-              <span className="text-sm font-bold text-gray-700">{formatCurrency(financialSnapshot.liabilities)}</span>
-        </div>
-            <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-              <span className="text-sm font-medium text-gray-700">Equity</span>
-              <span className="text-sm font-bold text-green-700">{formatCurrency(financialSnapshot.equity)}</span>
+        ) : (
+          <div className="h-[300px] flex items-center justify-center">
+            <p style={{ color: 'var(--text-muted)' }}>No financial data available</p>
+          </div>
+        )}
       </div>
+
+      {/* Additional Metrics Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="card p-6">
+          <h4 className="font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Profit Margin</h4>
+          <div className="text-4xl font-bold mb-2" style={{ color: '#10b981' }}>
+            {formatPercent(keyHighlights.profit_margin || 0)}
           </div>
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Net margin</p>
         </div>
 
-        <div className="bg-white rounded-xl shadow-sm p-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Operational Metrics</h3>
-          <div className="space-y-4">
-            <div className="p-4 bg-blue-50 rounded-lg">
-              <div className="flex items-center gap-3 mb-2">
-                <FiUsers className="w-5 h-5 text-blue-600" />
-                <p className="text-sm font-semibold text-gray-700">Customer Count</p>
-              </div>
-              <p className="text-3xl font-bold text-blue-700">{operationalMetrics.customer_count || 0}</p>
-            </div>
-            <div className="p-4 bg-green-50 rounded-lg">
-              <div className="flex items-center gap-3 mb-2">
-                <FiActivity className="w-5 h-5 text-green-600" />
-                <p className="text-sm font-semibold text-gray-700">Transaction Volume</p>
-              </div>
-              <p className="text-3xl font-bold text-green-700">{operationalMetrics.transaction_volume || 0}</p>
-            </div>
-            <div className="p-4 bg-purple-50 rounded-lg">
-              <div className="flex items-center gap-3 mb-2">
-                <FiTarget className="w-5 h-5 text-purple-600" />
-                <p className="text-sm font-semibold text-gray-700">Active Ledgers</p>
+        <div className="card p-6">
+          <h4 className="font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Growth Rate</h4>
+          <div className="text-4xl font-bold mb-2" style={{ color: '#3b82f6' }}>
+            {formatPercent(operationalMetrics.growth_rate || 0)}
           </div>
-              <p className="text-3xl font-bold text-purple-700">{operationalMetrics.active_ledgers || 0}</p>
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>YoY growth</p>
+        </div>
+
+        <div className="card p-6">
+          <h4 className="font-semibold mb-4" style={{ color: 'var(--text-primary)' }}>Efficiency Score</h4>
+          <div className="text-4xl font-bold mb-2" style={{ color: '#f59e0b' }}>
+            {formatPercent(operationalMetrics.efficiency_score || 0)}
           </div>
-          </div>
+          <p className="text-sm" style={{ color: 'var(--text-muted)' }}>Operational efficiency</p>
         </div>
       </div>
 
-      {/* Strategic Insights */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-green-500">
-          <h4 className="text-sm font-semibold text-gray-700 mb-2">Growth Rate</h4>
-          <p className="text-3xl font-bold text-gray-900">{strategicInsights.growth_rate?.toFixed(1) || '0.0'}%</p>
-          <p className="text-sm text-gray-600 mt-1">Revenue growth</p>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-blue-500">
-          <h4 className="text-sm font-semibold text-gray-700 mb-2">Profitability Trend</h4>
-          <p className="text-3xl font-bold text-gray-900">{strategicInsights.profitability_trend || 'N/A'}</p>
-          <p className="text-sm text-gray-600 mt-1">Profit direction</p>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm p-6 border-l-4 border-purple-500">
-          <h4 className="text-sm font-semibold text-gray-700 mb-2">Market Position</h4>
-          <p className="text-3xl font-bold text-gray-900">{strategicInsights.market_position || 'N/A'}</p>
-          <p className="text-sm text-gray-600 mt-1">Competitive standing</p>
+      {/* Data Source Info */}
+      <div className="card p-4" style={{ background: 'linear-gradient(135deg, rgba(139, 92, 246, 0.05) 0%, rgba(59, 130, 246, 0.05) 100%)' }}>
+        <div className="flex items-center gap-3">
+          <FiAlertCircle className="w-5 h-5" style={{ color: 'var(--primary)' }} />
+          <div>
+            <p className="text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
+              Data Source: <span className="font-bold">{dataSource.toUpperCase()}</span>
+            </p>
+            <p className="text-xs mt-1" style={{ color: 'var(--text-muted)' }}>
+              {dataSource === 'backup' && 'Showing data from uploaded backup file'}
+              {dataSource === 'live' && 'Connected to live Tally instance'}
+              {dataSource === 'bridge' && 'Connected via TallyDash Bridge'}
+            </p>
+          </div>
         </div>
       </div>
     </div>
@@ -321,4 +300,3 @@ const ExecutiveSummaryDashboard = ({ dataSource = 'live' }) => {
 };
 
 export default ExecutiveSummaryDashboard;
-
