@@ -9,6 +9,8 @@ import toast from 'react-hot-toast';
 import { fetchDashboardData } from '../../utils/dashboardHelper';
 import { hasRealData } from '../../utils/dataValidator';
 import EmptyDataState from '../common/EmptyDataState';
+import { hasRealData } from '../../utils/dataValidator';
+import EmptyDataState from '../common/EmptyDataState';
 
 const CHART_COLORS = ['#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#0EA5E9', '#06B6D4'];
 

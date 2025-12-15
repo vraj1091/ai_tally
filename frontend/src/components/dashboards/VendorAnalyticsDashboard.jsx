@@ -10,6 +10,8 @@ import { fetchDashboardData } from '../../utils/dashboardHelper';
 import toast from 'react-hot-toast';
 import { validateChartData, validateNumeric, validateArrayData } from '../../utils/chartDataValidator';
 import CustomTooltip from '../common/CustomTooltip';
+import { hasRealData } from '../../utils/dataValidator';
+import EmptyDataState from '../common/EmptyDataState';
 
 const COLORS = ['#f59e0b', '#3b82f6', '#10b981', '#ef4444', '#8b5cf6'];
 
@@ -112,17 +114,15 @@ const VendorAnalyticsDashboard = ({ dataSource = 'live' }) => {
     );
   }
 
-  if (!vendorData) {
+  // Check if we have real data
+  if (!vendorData || !hasRealData(vendorData, ['total_vendors', 'vendor_count', 'total_spend', 'total_purchases'])) {
     return (
-      <div className="card p-12 text-center">
-        <FiAlertCircle className="w-16 h-16 mx-auto mb-4" style={{ color: 'var(--text-muted)' }} />
-        <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>No Data Available</h3>
-        <p style={{ color: 'var(--text-muted)' }}>Please connect to Tally or select a company with data</p>
-        <button onClick={loadVendorData} className="btn-primary mt-4 px-6 py-2 flex items-center gap-2 mx-auto">
-          <FiRefreshCw className="w-4 h-4" />
-          Retry
-        </button>
-      </div>
+      <EmptyDataState 
+        title="No Vendor Analytics Data"
+        message="Connect to Tally or upload a backup file to view vendor analytics"
+        onRefresh={loadVendorData}
+        dataSource={dataSource}
+      />
     );
   }
 
