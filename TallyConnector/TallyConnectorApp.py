@@ -329,12 +329,23 @@ class TallyConnectorApp:
     
     def disconnect(self):
         """Disconnect from server"""
+        self.log_message("Disconnecting...")
         self.running = False
         self.connected = False
+        
+        # Close websocket safely
         if self.websocket:
-            asyncio.run_coroutine_threadsafe(self.websocket.close(), asyncio.get_event_loop())
+            try:
+                # Create a new loop for closing if needed
+                loop = asyncio.new_event_loop()
+                loop.run_until_complete(self.websocket.close())
+                loop.close()
+            except Exception as e:
+                logger.warning(f"Error closing websocket: {e}")
+        
+        self.websocket = None
         self.update_status(False)
-        self.log_message("Disconnected from server")
+        self.log_message("✅ Disconnected from server")
     
     def run_connection(self):
         """Run the WebSocket connection"""
@@ -420,9 +431,25 @@ class TallyConnectorApp:
         msg_type = data.get("type")
         request_id = data.get("request_id")
         
-        if msg_type == "tally_request":
+        logger.info(f"Received message type: {msg_type}, request_id: {request_id}")
+        
+        if msg_type == "status":
+            # Handle status check
+            tally_ok = await self.check_tally()
+            self.tally_connected = tally_ok
+            self.root.after(0, lambda: self.update_status(True, tally_ok))
+            
+            await websocket.send(json.dumps({
+                "type": "status_response",
+                "request_id": request_id,
+                "tally_connected": tally_ok,
+                "bridge_connected": True
+            }))
+            logger.info(f"Status response sent: tally={tally_ok}")
+        
+        elif msg_type == "tally_request":
             xml_request = data.get("xml_request", "")
-            self.root.after(0, lambda: self.log_message(f"📥 Tally request received ({len(xml_request)} bytes)"))
+            self.root.after(0, lambda: self.log_message(f"📥 Tally request ({len(xml_request)} bytes)"))
             
             # Send to Tally
             response = await self.send_to_tally(xml_request)
@@ -436,14 +463,17 @@ class TallyConnectorApp:
             }))
             
             if response:
-                self.root.after(0, lambda: self.log_message(f"📤 Response sent ({len(response)} bytes)"))
+                size_kb = len(response) / 1024
+                self.root.after(0, lambda: self.log_message(f"📤 Response sent ({size_kb:.1f} KB)"))
             else:
                 self.root.after(0, lambda: self.log_message("❌ Tally request failed"))
         
         elif msg_type == "ping":
-            await websocket.send(json.dumps({"type": "pong"}))
+            await websocket.send(json.dumps({"type": "pong", "request_id": request_id}))
         
         elif msg_type == "get_companies":
+            self.root.after(0, lambda: self.log_message("📥 Fetching companies from Tally..."))
+            
             response = await self.send_to_tally("""<ENVELOPE>
                 <HEADER><VERSION>1</VERSION><TALLYREQUEST>Export</TALLYREQUEST><TYPE>Data</TYPE><ID>List of Companies</ID></HEADER>
                 <BODY><DESC><STATICVARIABLES><SVEXPORTFORMAT>$$SysName:XML</SVEXPORTFORMAT></STATICVARIABLES></DESC></BODY>
@@ -454,6 +484,20 @@ class TallyConnectorApp:
                 "request_id": request_id,
                 "response": response,
                 "success": response is not None
+            }))
+            
+            if response:
+                self.root.after(0, lambda: self.log_message("📤 Companies list sent"))
+            else:
+                self.root.after(0, lambda: self.log_message("❌ Could not get companies"))
+        
+        else:
+            logger.warning(f"Unknown message type: {msg_type}")
+            # Send error response for unknown types
+            await websocket.send(json.dumps({
+                "type": "error",
+                "request_id": request_id,
+                "error": f"Unknown message type: {msg_type}"
             }))
     
     async def send_to_tally(self, xml_request):
@@ -482,9 +526,10 @@ class TallyConnectorApp:
         """Handle window close"""
         if self.connected:
             if messagebox.askyesno("Confirm Exit", "You are still connected. Disconnect and exit?"):
-                self.running = False
-                self.root.destroy()
+                self.disconnect()
+                self.root.after(500, self.root.destroy)
         else:
+            self.running = False
             self.root.destroy()
     
     def run(self):
