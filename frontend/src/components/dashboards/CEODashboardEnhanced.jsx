@@ -1,15 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   ComposedChart, BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie,
   RadialBarChart, RadialBar, Treemap,
   XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Cell,
   ReferenceLine, Scatter
 } from 'recharts';
-import { FiTrendingUp, FiTrendingDown, FiActivity, FiRefreshCw, FiUsers, FiChevronRight, FiCheck, FiClock, FiTarget, FiAward, FiZap } from 'react-icons/fi';
+import { FiTrendingUp, FiTrendingDown, FiActivity, FiUsers, FiChevronRight, FiCheck, FiClock, FiTarget, FiAward, FiZap } from 'react-icons/fi';
 import RupeeIcon from '../common/RupeeIcon';
 import EmptyDataState from '../common/EmptyDataState';
 import DrillDownPanel from '../common/DrillDownPanel';
-import { tallyApi } from '../../api/tallyApi';
+import DashboardWrapper from '../common/DashboardWrapper';
 import toast from 'react-hot-toast';
 import { prepareRevenueExpenseData } from '../../utils/chartDataValidator';
 import { fetchDashboardData } from '../../utils/dashboardHelper';
@@ -18,38 +18,32 @@ import { hasRealData } from '../../utils/dataValidator';
 const CHART_COLORS = ['#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
 
 const CEODashboardEnhanced = ({ dataSource = 'live' }) => {
-  const [loading, setLoading] = useState(true);
-  const [companies, setCompanies] = useState([]);
-  const [selectedCompany, setSelectedCompany] = useState('');
+  const [loading, setLoading] = useState(false);
   const [ceoData, setCeoData] = useState(null);
+  const [selectedCompany, setSelectedCompany] = useState('');
   const [drillDown, setDrillDown] = useState({ isOpen: false, title: '', dataType: '', filterValue: '' });
 
-  useEffect(() => { loadCompanies(); }, [dataSource]);
-  useEffect(() => { if (selectedCompany) loadCEOData(); }, [selectedCompany, dataSource]);
-
-  const loadCompanies = async () => {
-    try {
-      setLoading(true);
-      let response;
-      if (dataSource === 'backup') response = await tallyApi.getBackupCompanies();
-      else if (dataSource === 'bridge') response = await tallyApi.getCompaniesViaBridge();
-      else response = await tallyApi.getCompanies();
-      let companyList = response?.companies || (Array.isArray(response) ? response : []);
-      const normalizedCompanies = companyList.map(c => typeof c === 'string' ? { name: c } : (c?.name ? c : { name: String(c) }));
-      setCompanies(normalizedCompanies);
-      if (normalizedCompanies.length > 0) setSelectedCompany(normalizedCompanies[0].name);
-      setLoading(false);
-    } catch (error) { setCompanies([]); setLoading(false); }
-  };
-
-  const loadCEOData = async () => {
-    if (!selectedCompany) return;
+  const loadCEOData = async (companyName) => {
+    if (!companyName) return;
+    setSelectedCompany(companyName); // Track current company
     setLoading(true);
     try {
-      const response = await fetchDashboardData('ceo', selectedCompany, dataSource, { timeout: 180000 });
-      if (response.data?.data) setCeoData(response.data.data);
-    } catch (error) { toast.error('Failed to load dashboard data'); setCeoData(null); }
-    finally { setLoading(false); }
+      console.log(`[CEODashboard] Loading data for company: ${companyName}, source: ${dataSource}`);
+      const response = await fetchDashboardData('ceo', companyName, dataSource, { timeout: 180000 });
+      if (response.data?.data) {
+        console.log(`[CEODashboard] Data loaded successfully:`, response.data.data);
+        setCeoData(response.data.data);
+      } else {
+        console.warn(`[CEODashboard] No data in response:`, response);
+        setCeoData(null);
+      }
+    } catch (error) {
+      console.error('[CEODashboard] Failed to load data:', error);
+      toast.error('Failed to load dashboard data');
+      setCeoData(null);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDrillDown = (type, filter, title) => setDrillDown({ isOpen: true, title: title || `${type} Details`, dataType: type, filterValue: filter });
@@ -87,21 +81,7 @@ const CEODashboardEnhanced = ({ dataSource = 'live' }) => {
     return null;
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <div className="w-16 h-16 rounded-full border-4 animate-spin mx-auto" style={{ borderColor: 'var(--border-color)', borderTopColor: 'var(--primary)' }} />
-          <p className="mt-4 font-medium" style={{ color: 'var(--text-secondary)' }}>Loading CEO Dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Check if we have actual data
-  if (!ceoData || !hasRealData(ceoData, ['total_revenue', 'revenue', 'net_profit', 'profit'])) {
-    return <EmptyDataState title="No CEO Dashboard Data" message="Please connect to Tally or upload backup data" onRefresh={loadCEOData} dataSource={dataSource} />;
-  }
+  const hasData = ceoData && hasRealData(ceoData, ['total_revenue', 'revenue', 'net_profit', 'profit']);
 
   const execSummary = ceoData.executive_summary || {};
   const keyMetrics = ceoData.key_metrics || {};
@@ -162,27 +142,26 @@ const CEODashboardEnhanced = ({ dataSource = 'live' }) => {
   };
 
   return (
-    <div className="p-6 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div>
-          <h2 className="text-2xl font-bold flex items-center gap-3" style={{ color: 'var(--text-primary)' }}>
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'var(--gradient-primary)' }}>
-              <FiZap className="w-5 h-5 text-white" />
-            </div>
-            CEO Dashboard
-          </h2>
-          <p className="mt-1" style={{ color: 'var(--text-secondary)' }}>Executive Overview & Strategic Insights</p>
+    <DashboardWrapper
+      dataSource={dataSource}
+      dashboardName="CEO Dashboard"
+      onDataLoad={loadCEOData}
+    >
+      {loading ? (
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="w-16 h-16 rounded-full border-4 animate-spin mx-auto" style={{ borderColor: 'var(--border-color)', borderTopColor: 'var(--primary)' }} />
+            <p className="mt-4 font-medium" style={{ color: 'var(--text-secondary)' }}>Loading CEO Dashboard...</p>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
-          <select value={selectedCompany} onChange={(e) => setSelectedCompany(e.target.value)} className="input-neon py-2 pr-8">
-            {companies.map((c, i) => <option key={i} value={c.name}>{c.name}</option>)}
-          </select>
-          <button onClick={loadCEOData} className="btn-primary flex items-center gap-2">
-            <FiRefreshCw className="w-4 h-4" /> Refresh
-          </button>
-        </div>
-      </div>
+      ) : !hasData ? (
+        <EmptyDataState 
+          title="No CEO Dashboard Data" 
+          message="Please connect to Tally or upload backup data. Make sure your company has financial data available." 
+          dataSource={dataSource} 
+        />
+      ) : (
+        <div className="p-6 space-y-6">
 
       {/* KPI Cards Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -408,7 +387,9 @@ const CEODashboardEnhanced = ({ dataSource = 'live' }) => {
 
       {/* Drill Down Panel */}
       <DrillDownPanel isOpen={drillDown.isOpen} onClose={closeDrillDown} title={drillDown.title} dataType={drillDown.dataType} filterValue={drillDown.filterValue} companyName={selectedCompany} dataSource={dataSource} />
-    </div>
+        </div>
+      )}
+    </DashboardWrapper>
   );
 };
 
