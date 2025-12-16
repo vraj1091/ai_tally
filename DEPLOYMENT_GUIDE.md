@@ -44,7 +44,18 @@ This script will:
 - ✅ Enable the site
 - ✅ Test and reload nginx
 
-### **Step 3: Start Docker Containers**
+### **Step 3: Install Ollama (for AI Chat)**
+
+```bash
+# Install and configure Ollama
+sudo bash deploy-scripts/setup-ollama.sh
+```
+
+This installs Ollama and downloads the AI model for chat functionality.
+
+**Skip this step if you don't need AI chat features.**
+
+### **Step 4: Start Docker Containers**
 
 ```bash
 # Start all services
@@ -63,7 +74,7 @@ INFO:     Application startup complete.
 INFO:     Uvicorn running on http://0.0.0.0:8000
 ```
 
-### **Step 4: Test Deployment**
+### **Step 5: Test Deployment**
 
 ```bash
 # Test backend directly
@@ -72,11 +83,13 @@ curl http://localhost:8000/health
 # Test through nginx
 curl http://localhost/api/health
 
-# Both should return:
-# {"status":"healthy","service":"AI Tally Assistant",...}
+# Test Ollama (AI Chat)
+curl http://localhost:11434/api/tags
+
+# All should return valid responses
 ```
 
-### **Step 5: Access Application**
+### **Step 6: Access Application**
 
 Open browser: `http://YOUR_SERVER_IP`
 
@@ -359,6 +372,8 @@ sudo tail -100 /var/log/nginx/access.log
 - [ ] Backend health check passes
 - [ ] Frontend loads in browser
 - [ ] Can login to application
+- [ ] Ollama installed and running (for AI chat)
+- [ ] AI model downloaded (phi4:14b or similar)
 - [ ] Tally Connector can connect
 - [ ] Upload backup file works
 - [ ] Dashboards load data
