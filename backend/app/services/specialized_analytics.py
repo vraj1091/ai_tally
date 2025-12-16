@@ -4062,38 +4062,38 @@ class SpecializedAnalytics:
                 # Skip duplicates
                 if name in seen_names:
                     continue
-            
-            # Skip excluded parents (banks, expenses, etc.)
-            if any(ex in parent for ex in exclude_parents):
-                continue
-            
-            # Skip P&L account itself (it's a summary, not a source)
-            if 'profit' in name_lower and 'loss' in name_lower:
-                continue
-            
-            # Check if this is a revenue ledger
-            # PRIORITY 1: Check is_revenue flag (set by connector)
-            # PRIORITY 2: Check parent group name
-            is_revenue = ledger.get('is_revenue', False)
-            if not is_revenue:
-                is_revenue = any(rp in parent for rp in revenue_parents)
-            
-            if not is_revenue:
-                continue
-            
-            # Get balance value
-            balance = self._get_ledger_balance(ledger)
-            
-            # Revenue accounts typically have Credit balances (negative in Tally)
-            # Include any non-zero balance and use absolute value for display
-            if balance != 0:
-                amount = abs(balance)
-                revenue_ledgers.append({
-                    'ledger': ledger,
-                    'amount': amount,
-                    'name': name
-                })
-                seen_names.add(name)
+                
+                # Skip excluded parents (banks, expenses, etc.)
+                if any(ex in parent for ex in exclude_parents):
+                    continue
+                
+                # Skip P&L account itself (it's a summary, not a source)
+                if 'profit' in name_lower and 'loss' in name_lower:
+                    continue
+                
+                # Check if this is a revenue ledger
+                # PRIORITY 1: Check is_revenue flag (set by connector)
+                # PRIORITY 2: Check parent group name
+                is_revenue = ledger.get('is_revenue', False)
+                if not is_revenue:
+                    is_revenue = any(rp in parent for rp in revenue_parents)
+                
+                if not is_revenue:
+                    continue
+                
+                # Get balance value
+                balance = self._get_ledger_balance(ledger)
+                
+                # Revenue accounts typically have Credit balances (negative in Tally)
+                # Include any non-zero balance and use absolute value for display
+                if balance != 0:
+                    amount = abs(balance)
+                    revenue_ledgers.append({
+                        'ledger': ledger,
+                        'amount': amount,
+                        'name': name
+                    })
+                    seen_names.add(name)
         
         # Step 2: If no revenue ledgers found by keywords, try comprehensive search (exclude known non-revenue)
         if not revenue_ledgers:
