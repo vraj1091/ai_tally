@@ -34,7 +34,9 @@ const EmptyDataState = ({
       {/* Show data source info */}
       <div className="mt-4 text-sm text-gray-500">
         <FiDatabase className="inline mr-2" />
-        Data Source: <span className="font-medium">{dataSource === 'backup' ? 'Backup File' : 'Live Tally'}</span>
+        Data Source: <span className="font-medium">
+          {dataSource === 'backup' ? 'Backup File' : dataSource === 'bridge' ? 'Bridge Mode' : 'Live Tally'}
+        </span>
       </div>
       
       {/* Refresh button if provided */}

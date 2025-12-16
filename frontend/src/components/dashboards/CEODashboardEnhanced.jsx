@@ -24,22 +24,39 @@ const CEODashboardEnhanced = ({ dataSource = 'live' }) => {
   const [drillDown, setDrillDown] = useState({ isOpen: false, title: '', dataType: '', filterValue: '' });
 
   const loadCEOData = async (companyName) => {
-    if (!companyName) return;
+    if (!companyName) {
+      console.warn('[CEODashboard] ⚠️ loadCEOData called with no company name');
+      return;
+    }
     setSelectedCompany(companyName); // Track current company
     setLoading(true);
     try {
-      console.log(`[CEODashboard] Loading data for company: ${companyName}, source: ${dataSource}`);
+      console.log(`[CEODashboard] 🔄 Loading data...`);
+      console.log(`[CEODashboard] 📊 Company: "${companyName}"`);
+      console.log(`[CEODashboard] 🔌 Source: "${dataSource}"`);
+      console.log(`[CEODashboard] 📞 Calling fetchDashboardData('ceo', '${companyName}', '${dataSource}', ...)`);
+      
       const response = await fetchDashboardData('ceo', companyName, dataSource, { timeout: 180000 });
+      
+      console.log(`[CEODashboard] 📦 Response received:`, response);
+      console.log(`[CEODashboard] 📦 Response.data:`, response.data);
+      console.log(`[CEODashboard] 📦 Response.data.data:`, response.data?.data);
+      
       if (response.data?.data) {
-        console.log(`[CEODashboard] Data loaded successfully:`, response.data.data);
-        setCeoData(response.data.data);
+        const data = response.data.data;
+        console.log(`[CEODashboard] ✅ Data loaded successfully!`);
+        console.log(`[CEODashboard] 📈 Revenue:`, data.executive_summary?.total_revenue || data.total_revenue);
+        console.log(`[CEODashboard] 📉 Expense:`, data.executive_summary?.total_expenses);
+        console.log(`[CEODashboard] 💰 Profit:`, data.executive_summary?.net_profit);
+        setCeoData(data);
       } else {
-        console.warn(`[CEODashboard] No data in response:`, response);
+        console.warn(`[CEODashboard] ⚠️ No data in response.data.data`);
         setCeoData(null);
       }
     } catch (error) {
-      console.error('[CEODashboard] Failed to load data:', error);
-      toast.error('Failed to load dashboard data');
+      console.error('[CEODashboard] ❌ Failed to load data:', error);
+      console.error('[CEODashboard] ❌ Error details:', error.response?.data || error.message);
+      toast.error(`Failed to load dashboard data: ${error.message}`);
       setCeoData(null);
     } finally {
       setLoading(false);

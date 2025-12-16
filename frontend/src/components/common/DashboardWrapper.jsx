@@ -106,16 +106,20 @@ const DashboardWrapper = ({
     
     try {
       setRefreshing(true);
-      console.log(`[DashboardWrapper] Loading data for company: "${selectedCompany}", source: ${dataSource}`);
+      console.log(`[DashboardWrapper] 🔄 Loading data for company: "${selectedCompany}", source: ${dataSource}`);
       
       // Call the parent's data loading function
       if (onDataLoad) {
+        console.log(`[DashboardWrapper] 📞 Calling onDataLoad with company: "${selectedCompany}"`);
         await onDataLoad(selectedCompany);
+        console.log(`[DashboardWrapper] ✅ onDataLoad completed`);
+      } else {
+        console.warn('[DashboardWrapper] ⚠️ No onDataLoad function provided!');
       }
       
       setRefreshing(false);
     } catch (error) {
-      console.error(`[DashboardWrapper] Failed to load data:`, error);
+      console.error(`[DashboardWrapper] ❌ Failed to load data:`, error);
       setRefreshing(false);
     }
   };
