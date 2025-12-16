@@ -9,6 +9,8 @@ import { tallyApi } from '../../api/tallyApi';
 import { fetchDashboardData } from '../../utils/dashboardHelper';
 import toast from 'react-hot-toast';
 import { validateChartData, validateNumeric, validateArrayData } from '../../utils/chartDataValidator';
+import { hasRealData } from '../../utils/dataValidator';
+import EmptyDataState from '../common/EmptyDataState';
 
 const ForecastingDashboard = ({ dataSource = 'live' }) => {
   const [loading, setLoading] = useState(true);
@@ -106,13 +108,15 @@ const ForecastingDashboard = ({ dataSource = 'live' }) => {
     );
   }
 
-  if (!forecastData) {
+  // Check if we have real data
+  if (!forecastData || !hasRealData(forecastData, ['forecast_revenue', 'forecast_expense', 'predicted_profit', 'historical_data'])) {
     return (
-      <div className="bg-white rounded-xl shadow-sm p-12 text-center">
-        <FiAlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-xl font-semibold text-gray-900 mb-2">No Data Available</h3>
-        <p className="text-gray-600">Please connect to Tally or select a company with data</p>
-      </div>
+      <EmptyDataState 
+        title="No Forecasting Data"
+        message="Connect to Tally or upload a backup file to view forecasting analytics"
+        onRefresh={loadData}
+        dataSource={dataSource}
+      />
     );
   }
 

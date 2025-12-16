@@ -9,6 +9,8 @@ import { tallyApi } from '../../api/tallyApi';
 import { fetchDashboardData } from '../../utils/dashboardHelper';
 import toast from 'react-hot-toast';
 import { validateChartData, validateNumeric, validateArrayData } from '../../utils/chartDataValidator';
+import { hasRealData } from '../../utils/dataValidator';
+import EmptyDataState from '../common/EmptyDataState';
 
 const COLORS = ['#c026d3', '#3b82f6', '#10b981', '#f59e0b', '#ef4444'];
 
@@ -108,13 +110,15 @@ const ProductPerformanceDashboard = ({ dataSource = 'live' }) => {
     );
   }
 
-  if (!productData) {
+  // Check if we have real data
+  if (!productData || !hasRealData(productData, ['total_products', 'product_count', 'total_sales', 'total_revenue'])) {
     return (
-      <div className="bg-white rounded-xl shadow-sm p-12 text-center">
-        <FiAlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-xl font-semibold text-gray-900 mb-2">No Data Available</h3>
-        <p className="text-gray-600">Please connect to Tally or select a company with data</p>
-      </div>
+      <EmptyDataState 
+        title="No Product Performance Data"
+        message="Connect to Tally or upload a backup file to view product analytics"
+        onRefresh={loadProductData}
+        dataSource={dataSource}
+      />
     );
   }
 

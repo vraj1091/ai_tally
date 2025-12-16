@@ -9,6 +9,8 @@ import { tallyApi } from '../../api/tallyApi';
 import toast from 'react-hot-toast';
 import { validateChartData, validateNumeric, validateArrayData } from '../../utils/chartDataValidator';
 import { fetchDashboardData } from '../../utils/dashboardHelper';
+import { hasRealData } from '../../utils/dataValidator';
+import EmptyDataState from '../common/EmptyDataState';
 
 const COLORS = ['#14b8a6', '#3b82f6', '#8b5cf6', '#f59e0b', '#ef4444'];
 
@@ -108,13 +110,15 @@ const TaxDashboard = ({ dataSource = 'live' }) => {
     );
   }
 
-  if (!taxData) {
+  // Check if we have real data
+  if (!taxData || !hasRealData(taxData, ['total_tax', 'gst_payable', 'tds_amount', 'tax_liability'])) {
     return (
-      <div className="bg-white rounded-xl shadow-sm p-12 text-center">
-        <FiAlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-xl font-semibold text-gray-900 mb-2">No Data Available</h3>
-        <p className="text-gray-600">Please connect to Tally or select a company with data</p>
-      </div>
+      <EmptyDataState 
+        title="No Tax & Compliance Data"
+        message="Connect to Tally or upload a backup file to view tax analytics"
+        onRefresh={loadData}
+        dataSource={dataSource}
+      />
     );
   }
 

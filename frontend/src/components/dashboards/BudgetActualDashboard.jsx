@@ -9,6 +9,8 @@ import { tallyApi } from '../../api/tallyApi';
 import { fetchDashboardData } from '../../utils/dashboardHelper';
 import toast from 'react-hot-toast';
 import { validateChartData, validateNumeric, validateArrayData } from '../../utils/chartDataValidator';
+import { hasRealData } from '../../utils/dataValidator';
+import EmptyDataState from '../common/EmptyDataState';
 
 const COLORS = ['#f97316', '#10b981', '#ef4444', '#3b82f6', '#8b5cf6'];
 
@@ -108,13 +110,15 @@ const BudgetActualDashboard = ({ dataSource = 'live' }) => {
     );
   }
 
-  if (!budgetData) {
+  // Check if we have real data
+  if (!budgetData || !hasRealData(budgetData, ['budget_total', 'actual_total', 'variance', 'budget_vs_actual'])) {
     return (
-      <div className="bg-white rounded-xl shadow-sm p-12 text-center">
-        <FiAlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-xl font-semibold text-gray-900 mb-2">No Data Available</h3>
-        <p className="text-gray-600">Please connect to Tally or select a company with data</p>
-      </div>
+      <EmptyDataState 
+        title="No Budget vs Actual Data"
+        message="Connect to Tally or upload a backup file to view budget analytics"
+        onRefresh={loadData}
+        dataSource={dataSource}
+      />
     );
   }
 

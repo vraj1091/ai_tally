@@ -8,6 +8,8 @@ import RupeeIcon from '../common/RupeeIcon';
 import { tallyApi } from '../../api/tallyApi';
 import toast from 'react-hot-toast';
 import { fetchDashboardData } from '../../utils/dashboardHelper';
+import { hasRealData } from '../../utils/dataValidator';
+import EmptyDataState from '../common/EmptyDataState';
 
 const RealtimeOperationsDashboard = ({ dataSource = 'live' }) => {
   const [loading, setLoading] = useState(true);
@@ -110,13 +112,15 @@ const RealtimeOperationsDashboard = ({ dataSource = 'live' }) => {
     );
   }
 
-  if (!realtimeData) {
+  // Check if we have real data
+  if (!realtimeData || !hasRealData(realtimeData, ['current_transactions', 'active_users', 'pending_tasks', 'system_status'])) {
     return (
-      <div className="card p-12 text-center">
-        <FiAlertCircle className="w-16 h-16 mx-auto mb-4" style={{ color: 'var(--text-muted)' }} />
-        <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>No Data Available</h3>
-        <p style={{ color: 'var(--text-secondary)' }}>Please connect to Tally or select a company with data</p>
-      </div>
+      <EmptyDataState 
+        title="No Real-time Operations Data"
+        message="Connect to Tally or upload a backup file to view real-time analytics"
+        onRefresh={loadRealtimeData}
+        dataSource={dataSource}
+      />
     );
   }
 

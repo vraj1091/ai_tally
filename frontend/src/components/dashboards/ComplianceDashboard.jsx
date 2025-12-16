@@ -7,6 +7,8 @@ import { FiShield, FiAlertCircle, FiRefreshCw, FiCheckCircle, FiXCircle, FiFileT
 import { tallyApi } from '../../api/tallyApi';
 import { fetchDashboardData } from '../../utils/dashboardHelper';
 import toast from 'react-hot-toast';
+import { hasRealData } from '../../utils/dataValidator';
+import EmptyDataState from '../common/EmptyDataState';
 
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
@@ -95,13 +97,15 @@ const ComplianceDashboard = ({ dataSource = 'live' }) => {
     );
   }
 
-  if (!complianceData) {
+  // Check if we have real data
+  if (!complianceData || !hasRealData(complianceData, ['compliance_score', 'pending_filings', 'overdue_items', 'regulatory_status'])) {
     return (
-      <div className="card p-12 text-center">
-        <FiAlertCircle className="w-16 h-16 mx-auto mb-4" style={{ color: 'var(--text-muted)' }} />
-        <h3 className="text-xl font-semibold mb-2" style={{ color: 'var(--text-primary)' }}>No Data Available</h3>
-        <p style={{ color: 'var(--text-secondary)' }}>Please connect to Tally or select a company with data</p>
-      </div>
+      <EmptyDataState 
+        title="No Compliance Data"
+        message="Connect to Tally or upload a backup file to view compliance analytics"
+        onRefresh={loadComplianceData}
+        dataSource={dataSource}
+      />
     );
   }
 

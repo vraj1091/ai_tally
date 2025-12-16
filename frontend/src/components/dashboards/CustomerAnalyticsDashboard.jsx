@@ -9,6 +9,8 @@ import { tallyApi } from '../../api/tallyApi';
 import { fetchDashboardData } from '../../utils/dashboardHelper';
 import toast from 'react-hot-toast';
 import { validateChartData, validateNumeric, validateArrayData, prepareRevenueExpenseData } from '../../utils/chartDataValidator';
+import { hasRealData } from '../../utils/dataValidator';
+import EmptyDataState from '../common/EmptyDataState';
 
 const COLORS = ['#4ade80', '#3b82f6', '#f59e0b', '#ef4444', '#8b5cf6'];
 
@@ -108,13 +110,15 @@ const CustomerAnalyticsDashboard = ({ dataSource = 'live' }) => {
     );
   }
 
-  if (!customerData) {
+  // Check if we have real data
+  if (!customerData || !hasRealData(customerData, ['total_customers', 'customer_count', 'active_customers', 'total_revenue'])) {
     return (
-      <div className="bg-white rounded-xl shadow-sm p-12 text-center">
-        <FiAlertCircle className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-        <h3 className="text-xl font-semibold text-gray-900 mb-2">No Data Available</h3>
-        <p className="text-gray-600">Please connect to Tally or select a company with data</p>
-      </div>
+      <EmptyDataState 
+        title="No Customer Analytics Data"
+        message="Connect to Tally or upload a backup file to view customer analytics"
+        onRefresh={loadCustomerData}
+        dataSource={dataSource}
+      />
     );
   }
 
