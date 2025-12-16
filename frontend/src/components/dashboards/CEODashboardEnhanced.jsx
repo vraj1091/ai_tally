@@ -83,51 +83,66 @@ const CEODashboardEnhanced = ({ dataSource = 'live' }) => {
 
   const hasData = ceoData && hasRealData(ceoData, ['total_revenue', 'revenue', 'net_profit', 'profit']);
 
-  const execSummary = ceoData.executive_summary || {};
-  const keyMetrics = ceoData.key_metrics || {};
-  const topRevenue = prepareRevenueExpenseData(ceoData.top_5_revenue_sources || []);
-  const topExpenses = prepareRevenueExpenseData(ceoData.top_5_expense_categories || []);
-  
-  const revenue = execSummary.total_revenue || 0;
-  const expenses = execSummary.total_expenses || execSummary.total_expense || 0;
-  const profit = execSummary.net_profit || (revenue - expenses);
-  const margin = revenue > 0 ? (profit / revenue * 100) : 0;
-  
-  // Use real monthly data from backend if available
-  const performanceData = ceoData.monthly_revenue_trend || ceoData.monthly_performance || (revenue > 0 ? [
-    { month: 'Jan', revenue: revenue * 0.07, expenses: expenses * 0.08, profit: profit * 0.06, target: revenue * 0.08 },
-    { month: 'Feb', revenue: revenue * 0.08, expenses: expenses * 0.07, profit: profit * 0.09, target: revenue * 0.08 },
-    { month: 'Mar', revenue: revenue * 0.09, expenses: expenses * 0.08, profit: profit * 0.10, target: revenue * 0.09 },
-    { month: 'Apr', revenue: revenue * 0.08, expenses: expenses * 0.09, profit: profit * 0.07, target: revenue * 0.08 },
-    { month: 'May', revenue: revenue * 0.09, expenses: expenses * 0.08, profit: profit * 0.10, target: revenue * 0.09 },
-    { month: 'Jun', revenue: revenue * 0.10, expenses: expenses * 0.09, profit: profit * 0.11, target: revenue * 0.10 },
-    { month: 'Jul', revenue: revenue * 0.08, expenses: expenses * 0.08, profit: profit * 0.08, target: revenue * 0.09 },
-    { month: 'Aug', revenue: revenue * 0.09, expenses: expenses * 0.09, profit: profit * 0.09, target: revenue * 0.09 },
-    { month: 'Sep', revenue: revenue * 0.08, expenses: expenses * 0.08, profit: profit * 0.08, target: revenue * 0.08 },
-    { month: 'Oct', revenue: revenue * 0.09, expenses: expenses * 0.08, profit: profit * 0.10, target: revenue * 0.09 },
-    { month: 'Nov', revenue: revenue * 0.08, expenses: expenses * 0.09, profit: profit * 0.07, target: revenue * 0.08 },
-    { month: 'Dec', revenue: revenue * 0.07, expenses: expenses * 0.09, profit: profit * 0.05, target: revenue * 0.07 },
-  ] : []);
+  // Only process data if we have it
+  let execSummary = {};
+  let keyMetrics = {};
+  let topRevenue = [];
+  let topExpenses = [];
+  let revenue = 0;
+  let expenses = 0;
+  let profit = 0;
+  let margin = 0;
+  let performanceData = [];
+  let kpiGaugeData = [];
+  let treemapData = [];
 
-  // Radial gauge data for KPIs
-  const kpiGaugeData = [
-    { name: 'Profit Margin', value: margin, fill: '#10B981', max: 100 },
-    { name: 'Growth Rate', value: execSummary.growth_rate || 15, fill: '#0EA5E9', max: 100 },
-    { name: 'Efficiency', value: 78, fill: '#8B5CF6', max: 100 },
-  ];
+  if (hasData) {
+    execSummary = ceoData.executive_summary || {};
+    keyMetrics = ceoData.key_metrics || {};
+    topRevenue = prepareRevenueExpenseData(ceoData.top_5_revenue_sources || []);
+    topExpenses = prepareRevenueExpenseData(ceoData.top_5_expense_categories || []);
+    
+    revenue = execSummary.total_revenue || 0;
+    expenses = execSummary.total_expenses || execSummary.total_expense || 0;
+    profit = execSummary.net_profit || (revenue - expenses);
+    margin = revenue > 0 ? (profit / revenue * 100) : 0;
+    
+    // Use real monthly data from backend if available
+    performanceData = ceoData.monthly_revenue_trend || ceoData.monthly_performance || (revenue > 0 ? [
+      { month: 'Jan', revenue: revenue * 0.07, expenses: expenses * 0.08, profit: profit * 0.06, target: revenue * 0.08 },
+      { month: 'Feb', revenue: revenue * 0.08, expenses: expenses * 0.07, profit: profit * 0.09, target: revenue * 0.08 },
+      { month: 'Mar', revenue: revenue * 0.09, expenses: expenses * 0.08, profit: profit * 0.10, target: revenue * 0.09 },
+      { month: 'Apr', revenue: revenue * 0.08, expenses: expenses * 0.09, profit: profit * 0.07, target: revenue * 0.08 },
+      { month: 'May', revenue: revenue * 0.09, expenses: expenses * 0.08, profit: profit * 0.10, target: revenue * 0.09 },
+      { month: 'Jun', revenue: revenue * 0.10, expenses: expenses * 0.09, profit: profit * 0.11, target: revenue * 0.10 },
+      { month: 'Jul', revenue: revenue * 0.08, expenses: expenses * 0.08, profit: profit * 0.08, target: revenue * 0.09 },
+      { month: 'Aug', revenue: revenue * 0.09, expenses: expenses * 0.09, profit: profit * 0.09, target: revenue * 0.09 },
+      { month: 'Sep', revenue: revenue * 0.08, expenses: expenses * 0.08, profit: profit * 0.08, target: revenue * 0.08 },
+      { month: 'Oct', revenue: revenue * 0.09, expenses: expenses * 0.08, profit: profit * 0.10, target: revenue * 0.09 },
+      { month: 'Nov', revenue: revenue * 0.08, expenses: expenses * 0.09, profit: profit * 0.07, target: revenue * 0.08 },
+      { month: 'Dec', revenue: revenue * 0.07, expenses: expenses * 0.09, profit: profit * 0.05, target: revenue * 0.07 },
+    ] : []);
 
-  // Treemap data for revenue breakdown
-  const treemapData = topRevenue.length > 0 ? topRevenue.map((item, i) => ({
-    name: item.name,
-    size: item.amount,
-    fill: CHART_COLORS[i % CHART_COLORS.length]
-  })) : [
-    { name: 'Product Sales', size: revenue * 0.4, fill: '#0EA5E9' },
-    { name: 'Services', size: revenue * 0.25, fill: '#10B981' },
-    { name: 'Subscriptions', size: revenue * 0.2, fill: '#F59E0B' },
-    { name: 'Licensing', size: revenue * 0.1, fill: '#8B5CF6' },
-    { name: 'Other', size: revenue * 0.05, fill: '#EF4444' },
-  ];
+    // Radial gauge data for KPIs
+    kpiGaugeData = [
+      { name: 'Profit Margin', value: margin, fill: '#10B981', max: 100 },
+      { name: 'Growth Rate', value: execSummary.growth_rate || 15, fill: '#0EA5E9', max: 100 },
+      { name: 'Efficiency', value: 78, fill: '#8B5CF6', max: 100 },
+    ];
+
+    // Treemap data for revenue breakdown
+    treemapData = topRevenue.length > 0 ? topRevenue.map((item, i) => ({
+      name: item.name,
+      size: item.amount,
+      fill: CHART_COLORS[i % CHART_COLORS.length]
+    })) : [
+      { name: 'Product Sales', size: revenue * 0.4, fill: '#0EA5E9' },
+      { name: 'Services', size: revenue * 0.25, fill: '#10B981' },
+      { name: 'Subscriptions', size: revenue * 0.2, fill: '#F59E0B' },
+      { name: 'Licensing', size: revenue * 0.1, fill: '#8B5CF6' },
+      { name: 'Other', size: revenue * 0.05, fill: '#EF4444' },
+    ];
+  }
 
   const CustomTreemapContent = ({ x, y, width, height, name, fill }) => {
     if (width < 50 || height < 30) return null;
