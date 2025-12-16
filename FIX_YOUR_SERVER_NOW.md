@@ -6,13 +6,21 @@ Run these commands on your EC2 server (107.21.87.222) to fix nginx immediately:
 
 ## ⚡ **Quick Fix (Copy & Paste This)**
 
+### **Method 1: Complete Update (Recommended)**
+```bash
+# This does everything: pull code, sync nginx, restart services
+cd ~/ai_tally
+sudo bash update-from-git.sh
+```
+
+### **Method 2: Manual Steps**
 ```bash
 # Pull latest changes
 cd ~/ai_tally
 git pull origin main
 
-# Run the automated nginx setup script
-sudo bash deploy-scripts/setup-nginx.sh
+# Sync nginx config and restart services
+sudo bash deploy-scripts/post-pull.sh
 
 # Test it works
 curl http://localhost/api/health

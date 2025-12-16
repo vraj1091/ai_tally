@@ -136,6 +136,43 @@ sudo systemctl status nginx
 
 ---
 
+## 🔄 Updating After Git Pull
+
+When you pull new code from GitHub, use these scripts to automatically sync configurations:
+
+### **Method 1: One-Command Update (Recommended)**
+
+```bash
+sudo bash update-from-git.sh
+```
+
+This script:
+- ✅ Pulls latest code from GitHub
+- ✅ Syncs nginx configuration to `/etc/nginx/`
+- ✅ Rebuilds and restarts Docker containers
+- ✅ Verifies all services are running
+
+### **Method 2: Manual Update**
+
+```bash
+# Pull code
+git pull origin main
+
+# Sync all configurations and restart
+sudo bash deploy-scripts/post-pull.sh
+```
+
+### **Method 3: Just Sync nginx Config**
+
+```bash
+# If only nginx config changed
+git pull origin main
+sudo bash deploy-scripts/sync-nginx.sh
+docker-compose restart
+```
+
+---
+
 ## 🐳 Docker Commands
 
 ### **Start Services**
