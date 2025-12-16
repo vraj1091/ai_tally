@@ -1,47 +1,29 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   ComposedChart, BarChart, Bar, LineChart, Line, AreaChart, Area, PieChart, Pie, Cell,
   RadialBarChart, RadialBar, Sankey, FunnelChart, Funnel, LabelList,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine
 } from 'recharts';
-import { FiTrendingUp, FiTrendingDown, FiRefreshCw, FiDollarSign, FiPieChart, FiTarget, FiAlertTriangle, FiShield, FiActivity, FiLayers } from 'react-icons/fi';
-import { tallyApi } from '../../api/tallyApi';
+import { FiTrendingUp, FiTrendingDown, FiDollarSign, FiPieChart, FiTarget, FiAlertTriangle, FiShield, FiActivity, FiLayers } from 'react-icons/fi';
 import toast from 'react-hot-toast';
 import { fetchDashboardData } from '../../utils/dashboardHelper';
 import { hasRealData } from '../../utils/dataValidator';
 import EmptyDataState from '../common/EmptyDataState';
+import DashboardWrapper from '../common/DashboardWrapper';
 
 const CHART_COLORS = ['#0EA5E9', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#06B6D4'];
 
 const CFODashboard = ({ dataSource = 'live' }) => {
-  const [loading, setLoading] = useState(true);
-  const [companies, setCompanies] = useState([]);
+  const [loading, setLoading] = useState(false);
   const [selectedCompany, setSelectedCompany] = useState('');
   const [cfoData, setCfoData] = useState(null);
 
-  useEffect(() => { loadCompanies(); }, [dataSource]);
-  useEffect(() => { if (selectedCompany) loadCFOData(); }, [selectedCompany, dataSource]);
-
-  const loadCompanies = async () => {
-    try {
-      setLoading(true);
-      let response;
-      if (dataSource === 'backup') response = await tallyApi.getBackupCompanies();
-      else if (dataSource === 'bridge') response = await tallyApi.getCompaniesViaBridge();
-      else response = await tallyApi.getCompanies();
-      const list = response.companies || [];
-      const normalized = list.map(c => typeof c === 'string' ? { name: c } : c);
-      setCompanies(normalized);
-      if (normalized.length > 0) setSelectedCompany(normalized[0].name);
-      setLoading(false);
-    } catch (error) { setCompanies([]); setLoading(false); }
-  };
-
-  const loadCFOData = async () => {
-    if (!selectedCompany) return;
+  const loadCFOData = async (companyName) => {
+    if (!companyName) return;
+    setSelectedCompany(companyName);
     setLoading(true);
     try {
-      const response = await fetchDashboardData('cfo', selectedCompany, dataSource);
+      const response = await fetchDashboardData('cfo', companyName, dataSource);
       if (response.data?.data) setCfoData(response.data.data);
       else setCfoData(response.data || null);
     } catch (error) { toast.error('Failed to load CFO data'); setCfoData(null); }
@@ -78,30 +60,8 @@ const CFODashboard = ({ dataSource = 'live' }) => {
     return null;
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-96">
-        <div className="text-center">
-          <div className="w-16 h-16 rounded-full border-4 animate-spin mx-auto" style={{ borderColor: 'var(--border-color)', borderTopColor: 'var(--primary)' }} />
-          <p className="mt-4 font-medium" style={{ color: 'var(--text-secondary)' }}>Loading CFO Dashboard...</p>
-        </div>
-      </div>
-    );
-  }
-
-  // Check if we have real data
-  if (!cfoData || !hasRealData(cfoData, ['total_assets', 'total_liabilities', 'net_worth', 'revenue'])) {
-    return (
-      <EmptyDataState 
-        title="No CFO Dashboard Data"
-        message="Connect to Tally or upload a backup file to view financial analytics"
-        onRefresh={loadCFOData}
-        dataSource={dataSource}
-      />
-    );
-  }
-
-  const data = cfoData || {};
+  const hasData = cfoData && hasRealData(cfoData, ['total_assets', 'total_liabilities', 'net_worth', 'revenue']);
+  const data = hasData ? cfoData : {};
   const summary = data.financial_summary || {};
   const ratios = data.financial_ratios || {};
   const cashFlow = data.cash_flow_analysis || {};
@@ -151,7 +111,26 @@ const CFODashboard = ({ dataSource = 'live' }) => {
   ];
 
   return (
-    <div className="p-6 space-y-6">
+    <DashboardWrapper
+      dataSource={dataSource}
+      dashboardName="CFO Dashboard"
+      onDataLoad={loadCFOData}
+    >
+      {loading ? (
+        <div className="flex items-center justify-center h-96">
+          <div className="text-center">
+            <div className="w-16 h-16 rounded-full border-4 animate-spin mx-auto" style={{ borderColor: 'var(--border-color)', borderTopColor: 'var(--primary)' }} />
+            <p className="mt-4 font-medium" style={{ color: 'var(--text-secondary)' }}>Loading CFO Dashboard...</p>
+          </div>
+        </div>
+      ) : !hasData ? (
+        <EmptyDataState 
+          title="No CFO Dashboard Data"
+          message="Connect to Tally or upload a backup file to view financial analytics"
+          dataSource={dataSource}
+        />
+      ) : (
+        <div className="p-6 space-y-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
         <div>
@@ -353,6 +332,8 @@ const CFODashboard = ({ dataSource = 'live' }) => {
         </div>
       </div>
     </div>
+      )}
+    </DashboardWrapper>
   );
 };
 
