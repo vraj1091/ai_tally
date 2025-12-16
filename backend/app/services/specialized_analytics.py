@@ -4051,17 +4051,17 @@ class SpecializedAnalytics:
         # Step 1: Find revenue ledgers by parent group and is_revenue flag (only if priority search didn't find enough)
         if len(revenue_ledgers) < count:
             for ledger in ledgers:
-            parent = (ledger.get('parent') or '').lower()
-            name = (ledger.get('name') or '').strip()
-            name_lower = name.lower()
-            
-            # Skip fake/auto-generated names
-            if not name or name == 'Unknown' or 'auto' in name_lower or 'generat' in name_lower:
-                continue
-            
-            # Skip duplicates
-            if name in seen_names:
-                continue
+                parent = (ledger.get('parent') or '').lower()
+                name = (ledger.get('name') or '').strip()
+                name_lower = name.lower()
+                
+                # Skip fake/auto-generated names
+                if not name or name == 'Unknown' or 'auto' in name_lower or 'generat' in name_lower:
+                    continue
+                
+                # Skip duplicates
+                if name in seen_names:
+                    continue
             
             # Skip excluded parents (banks, expenses, etc.)
             if any(ex in parent for ex in exclude_parents):
