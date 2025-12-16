@@ -3993,7 +3993,7 @@ class SpecializedAnalytics:
         return self._calculate_assets(ledgers) - self._calculate_liabilities(ledgers)
     
     def _top_revenue_sources(self, ledgers: List[Dict], count: int) -> List[Dict]:
-        """Get top revenue sources from real Tally data - FIXED VERSION"""
+        """Get top revenue sources from real Tally data - FIXED VERSION WITH NAME-BASED SEARCH"""
         if not ledgers: 
             logger.warning("_top_revenue_sources: No ledgers provided")
             return []
@@ -4005,6 +4005,9 @@ class SpecializedAnalytics:
                          'direct income', 'indirect income', 'direct incomes', 'indirect incomes',
                          'revenue', 'other income']
         
+        # Name prefixes that indicate revenue (PRIORITY SEARCH)
+        revenue_name_prefixes = ['sales ', 'sales-', 'income ', 'income-', 'revenue ', 'revenue-', 'service ', 'service-']
+        
         # Parents to EXCLUDE (these are NOT revenue)
         exclude_parents = ['bank', 'cash', 'sundry debtor', 'sundry creditor', 
                           'capital', 'loan', 'asset', 'liability', 'reserve',
@@ -4015,8 +4018,39 @@ class SpecializedAnalytics:
         
         logger.info(f"_top_revenue_sources: Processing {len(ledgers)} ledgers")
         
-        # Step 1: Find revenue ledgers by parent group and is_revenue flag
+        # PRIORITY STEP: Search by NAME first (much faster than scanning all ledgers)
+        priority_revenue_ledgers = []
         for ledger in ledgers:
+            name = (ledger.get('name') or '').strip()
+            name_lower = name.lower()
+            parent = (ledger.get('parent') or '').lower()
+            
+            # Skip fake/auto-generated names
+            if not name or name == 'Unknown' or 'auto' in name_lower or 'generat' in name_lower:
+                continue
+            
+            # Skip excluded parents (banks, expenses, debtors, creditors)
+            if any(ex in parent for ex in exclude_parents):
+                continue
+            
+            # Check if name starts with revenue keywords
+            if any(name_lower.startswith(prefix) for prefix in revenue_name_prefixes):
+                balance = self._get_ledger_balance(ledger)
+                if balance != 0:
+                    priority_revenue_ledgers.append({
+                        'ledger': ledger,
+                        'amount': abs(balance),
+                        'name': name
+                    })
+                    seen_names.add(name)
+        
+        if priority_revenue_ledgers:
+            logger.info(f"_top_revenue_sources: Found {len(priority_revenue_ledgers)} revenue ledgers by name search")
+            revenue_ledgers = priority_revenue_ledgers
+        
+        # Step 1: Find revenue ledgers by parent group and is_revenue flag (only if priority search didn't find enough)
+        if len(revenue_ledgers) < count:
+            for ledger in ledgers:
             parent = (ledger.get('parent') or '').lower()
             name = (ledger.get('name') or '').strip()
             name_lower = name.lower()
@@ -4175,7 +4209,7 @@ class SpecializedAnalytics:
         return result
     
     def _top_expenses(self, ledgers: List[Dict], count: int) -> List[Dict]:
-        """Get top expense categories from real Tally data - FIXED VERSION"""
+        """Get top expense categories from real Tally data - FIXED VERSION WITH NAME-BASED SEARCH"""
         if not ledgers: 
             logger.warning("_top_expenses: No ledgers provided")
             return []
@@ -4183,6 +4217,9 @@ class SpecializedAnalytics:
         # Parent groups that indicate expenses
         expense_parents = ['indirect expense', 'direct expense', 'purchase account', 
                          'indirect expenses', 'direct expenses', 'purchase accounts']
+        
+        # Name prefixes that indicate expenses (PRIORITY SEARCH)
+        expense_name_prefixes = ['purchase ', 'purchase-', 'expense ', 'expense-', 'cost ', 'cost-']
         
         # Parents to EXCLUDE (these are NOT expenses)
         exclude_parents = ['bank', 'cash', 'sundry debtor', 'sundry creditor', 
@@ -4192,48 +4229,80 @@ class SpecializedAnalytics:
         expense_ledgers = []
         seen_names = set()
         
-        logger.info(f"_top_expenses: Processing {len(ledgers)} ledgers")
-        
+        # PRIORITY STEP: Search by NAME first (much faster)
+        priority_expense_ledgers = []
         for ledger in ledgers:
-            parent = (ledger.get('parent') or '').lower()
             name = (ledger.get('name') or '').strip()
             name_lower = name.lower()
+            parent = (ledger.get('parent') or '').lower()
             
             # Skip fake/auto-generated names
             if not name or name == 'Unknown' or 'auto' in name_lower or 'generat' in name_lower:
                 continue
             
-            # Skip duplicates
-            if name in seen_names:
-                continue
-            
-            # Skip excluded parents (banks, debtors, etc.)
+            # Skip excluded parents
             if any(ex in parent for ex in exclude_parents):
                 continue
             
-            # Check if this is an expense ledger
-            # PRIORITY 1: Check is_expense flag (set by connector)
-            # PRIORITY 2: Check parent group name
-            is_expense = ledger.get('is_expense', False)
-            if not is_expense:
-                is_expense = any(ep in parent for ep in expense_parents)
-            
-            if not is_expense:
-                continue
-            
-            # Get balance value
-            balance = self._get_ledger_balance(ledger)
-            
-            # Expense accounts typically have Credit (negative) balances in Tally
-            # Include any non-zero balance and use absolute value for display
-            if balance != 0:
-                expense_ledgers.append({
-                    'ledger': ledger,
-                    'amount': abs(balance),  # Use absolute value for expense display
-                    'name': name,
-                    'parent': ledger.get('parent', '')
-                })
-                seen_names.add(name)
+            # Check if name starts with expense keywords
+            if any(name_lower.startswith(prefix) for prefix in expense_name_prefixes):
+                balance = self._get_ledger_balance(ledger)
+                if balance != 0:
+                    priority_expense_ledgers.append({
+                        'ledger': ledger,
+                        'amount': abs(balance),
+                        'name': name
+                    })
+                    seen_names.add(name)
+        
+        if priority_expense_ledgers:
+            logger.info(f"_top_expenses: Found {len(priority_expense_ledgers)} expense ledgers by name search")
+            expense_ledgers = priority_expense_ledgers
+        
+        logger.info(f"_top_expenses: Processing {len(ledgers)} ledgers")
+        
+        # Only do full scan if priority search didn't find enough
+        if len(expense_ledgers) < count:
+            for ledger in ledgers:
+                parent = (ledger.get('parent') or '').lower()
+                name = (ledger.get('name') or '').strip()
+                name_lower = name.lower()
+                
+                # Skip fake/auto-generated names
+                if not name or name == 'Unknown' or 'auto' in name_lower or 'generat' in name_lower:
+                    continue
+                
+                # Skip duplicates
+                if name in seen_names:
+                    continue
+                
+                # Skip excluded parents (banks, debtors, etc.)
+                if any(ex in parent for ex in exclude_parents):
+                    continue
+                
+                # Check if this is an expense ledger
+                # PRIORITY 1: Check is_expense flag (set by connector)
+                # PRIORITY 2: Check parent group name
+                is_expense = ledger.get('is_expense', False)
+                if not is_expense:
+                    is_expense = any(ep in parent for ep in expense_parents)
+                
+                if not is_expense:
+                    continue
+                
+                # Get balance value
+                balance = self._get_ledger_balance(ledger)
+                
+                # Expense accounts typically have Credit (negative) balances in Tally
+                # Include any non-zero balance and use absolute value for display
+                if balance != 0:
+                    expense_ledgers.append({
+                        'ledger': ledger,
+                        'amount': abs(balance),  # Use absolute value for expense display
+                        'name': name,
+                        'parent': ledger.get('parent', '')
+                    })
+                    seen_names.add(name)
         
         logger.info(f"_top_expenses: Found {len(expense_ledgers)} expense ledgers")
         
