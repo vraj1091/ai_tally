@@ -1,0 +1,51 @@
+<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- OLD OPTION 1: HEXAGONAL TECH LOGO -->
+  <defs>
+    <linearGradient id="hex1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#6366f1"/>
+      <stop offset="100%" style="stop-color:#8b5cf6"/>
+    </linearGradient>
+    <linearGradient id="hex2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#4f46e5"/>
+      <stop offset="100%" style="stop-color:#7c3aed"/>
+    </linearGradient>
+    <filter id="glow1">
+      <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+      <feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="shadow1">
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  
+  <!-- Outer Hexagon -->
+  <polygon points="100,10 178,55 178,145 100,190 22,145 22,55" fill="url(#hex1)" filter="url(#shadow1)"/>
+  
+  <!-- Inner Hexagon -->
+  <polygon points="100,30 158,65 158,135 100,170 42,135 42,65" fill="url(#hex2)" opacity="0.9"/>
+  
+  <!-- Center Hexagon -->
+  <polygon points="100,50 138,75 138,125 100,150 62,125 62,75" fill="white" opacity="0.15"/>
+  
+  <!-- Bar Chart Icon -->
+  <g transform="translate(60, 70)">
+    <rect x="0" y="40" width="16" height="30" rx="3" fill="white" opacity="0.95"/>
+    <rect x="22" y="25" width="16" height="45" rx="3" fill="white" filter="url(#glow1)"/>
+    <rect x="44" y="10" width="16" height="60" rx="3" fill="white" opacity="0.95"/>
+    <rect x="66" y="30" width="16" height="40" rx="3" fill="white" opacity="0.95"/>
+  </g>
+  
+  <!-- Upward Arrow -->
+  <path d="M 100 45 L 115 60 L 107 60 L 107 75 L 93 75 L 93 60 L 85 60 Z" fill="#10b981" filter="url(#glow1)"/>
+  
+  <!-- Connecting Lines -->
+  <g stroke="white" stroke-width="1.5" opacity="0.4">
+    <line x1="60" y1="55" x2="140" y2="55"/>
+    <line x1="55" y1="145" x2="145" y2="145"/>
+  </g>
+  
+  <!-- Tech Dots -->
+  <circle cx="45" cy="100" r="4" fill="white" opacity="0.6"/>
+  <circle cx="155" cy="100" r="4" fill="white" opacity="0.6"/>
+  <circle cx="100" cy="175" r="3" fill="#10b981"/>
+</svg>
