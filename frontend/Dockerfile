@@ -15,7 +15,7 @@ COPY . .
 
 # Build arguments for environment variables
 ARG VITE_API_URL=http://107.21.87.222:8000/api
-ARG VITE_WS_URL=ws://107.21.87.222:8000
+ARG VITE_WS_URL=wss://107.21.87.222:8000
 ENV VITE_API_URL=$VITE_API_URL
 ENV VITE_WS_URL=$VITE_WS_URL
 

@@ -23,7 +23,7 @@ executor = ThreadPoolExecutor(max_workers=4)
 
 # Configuration
 # Use port 80 (nginx) instead of 8000 - nginx proxies /ws/ to backend
-BACKEND_URL = "ws://107.21.87.222"  # Your EC2 backend (via nginx on port 80)
+BACKEND_URL = "wss://107.21.87.222"  # Your EC2 backend (via nginx on port 443)
 TALLY_URL = "http://localhost:9000"  # Local Tally Gateway
 USER_TOKEN = "user_tally_bridge"     # Unique identifier for this bridge
 
